@@ -1,0 +1,29 @@
+# Base de datos local para desarrollo.
+# Uso:  docker compose up -d     (iniciar)
+#       docker compose down      (detener; los datos se conservan en el volumen)
+#
+# Se expone en el puerto 5433 para no chocar con un PostgreSQL instalado en la PC (5432).
+name: gestion-insumos-medicos
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: inventario-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventario
+      POSTGRES_USER: inventario
+      POSTGRES_PASSWORD: inventario # solo para desarrollo local
+      TZ: America/Lima
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventario-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventario -d inventario"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  inventario-data:

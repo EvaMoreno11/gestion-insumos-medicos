@@ -1,0 +1,29 @@
+# ------------------------------------------------------------------
+# Datos reales del negocio (inventario, precios, clientes, pedidos).
+# NUNCA se suben al repositorio público.
+# ------------------------------------------------------------------
+datos/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Frontend (Node / Vite)
+node_modules/
+frontend/dist/
+*.local
+
+# Backend (Maven) — ver también backend/.gitignore
+backend/target/
+
+# Archivos temporales de Excel/Office
+~$*
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/
