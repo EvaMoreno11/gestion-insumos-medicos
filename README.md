@@ -14,13 +14,15 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Detección de duplicados aunque estén escritos distinto ("Gasa estéril 10x10" = "GASA ESTERIL 10 x 10").
 - Buscador "¿tengo esto?" que no distingue mayúsculas ni tildes: `jer 5ml` encuentra "Jeringa 5 ml…" ([cómo funciona](docs/modelo-datos.md#cómo-funciona-el-buscador)).
 - Búsqueda por código de barras.
+- Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
+- Entradas, salidas y ajustes con historial (kárdex). Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
+- Semáforo de stock (agotado, bajo, normal) en el buscador.
+- Alertas de stock bajo, lotes por vencer y lotes vencidos.
+- Importación del inventario desde la [plantilla de Excel](docs/plantilla_inventario.xlsx): modo de validación, reporte de errores por fila y todo o nada.
 
 **Planificadas para la primera versión**
-- Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes.
-- Alertas de stock bajo y de productos próximos a vencer.
 - Pedidos ítem por ítem que muestran en tiempo real qué está disponible, qué es parcial y qué no hay.
 - Despacho de pedidos en una sola transacción y exportación a Excel con lote y F.V.
-- Importación del inventario inicial desde Excel.
 
 **A futuro**
 - Reconocer listas pegadas desde WhatsApp.
@@ -31,7 +33,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 
 | Capa | Tecnología |
 |---|---|
-| Backend | Java 25, Spring Boot 4, Spring Data JPA, Bean Validation |
+| Backend | Java 25, Spring Boot 4, Spring Data JPA, Bean Validation, Apache POI (Excel) |
 | Base de datos | PostgreSQL 17, migraciones con Flyway |
 | Documentación API | OpenAPI / Swagger UI (springdoc) |
 | Tests | JUnit 5, MockMvc, Testcontainers |
@@ -59,6 +61,12 @@ El backend está organizado **por funcionalidad**: cada paquete (`categoria`, `p
 | `GET` | `/api/productos/codigo-barras/{codigo}` | Buscar por código de barras |
 | `POST` / `PUT` | `/api/productos[/{id}]` | Registrar o actualizar |
 | `PATCH` | `/api/productos/{id}/desactivar` · `/activar` | Desactivar o reactivar |
+| `POST` | `/api/movimientos/entrada` | Ingresar unidades a un lote (lo crea si no existe) |
+| `POST` | `/api/movimientos/salida` | Sacar unidades por FEFO, o de un lote específico |
+| `POST` | `/api/movimientos/ajuste` | Corregir un lote a la cantidad real |
+| `GET` | `/api/movimientos?productoId=` | Historial de un producto |
+| `GET` | `/api/alertas/stock-bajo` · `/por-vencer?dias=` · `/vencidos` | Alertas |
+| `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de Excel (por defecto solo valida) |
 
 Los errores siguen el estándar *Problem Details* (RFC 9457). Por ejemplo, un `400` indica qué campo falló y por qué.
 
@@ -78,7 +86,7 @@ cd backend
 - Estado de la API: http://localhost:8080/api/health
 - Documentación interactiva: http://localhost:8080/swagger-ui.html
 
-`spring-boot:run` usa el perfil **dev**, que carga unos 20 productos de demostración con marcas ficticias. El `.jar` de producción no los carga.
+`spring-boot:run` usa el perfil **dev**, que carga unos 20 productos y lotes de demostración con marcas ficticias. Incluye todos los casos: stock bajo, agotado, por vencer y vencido. El `.jar` de producción no los carga.
 
 ### Tests
 
@@ -93,7 +101,7 @@ Los tests de integración levantan su propio PostgreSQL temporal con Testcontain
 
 - [x] **Fase 0:** entorno, estructura del repositorio y API base
 - [x] **Fase 1:** catálogo de productos y categorías, buscador e integración continua
-- [ ] **Fase 2:** lotes, entradas, salidas FEFO, alertas e importación desde Excel
+- [x] **Fase 2:** lotes, entradas, salidas FEFO, alertas e importación desde Excel
 - [ ] **Fase 3:** pedidos, verificación de disponibilidad y exportación a Excel
 - [ ] **Fase 4:** frontend móvil (PWA)
 - [ ] **Fase 5:** autenticación y despliegue

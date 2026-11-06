@@ -3,8 +3,10 @@ package com.evamoreno.inventario.producto;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import com.evamoreno.inventario.common.ConflictoException;
 import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.common.TextoBusqueda;
+import com.evamoreno.inventario.stock.StockService;
 
 @Service
 @Transactional
@@ -27,12 +30,14 @@ public class ProductoService {
     private final ProductoRepository productos;
     private final CodigoBarrasRepository codigosBarras;
     private final CategoriaService categorias;
+    private final StockService stock;
 
     public ProductoService(ProductoRepository productos, CodigoBarrasRepository codigosBarras,
-            CategoriaService categorias) {
+            CategoriaService categorias, StockService stock) {
         this.productos = productos;
         this.codigosBarras = codigosBarras;
         this.categorias = categorias;
+        this.stock = stock;
     }
 
     // ------------------------------------------------------------------ consultas
@@ -42,14 +47,17 @@ public class ProductoService {
             int pagina, int tamano) {
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0),
                 Math.clamp(tamano, 1, TAMANO_MAXIMO_PAGINA), ORDEN);
-        return Pagina.de(
-                productos.findAll(ProductoEspecificaciones.filtrar(buscar, categoriaId, incluirInactivos), pageRequest),
-                ProductoResumen::de);
+        Page<Producto> page = productos.findAll(
+                ProductoEspecificaciones.filtrar(buscar, categoriaId, incluirInactivos), pageRequest);
+        // Stock de toda la página en UNA consulta (no una por producto)
+        Map<Long, Integer> disponibles = stock.disponiblePorProducto(
+                page.getContent().stream().map(Producto::getId).toList());
+        return Pagina.de(page, p -> ProductoResumen.de(p, disponibles.getOrDefault(p.getId(), 0)));
     }
 
     @Transactional(readOnly = true)
     public ProductoDetalle obtener(Long id) {
-        return ProductoDetalle.de(buscarEntidad(id));
+        return detalle(buscarEntidad(id));
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +65,7 @@ public class ProductoService {
         ProductoCodigoBarras codigoBarras = codigosBarras.findByCodigo(codigo.trim())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                         "Ningún producto tiene el código de barras " + codigo));
-        return ProductoDetalle.de(codigoBarras.getProducto());
+        return detalle(codigoBarras.getProducto());
     }
 
     // ------------------------------------------------------------------ cambios
@@ -74,7 +82,7 @@ public class ProductoService {
         Producto producto = new Producto(codigo, datos.nombre(), datos.marca(), datos.presentacion(),
                 datos.unidadMedida(), datos.stockMinimo(), categoria);
         producto.reemplazarCodigosBarras(datos.codigosBarras());
-        return ProductoDetalle.de(productos.save(producto));
+        return detalle(productos.save(producto));
     }
 
     public ProductoDetalle actualizar(Long id, ProductoRequest request) {
@@ -94,7 +102,7 @@ public class ProductoService {
                 datos.stockMinimo(), categoria);
         producto.reemplazarCodigosBarras(datos.codigosBarras());
         productos.flush(); // para que la respuesta traiga la fecha de actualización
-        return ProductoDetalle.de(producto);
+        return detalle(producto);
     }
 
     /** Los productos no se borran (tendrán historial de movimientos): se desactivan. */
@@ -102,10 +110,14 @@ public class ProductoService {
         Producto producto = buscarEntidad(id);
         producto.setActivo(activo);
         productos.flush();
-        return ProductoDetalle.de(producto);
+        return detalle(producto);
     }
 
     // ------------------------------------------------------------------ reglas
+
+    private ProductoDetalle detalle(Producto producto) {
+        return ProductoDetalle.de(producto, stock.lotesConStock(producto.getId()), stock.hoy());
+    }
 
     private Producto buscarEntidad(Long id) {
         return productos.findWithDetalleById(id)
