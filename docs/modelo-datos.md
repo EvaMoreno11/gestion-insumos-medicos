@@ -51,7 +51,51 @@ Al guardar un producto se calcula `texto_busqueda`: el código, el nombre, la ma
 | Palabra normal | Coincide con el **inicio** de una palabra | `jer` → **jer**inga |
 | Número o letra suelta | Debe ser la palabra **completa** | `5` → "5 ml", pero no "x 50"; `m` → "talla M", pero no "Marca" |
 
+## Fase 2: Stock por lote
+
+```mermaid
+erDiagram
+    PRODUCTO ||--o{ LOTE : tiene
+    LOTE ||--o{ MOVIMIENTO : registra
+
+    LOTE {
+        bigint id PK
+        bigint producto_id FK
+        varchar numero_lote "opcional; único por producto (en mayúsculas)"
+        date fecha_vencimiento "opcional"
+        int cantidad_actual ">= 0"
+        timestamptz fecha_ingreso
+    }
+    MOVIMIENTO {
+        bigint id PK
+        bigint lote_id FK
+        varchar tipo "ENTRADA | SALIDA | AJUSTE"
+        int cantidad "positiva; en AJUSTE lleva signo"
+        int stock_resultante "cantidad del lote después del movimiento"
+        varchar nota
+        timestamptz fecha
+    }
+```
+
+### Reglas
+
+- **Stock de un producto = suma de sus lotes.** Solo cuenta como *disponible* lo que no está vencido. Un lote se puede usar hasta el mismo día de su vencimiento.
+- **FEFO:** una salida toma primero del lote que vence antes y los lotes sin vencimiento van al final. Si no alcanza el stock, **no sale nada** (409).
+- **Los lotes vencidos nunca se despachan.** Para sacarlos del inventario se registra un **ajuste** a 0 ("baja por vencimiento").
+- **Un número de lote no se repite en el mismo producto.** Si llega una entrada con el mismo número y otra fecha de vencimiento, se rechaza, porque probablemente es un error de digitación. Solo puede haber un lote "sin número" por producto (`UNIQUE NULLS NOT DISTINCT`).
+- **La cantidad de un lote solo cambia mediante un movimiento.** Los métodos que la modifican son *package-private* y solo los usa `MovimientoService`, así no hay cambios de stock sin historial.
+- **Concurrencia:** las salidas bloquean los lotes que van a usar (`SELECT … FOR UPDATE`). Si dos personas despachan a la vez, la segunda espera a la primera y no se descuentan las mismas unidades dos veces.
+
+### Importación desde Excel
+
+`POST /api/importacion/inventario` lee la hoja **Inventario** de la [plantilla](plantilla_inventario.xlsx), con una fila por lote:
+
+1. **Valida cada fila:** columnas obligatorias, números enteros y fechas `dd/mm/aaaa`. Si la fecha es `mm/aaaa`, se toma el último día del mes.
+2. **Crea lo que falta:** categorías (reconocidas sin importar tildes) y productos (reconocidos por código o por nombre, marca y presentación).
+3. **Registra una entrada** por cada fila con cantidad.
+4. **Todo o nada:** todo ocurre en una transacción. Si una sola fila tiene error, no se guarda ninguna y el reporte indica fila y motivo.
+5. **`soloValidar=true`** (el valor por defecto) ejecuta los mismos pasos y al final deshace todo. Así la vista previa detecta exactamente los mismos problemas que la importación real.
+
 ## Próximas fases
 
-- **Fase 2:** `lote` (número de lote, fecha de vencimiento, cantidad) y `movimiento` (entradas, salidas y ajustes).
-- **Fase 3:** `cliente`, `pedido` y `pedido_item`.
+- **Fase 3:** `cliente`, `pedido` y `pedido_item`. Las salidas de un pedido quedarán vinculadas a sus ítems.
