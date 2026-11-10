@@ -19,7 +19,8 @@ public record EntradaRequest(
         @Pattern(regexp = "^[\\sA-Za-z0-9./-]*$", message = "Solo letras, números, puntos, barras y guiones")
         String numeroLote,
 
-        @Schema(description = "Opcional. Formato aaaa-mm-dd", example = "2027-03-15")
+        @Schema(description = "Opcional. Solo cuentan el mes y el año: se guarda el último día de ese mes",
+                example = "2027-03-31")
         LocalDate fechaVencimiento,
 
         @Schema(example = "12")

@@ -134,9 +134,45 @@ class ImportacionControllerTest extends IntegracionTest {
         mockMvc.perform(get("/api/productos/codigo-barras/{codigo}", "2000000000039"))
                 .andExpect(jsonPath("$.stockDisponible").value(20))
                 .andExpect(jsonPath("$.lotes[*].numeroLote", contains("L1", "L2")))
-                .andExpect(jsonPath("$.lotes[1].fechaVencimiento").value("2030-01-31")); // último día del mes
+                .andExpect(jsonPath("$.lotes[0].fechaVencimiento").value("2026-09-30"))  // 23/09 -> fin de mes
+                .andExpect(jsonPath("$.lotes[1].fechaVencimiento").value("2030-01-31")); // 01/2030 -> fin de mes
 
         mockMvc.perform(get("/api/categorias")).andExpect(jsonPath("$", hasSize(12)));
+    }
+
+    /** Agrega el costo (columna M) a una fila de la plantilla. */
+    private static Object[] conCosto(Object[] fila, Object costo) {
+        Object[] completa = java.util.Arrays.copyOf(fila, 13);
+        completa[12] = costo;
+        return completa;
+    }
+
+    @Test
+    void importaElCostoYLaAppCalculaLosPrecios() throws Exception {
+        // El costo es del producto: basta con que venga en una de sus filas
+        importar(excel(conCosto(jeringaLote1(), 8.5), jeringaLote2()), false)
+                .andExpect(jsonPath("$.importado").value(true))
+                .andExpect(jsonPath("$.errores", empty()));
+
+        mockMvc.perform(get("/api/productos/codigo-barras/{codigo}", "2000000000039"))
+                .andExpect(jsonPath("$.costo").value(8.5))
+                .andExpect(jsonPath("$.precios[*].precio", contains(9.35, 9.78, 10.2)));
+
+        // Volver a importar con otro costo lo actualiza
+        importar(excel(conCosto(jeringaLote1(), "9,00")), false).andExpect(jsonPath("$.importado").value(true));
+        mockMvc.perform(get("/api/productos/codigo-barras/{codigo}", "2000000000039"))
+                .andExpect(jsonPath("$.costo").value(9.0));
+    }
+
+    @Test
+    void rechazaDosCostosDistintosParaElMismoProducto() throws Exception {
+        importar(excel(conCosto(jeringaLote1(), 8.5), conCosto(jeringaLote2(), 9)), false)
+                .andExpect(jsonPath("$.importado").value(false))
+                .andExpect(jsonPath("$.errores[*].fila", contains(3)))
+                .andExpect(jsonPath("$.errores[0].mensaje", containsString("tiene otro costo (8.5)")));
+
+        importar(excel(conCosto(jeringaLote1(), "caro")), false)
+                .andExpect(jsonPath("$.errores[0].mensaje", containsString("Costo:")));
     }
 
     @Test

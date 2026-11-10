@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import com.evamoreno.inventario.IntegracionTest;
 import com.jayway.jsonpath.JsonPath;
 
+/** "Hoy" es el 15/06/2026 (reloj fijo de los tests). */
 class MovimientoControllerTest extends IntegracionTest {
 
     @Autowired
@@ -114,6 +115,27 @@ class MovimientoControllerTest extends IntegracionTest {
         entrada("L-1", null, 5).andExpect(status().isConflict());
     }
 
+    @Test
+    void delVencimientoSoloCuentanElMesYElAno() throws Exception {
+        // Cualquier día de marzo de 2027 se guarda como 31/03/2027
+        entrada("L-1", LocalDate.of(2027, 3, 1), 2)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.movimientos[0].fechaVencimiento").value("2027-03-31"));
+
+        // Mismo lote con otro día del mismo mes: es el mismo vencimiento, se suma
+        entrada("L-1", LocalDate.of(2027, 3, 20), 3)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.movimientos[0].stockResultanteLote").value(5));
+
+        // Un lote que vence este mes (junio) se puede usar hasta el último día del mes
+        entrada("L-2", hoy.withDayOfMonth(1), 4);
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.stockDisponible").value(9))
+                .andExpect(jsonPath("$.stockVencido").value(0))
+                .andExpect(jsonPath("$.lotes[0].numeroLote").value("L-2"))
+                .andExpect(jsonPath("$.lotes[0].vencido").value(false));
+    }
+
     // ------------------------------------------------------------------ salidas FEFO
 
     @Test
@@ -121,7 +143,7 @@ class MovimientoControllerTest extends IntegracionTest {
         entrada("A", hoy.plusDays(100), 4);
         entrada("B", hoy.plusDays(30), 3);
         entrada("C", null, 10);                    // sin vencimiento: va al final
-        Long vencido = idLote(entrada("D", hoy.minusDays(1), 5)); // vencido: nunca se despacha
+        Long vencido = idLote(entrada("D", hoy.minusMonths(1), 5)); // vencido: nunca se despacha
 
         mockMvc.perform(get("/api/productos/{id}", productoId))
                 .andExpect(jsonPath("$.stockDisponible").value(17))
@@ -148,7 +170,7 @@ class MovimientoControllerTest extends IntegracionTest {
     @Test
     void siNoAlcanzaElStockNoSacaNada() throws Exception {
         entrada("A", hoy.plusDays(100), 4);
-        entrada("B", hoy.minusDays(10), 50); // vencido: no cuenta
+        entrada("B", hoy.minusMonths(1), 50); // vencido: no cuenta
 
         salida(5, null)
                 .andExpect(status().isConflict())
@@ -179,7 +201,7 @@ class MovimientoControllerTest extends IntegracionTest {
 
     @Test
     void unAjusteDejaElLoteConLaCantidadRealYQuedaEnElHistorial() throws Exception {
-        Long vencido = idLote(entrada("D", hoy.minusDays(3), 5));
+        Long vencido = idLote(entrada("D", hoy.minusMonths(1), 5));
         entrada("A", hoy.plusDays(90), 10);
         salida(2, null);
 
@@ -218,7 +240,7 @@ class MovimientoControllerTest extends IntegracionTest {
     @Test
     void elBuscadorMuestraElStockDisponible() throws Exception {
         entrada("A", hoy.plusDays(60), 7);
-        entrada("B", hoy.minusDays(1), 100);
+        entrada("B", hoy.minusMonths(1), 100);
 
         mockMvc.perform(get("/api/productos").param("buscar", "jeringa 5"))
                 .andExpect(jsonPath("$.contenido[0].stockDisponible").value(7))

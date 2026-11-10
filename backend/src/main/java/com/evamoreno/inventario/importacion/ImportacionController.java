@@ -20,13 +20,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/importacion")
-@Tag(name = "Importación", description = "Carga del inventario desde la plantilla de Excel")
+@Tag(name = "Importación", description = "Carga inicial de inventario y de clientes desde las plantillas de Excel")
 public class ImportacionController {
 
     private final ImportacionService service;
+    private final ImportacionClientesService clientesService;
 
-    public ImportacionController(ImportacionService service) {
+    public ImportacionController(ImportacionService service, ImportacionClientesService clientesService) {
         this.service = service;
+        this.clientesService = clientesService;
     }
 
     @PostMapping(value = "/inventario", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -38,12 +40,31 @@ public class ImportacionController {
             @Parameter(description = "Archivo .xlsx") @RequestPart("archivo") MultipartFile archivo,
             @Parameter(description = "true: solo revisar (no guarda). false: importar de verdad.")
             @RequestParam(defaultValue = "true") boolean soloValidar) throws IOException {
+        validarExcel(archivo);
+        try (InputStream contenido = archivo.getInputStream()) {
+            return service.importar(contenido, soloValidar);
+        }
+    }
+
+    @PostMapping(value = "/clientes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Importar clientes desde Excel",
+            description = "Lee la hoja \"Clientes\" de la plantilla (docs/plantilla_clientes.xlsx), con una fila por "
+                    + "local: las filas con el mismo nombre forman un solo cliente. Por defecto SOLO VALIDA. "
+                    + "Los clientes que ya existen no se modifican. Si alguna fila tiene errores, no se guarda nada.")
+    public ResultadoImportacionClientes importarClientes(
+            @Parameter(description = "Archivo .xlsx") @RequestPart("archivo") MultipartFile archivo,
+            @Parameter(description = "true: solo revisar (no guarda). false: importar de verdad.")
+            @RequestParam(defaultValue = "true") boolean soloValidar) throws IOException {
+        validarExcel(archivo);
+        try (InputStream contenido = archivo.getInputStream()) {
+            return clientesService.importar(contenido, soloValidar);
+        }
+    }
+
+    private static void validarExcel(MultipartFile archivo) {
         String nombre = archivo.getOriginalFilename() == null ? "" : archivo.getOriginalFilename();
         if (archivo.isEmpty() || !nombre.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
             throw new SolicitudInvalidaException("Sube un archivo Excel .xlsx (puedes partir de la plantilla)");
-        }
-        try (InputStream contenido = archivo.getInputStream()) {
-            return service.importar(contenido, soloValidar);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.evamoreno.inventario.importacion;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -87,6 +88,7 @@ public class ImportacionService {
         private final Map<String, Categoria> categoriasPorNombre = new HashMap<>();
         private final Set<Long> creados = new HashSet<>();
         private final Set<Long> existentes = new HashSet<>();
+        private final Map<Long, BigDecimal> costosDelArchivo = new HashMap<>();
         private int categoriasCreadas;
         private int entradas;
         private long unidades;
@@ -115,11 +117,26 @@ public class ImportacionService {
 
         private void procesar(Fila fila) {
             Long productoId = buscarOCrearProducto(fila, categoria(fila.categoria()));
+            registrarCosto(fila, productoId);
             if (fila.cantidad() > 0) {
                 movimientoService.registrarEntrada(new EntradaRequest(productoId, fila.numeroLote(),
                         fila.fechaVencimiento(), fila.cantidad(), "Importación de inventario (fila " + fila.numero() + ")"));
                 entradas++;
                 unidades += fila.cantidad();
+            }
+        }
+
+        /** El costo es del producto, no del lote: todas las filas de un producto deben traer el mismo. */
+        private void registrarCosto(Fila fila, Long productoId) {
+            if (fila.costo() == null) {
+                return;
+            }
+            BigDecimal anterior = costosDelArchivo.putIfAbsent(productoId, fila.costo());
+            if (anterior == null) {
+                productoService.actualizarCosto(productoId, fila.costo());
+            } else if (anterior.compareTo(fila.costo()) != 0) {
+                throw new ConflictoException("Costo: este producto tiene otro costo ("
+                        + anterior.stripTrailingZeros().toPlainString() + ") en otra fila del archivo");
             }
         }
 
@@ -139,7 +156,7 @@ public class ImportacionService {
 
             if (existente == null) {
                 Long id = productoService.crear(new ProductoRequest(fila.codigo(), fila.nombre(), fila.marca(),
-                        categoria.getId(), fila.presentacion(), fila.unidad(), fila.stockMinimo(),
+                        categoria.getId(), fila.presentacion(), fila.unidad(), fila.stockMinimo(), null,
                         fila.codigosBarras())).id();
                 creados.add(id);
                 return id;

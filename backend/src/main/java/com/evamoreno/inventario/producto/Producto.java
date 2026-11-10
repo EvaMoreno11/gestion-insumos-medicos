@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.producto;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,6 +56,10 @@ public class Producto {
 
     @Column(name = "stock_minimo", nullable = false)
     private int stockMinimo;
+
+    /** Costo de compra. El precio de venta se calcula sumándole el porcentaje del cliente. */
+    @Column(precision = 12, scale = 4)
+    private BigDecimal costo;
 
     @Column(nullable = false)
     private boolean activo = true;
@@ -131,6 +136,14 @@ public class Producto {
     public void setCodigo(String codigo) {
         this.codigo = codigo;
         recalcularCamposDerivados();
+    }
+
+    public void setCosto(BigDecimal costo) {
+        this.costo = costo;
+    }
+
+    public BigDecimal getCosto() {
+        return costo;
     }
 
     public void setActivo(boolean activo) {

@@ -26,7 +26,7 @@ import com.evamoreno.inventario.producto.ProductoRepository;
 @Transactional
 public class MovimientoService {
 
-    private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("MM/yyyy");
     private static final int TAMANO_MAXIMO_PAGINA = 100;
 
     private final ProductoRepository productos;
@@ -47,10 +47,11 @@ public class MovimientoService {
     public ResultadoMovimiento registrarEntrada(EntradaRequest r) {
         Producto producto = productoActivo(r.productoId());
         String numeroLote = normalizarNumeroLote(r.numeroLote());
+        LocalDate vencimiento = Vencimientos.finDeMes(r.fechaVencimiento()); // solo cuentan el mes y el año
 
         Lote lote = lotes.buscarPorNumeroBloqueado(producto.getId(), numeroLote)
-                .map(existente -> validarMismoVencimiento(existente, r.fechaVencimiento()))
-                .orElseGet(() -> lotes.save(new Lote(producto, numeroLote, r.fechaVencimiento())));
+                .map(existente -> validarMismoVencimiento(existente, vencimiento))
+                .orElseGet(() -> lotes.save(new Lote(producto, numeroLote, vencimiento)));
 
         lote.sumar(r.cantidad());
         Movimiento movimiento = movimientos.save(
@@ -150,7 +151,7 @@ public class MovimientoService {
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                         "El lote " + loteId + " no existe o no pertenece al producto " + producto.getCodigo()));
         if (lote.estaVencido(hoy)) {
-            throw new ConflictoException("El lote " + lote.getNumeroLote() + " venció el "
+            throw new ConflictoException("El lote " + lote.getNumeroLote() + " venció en "
                     + formatear(lote.getFechaVencimiento()) + " y no se puede despachar");
         }
         return lote;
