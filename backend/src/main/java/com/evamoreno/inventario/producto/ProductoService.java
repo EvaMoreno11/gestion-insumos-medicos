@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.producto;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -18,6 +19,7 @@ import com.evamoreno.inventario.common.ConflictoException;
 import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.common.TextoBusqueda;
+import com.evamoreno.inventario.precio.CategoriaPrecioService;
 import com.evamoreno.inventario.stock.StockService;
 
 @Service
@@ -31,13 +33,15 @@ public class ProductoService {
     private final CodigoBarrasRepository codigosBarras;
     private final CategoriaService categorias;
     private final StockService stock;
+    private final CategoriaPrecioService categoriasPrecio;
 
     public ProductoService(ProductoRepository productos, CodigoBarrasRepository codigosBarras,
-            CategoriaService categorias, StockService stock) {
+            CategoriaService categorias, StockService stock, CategoriaPrecioService categoriasPrecio) {
         this.productos = productos;
         this.codigosBarras = codigosBarras;
         this.categorias = categorias;
         this.stock = stock;
+        this.categoriasPrecio = categoriasPrecio;
     }
 
     // ------------------------------------------------------------------ consultas
@@ -81,6 +85,7 @@ public class ProductoService {
 
         Producto producto = new Producto(codigo, datos.nombre(), datos.marca(), datos.presentacion(),
                 datos.unidadMedida(), datos.stockMinimo(), categoria);
+        producto.setCosto(datos.costo());
         producto.reemplazarCodigosBarras(datos.codigosBarras());
         return detalle(productos.save(producto));
     }
@@ -100,9 +105,17 @@ public class ProductoService {
 
         producto.actualizarDatos(datos.nombre(), datos.marca(), datos.presentacion(), datos.unidadMedida(),
                 datos.stockMinimo(), categoria);
+        producto.setCosto(datos.costo());
         producto.reemplazarCodigosBarras(datos.codigosBarras());
         productos.flush(); // para que la respuesta traiga la fecha de actualización
         return detalle(producto);
+    }
+
+    /** Cambia solo el costo (lo usa la importación desde Excel). */
+    public void actualizarCosto(Long id, BigDecimal costo) {
+        productos.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el producto con id " + id))
+                .setCosto(costo);
     }
 
     /** Los productos no se borran (tendrán historial de movimientos): se desactivan. */
@@ -116,7 +129,8 @@ public class ProductoService {
     // ------------------------------------------------------------------ reglas
 
     private ProductoDetalle detalle(Producto producto) {
-        return ProductoDetalle.de(producto, stock.lotesConStock(producto.getId()), stock.hoy());
+        return ProductoDetalle.de(producto, stock.lotesConStock(producto.getId()), stock.hoy(),
+                categoriasPrecio.preciosPorCategoria(producto.getCosto()));
     }
 
     private Producto buscarEntidad(Long id) {
@@ -162,7 +176,7 @@ public class ProductoService {
 
     /** Datos del request ya limpios: sin espacios de más, código en mayúsculas, sin duplicados. */
     private record DatosLimpios(String codigo, String nombre, String marca, String presentacion,
-            String unidadMedida, int stockMinimo, List<String> codigosBarras) {
+            String unidadMedida, int stockMinimo, BigDecimal costo, List<String> codigosBarras) {
 
         static DatosLimpios de(ProductoRequest r) {
             String codigo = r.codigo() == null || r.codigo().isBlank()
@@ -178,6 +192,7 @@ public class ProductoService {
                     TextoBusqueda.limpiar(r.presentacion()),
                     TextoBusqueda.limpiar(r.unidadMedida()),
                     r.stockMinimo() == null ? 0 : r.stockMinimo(),
+                    r.costo(),
                     barras);
         }
     }

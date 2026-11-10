@@ -1,8 +1,11 @@
 package com.evamoreno.inventario.producto;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -44,6 +47,12 @@ public record ProductoRequest(
         @Schema(description = "Opcional (por defecto 0). Con cuánto stock avisar", example = "5")
         @PositiveOrZero(message = "Debe ser 0 o más")
         Integer stockMinimo,
+
+        @Schema(description = "Opcional. Costo de compra; el precio de venta = costo + porcentaje del cliente",
+                example = "4.80")
+        @DecimalMin(value = "0", message = "Debe ser 0 o más")
+        @Digits(integer = 8, fraction = 4, message = "Máximo 4 decimales")
+        BigDecimal costo,
 
         @Schema(description = "Opcional. Puede tener varios", example = "[\"7750000000017\"]")
         List<
