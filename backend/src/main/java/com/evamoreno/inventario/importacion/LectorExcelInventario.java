@@ -3,6 +3,7 @@ package com.evamoreno.inventario.importacion;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -24,6 +25,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import com.evamoreno.inventario.common.SolicitudInvalidaException;
 import com.evamoreno.inventario.common.TextoBusqueda;
+import com.evamoreno.inventario.stock.Vencimientos;
 
 /**
  * Lee la hoja "Inventario" de la plantilla (docs/plantilla_inventario.xlsx) y valida cada fila.
@@ -50,7 +52,8 @@ final class LectorExcelInventario {
         CODIGO_BARRAS(false, "codigo de barras", "codigos de barras"),
         NUMERO_LOTE(false, "n de lote", "lote", "numero de lote", "nro de lote"),
         FECHA_VENCIMIENTO(false, "fecha de vencimiento", "vencimiento", "f v"),
-        CANTIDAD(true, "cantidad");
+        CANTIDAD(true, "cantidad"),
+        COSTO(false, "costo");
 
         final boolean obligatoria;
         final List<String> encabezados;
@@ -71,6 +74,7 @@ final class LectorExcelInventario {
                 case CODIGO -> "Código";
                 case CATEGORIA -> "Categoría";
                 case PRESENTACION -> "Presentación";
+                case COSTO -> "Costo";
                 default -> name().charAt(0) + name().substring(1).toLowerCase();
             };
         }
@@ -79,7 +83,7 @@ final class LectorExcelInventario {
     /** Una fila válida del Excel. */
     record Fila(int numero, String codigo, String categoria, String nombre, String marca, String presentacion,
             String unidad, int stockMinimo, List<String> codigosBarras, String numeroLote,
-            LocalDate fechaVencimiento, int cantidad) {
+            LocalDate fechaVencimiento, int cantidad, BigDecimal costo) {
     }
 
     record Lectura(List<Fila> filas, List<ResultadoImportacion.Observacion> errores) {
@@ -183,7 +187,8 @@ final class LectorExcelInventario {
                 codigosBarras(row, columnas),
                 numeroLote,
                 fecha(row, columnas, Columna.FECHA_VENCIMIENTO),
-                cantidad(row, columnas));
+                cantidad(row, columnas),
+                costo(row, columnas));
     }
 
     // ------------------------------------------------------------------ celdas
@@ -227,6 +232,24 @@ final class LectorExcelInventario {
         return cantidad;
     }
 
+    /** Costo: número >= 0 con hasta 4 decimales; acepta "8,50" y "S/ 8.50". */
+    private static BigDecimal costo(Row row, Map<Columna, Integer> columnas) {
+        Integer indice = columnas.get(Columna.COSTO);
+        String texto = indice == null ? null : textoDeCelda(row.getCell(indice));
+        if (texto == null) {
+            return null;
+        }
+        try {
+            BigDecimal valor = new BigDecimal(texto.replace("S/", "").replace(",", ".").trim());
+            if (valor.signum() < 0 || valor.compareTo(BigDecimal.valueOf(1_000_000)) > 0) {
+                throw new ErrorCelda(Columna.COSTO, "debe estar entre 0 y 1 000 000");
+            }
+            return valor.setScale(4, RoundingMode.HALF_UP);
+        } catch (NumberFormatException e) {
+            throw new ErrorCelda(Columna.COSTO, "\"" + texto + "\" no es un número");
+        }
+    }
+
     /** Número entero >= 0; acepta celdas numéricas o texto. */
     private static Integer entero(Row row, Map<Columna, Integer> columnas, Columna columna) {
         Integer indice = columnas.get(columna);
@@ -255,8 +278,8 @@ final class LectorExcelInventario {
             DateTimeFormatter.ofPattern("M-uuuu").withResolverStyle(ResolverStyle.STRICT));
 
     /**
-     * Fecha de Excel o texto dd/mm/aaaa. Si solo trae mes y año (mm/aaaa), se toma el ÚLTIMO día del mes,
-     * porque así se interpreta el vencimiento de los insumos médicos.
+     * Fecha de Excel o texto (dd/mm/aaaa o mm/aaaa). Del vencimiento solo cuentan el mes y el año:
+     * siempre se devuelve el ÚLTIMO día de ese mes, sin importar el día escrito.
      */
     private static LocalDate fecha(Row row, Map<Columna, Integer> columnas, Columna columna) {
         Integer indice = columnas.get(columna);
@@ -265,7 +288,7 @@ final class LectorExcelInventario {
             return null;
         }
         if (tipo(cell) == CellType.NUMERIC) {
-            return DateUtil.getLocalDateTime(cell.getNumericCellValue()).toLocalDate();
+            return Vencimientos.finDeMes(DateUtil.getLocalDateTime(cell.getNumericCellValue()).toLocalDate());
         }
         String texto = textoDeCelda(cell);
         if (texto == null) {
@@ -273,7 +296,7 @@ final class LectorExcelInventario {
         }
         for (DateTimeFormatter formato : FORMATOS_FECHA) {
             try {
-                return LocalDate.parse(texto, formato);
+                return Vencimientos.finDeMes(LocalDate.parse(texto, formato));
             } catch (DateTimeParseException ignorada) {
                 // probar el siguiente formato
             }
@@ -285,11 +308,11 @@ final class LectorExcelInventario {
                 // probar el siguiente formato
             }
         }
-        throw new ErrorCelda(columna, "\"" + texto + "\" no es una fecha válida (usa dd/mm/aaaa)");
+        throw new ErrorCelda(columna, "\"" + texto + "\" no es una fecha válida (usa mm/aaaa)");
     }
 
     /** Tipo real de la celda (si es fórmula, el tipo de su resultado). */
-    private static CellType tipo(Cell cell) {
+    static CellType tipo(Cell cell) {
         return cell.getCellType() == CellType.FORMULA ? cell.getCachedFormulaResultType() : cell.getCellType();
     }
 
@@ -297,7 +320,7 @@ final class LectorExcelInventario {
      * Contenido de la celda como texto, o null si está vacía. Los números se escriben completos
      * (un código de barras 7751234567890 no se convierte en "7.75E+12").
      */
-    private static String textoDeCelda(Cell cell) {
+    static String textoDeCelda(Cell cell) {
         if (cell == null) {
             return null;
         }
