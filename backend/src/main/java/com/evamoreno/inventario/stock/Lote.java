@@ -57,7 +57,7 @@ public class Lote {
         this.fechaVencimiento = fechaVencimiento;
     }
 
-    /** Vencido = su fecha de vencimiento ya pasó. Se puede usar HASTA el mismo día de vencimiento. */
+    /** Vencido = ya pasó su mes de vencimiento (la fecha guardada es el último día de ese mes). */
     public boolean estaVencido(LocalDate hoy) {
         return fechaVencimiento != null && fechaVencimiento.isBefore(hoy);
     }

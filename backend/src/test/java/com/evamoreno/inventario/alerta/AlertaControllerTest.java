@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 
 import com.evamoreno.inventario.IntegracionTest;
 
+/** "Hoy" es el 15/06/2026 (reloj fijo de los tests). Los vencimientos se guardan como fin de mes. */
 class AlertaControllerTest extends IntegracionTest {
 
     @Autowired
@@ -49,8 +50,8 @@ class AlertaControllerTest extends IntegracionTest {
         Long soloVencido = producto("Producto solo vencido", 2);
 
         entrada(normal, "N1", null, 10);
-        entrada(bajo, "B1", hoy.plusDays(100), 3);
-        entrada(soloVencido, "V1", hoy.minusDays(1), 10); // vencido no cuenta: queda agotado
+        entrada(bajo, "B1", hoy.plusMonths(3), 3);
+        entrada(soloVencido, "V1", hoy.minusMonths(1), 10); // vencido no cuenta: queda agotado
 
         mockMvc.perform(get("/api/alertas/stock-bajo"))
                 .andExpect(status().isOk())
@@ -64,19 +65,23 @@ class AlertaControllerTest extends IntegracionTest {
     @Test
     void porVencerSoloIncluyeLotesDentroDeLaVentana() throws Exception {
         Long p = producto("Gasa", 0);
-        entrada(p, "HOY", hoy, 1);
-        entrada(p, "EN-10", hoy.plusDays(10), 2);
-        entrada(p, "EN-40", hoy.plusDays(40), 3);
-        entrada(p, "VENCIDO", hoy.minusDays(1), 4);
+        entrada(p, "ESTE-MES", hoy, 1);                    // vence 30/06: faltan 15 días
+        entrada(p, "PROXIMO-MES", hoy.plusMonths(1), 2);   // vence 31/07: faltan 46 días
+        entrada(p, "EN-6-MESES", hoy.plusMonths(6), 3);
+        entrada(p, "VENCIDO", hoy.minusMonths(1), 4);      // venció el 31/05
 
         mockMvc.perform(get("/api/alertas/por-vencer").param("dias", "30"))
-                .andExpect(jsonPath("$[*].numeroLote", contains("HOY", "EN-10")))
-                .andExpect(jsonPath("$[1].diasParaVencer").value(10))
-                .andExpect(jsonPath("$[1].productoNombre").value("Gasa"));
+                .andExpect(jsonPath("$[*].numeroLote", contains("ESTE-MES")))
+                .andExpect(jsonPath("$[0].fechaVencimiento").value("2026-06-30"))
+                .andExpect(jsonPath("$[0].diasParaVencer").value(15))
+                .andExpect(jsonPath("$[0].productoNombre").value("Gasa"));
+
+        mockMvc.perform(get("/api/alertas/por-vencer").param("dias", "60"))
+                .andExpect(jsonPath("$[*].numeroLote", contains("ESTE-MES", "PROXIMO-MES")));
 
         mockMvc.perform(get("/api/alertas/vencidos"))
                 .andExpect(jsonPath("$[*].numeroLote", contains("VENCIDO")))
-                .andExpect(jsonPath("$[0].diasParaVencer").value(-1));
+                .andExpect(jsonPath("$[0].diasParaVencer").value(-15));
     }
 
     @Test
