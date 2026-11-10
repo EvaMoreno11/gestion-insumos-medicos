@@ -19,6 +19,10 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
 - Alertas de stock bajo, lotes por vencer y lotes vencidos.
 - Importación del inventario desde la [plantilla de Excel](docs/plantilla_inventario.xlsx): modo de validación, reporte de errores por fila y todo o nada.
+- Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
+- **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales.
+- **Categorías de precio** internas (A = 10 %, B = 15 %, C = 20 %, ampliables) que nunca se muestran al cliente.
+- **Clientes** con uno o varios locales de entrega, y carga inicial desde la [plantilla de clientes](docs/plantilla_clientes.xlsx).
 
 **Planificadas para la primera versión**
 - Pedidos ítem por ítem que muestran en tiempo real qué está disponible, qué es parcial y qué no hay.
@@ -66,7 +70,11 @@ El backend está organizado **por funcionalidad**: cada paquete (`categoria`, `p
 | `POST` | `/api/movimientos/ajuste` | Corregir un lote a la cantidad real |
 | `GET` | `/api/movimientos?productoId=` | Historial de un producto |
 | `GET` | `/api/alertas/stock-bajo` · `/por-vencer?dias=` · `/vencidos` | Alertas |
-| `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de Excel (por defecto solo valida) |
+| `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de inventario (por defecto solo valida) |
+| `POST` | `/api/importacion/clientes?soloValidar=` | Importar la plantilla de clientes (por defecto solo valida) |
+| `GET` / `POST` / `PUT` | `/api/clientes[/{id}]` | Buscar, registrar y actualizar clientes y sus locales |
+| `PATCH` | `/api/clientes/{id}/desactivar` · `/activar` | Desactivar o reactivar un cliente |
+| `GET` / `POST` / `PUT` | `/api/categorias-precio[/{id}]` | Categorías de precio (letra y porcentaje) |
 
 Los errores siguen el estándar *Problem Details* (RFC 9457). Por ejemplo, un `400` indica qué campo falló y por qué.
 
@@ -86,7 +94,7 @@ cd backend
 - Estado de la API: http://localhost:8080/api/health
 - Documentación interactiva: http://localhost:8080/swagger-ui.html
 
-`spring-boot:run` usa el perfil **dev**, que carga unos 20 productos y lotes de demostración con marcas ficticias. Incluye todos los casos: stock bajo, agotado, por vencer y vencido. El `.jar` de producción no los carga.
+`spring-boot:run` usa el perfil **dev**, que carga productos, lotes y clientes de demostración con nombres ficticios. Incluye todos los casos: stock bajo, agotado, por vencer y vencido. El `.jar` de producción no los carga.
 
 ### Tests
 
@@ -102,7 +110,8 @@ Los tests de integración levantan su propio PostgreSQL temporal con Testcontain
 - [x] **Fase 0:** entorno, estructura del repositorio y API base
 - [x] **Fase 1:** catálogo de productos y categorías, buscador e integración continua
 - [x] **Fase 2:** lotes, entradas, salidas FEFO, alertas e importación desde Excel
-- [ ] **Fase 3:** pedidos, verificación de disponibilidad y exportación a Excel
+- [x] **Precios y clientes:** costo por producto, porcentaje por cliente, locales e importación de clientes
+- [ ] **Fase 3:** pedidos con precios por cliente, faltantes, lista por comprar y nota de pedido en PDF y Excel
 - [ ] **Fase 4:** frontend móvil (PWA)
 - [ ] **Fase 5:** autenticación y despliegue
 

@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.dev;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -11,6 +12,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import com.evamoreno.inventario.categoria.CategoriaRepository;
+import com.evamoreno.inventario.cliente.ClienteDto;
+import com.evamoreno.inventario.cliente.ClienteRepository;
+import com.evamoreno.inventario.cliente.ClienteService;
 import com.evamoreno.inventario.producto.Producto;
 import com.evamoreno.inventario.producto.ProductoRepository;
 import com.evamoreno.inventario.producto.ProductoRequest;
@@ -21,7 +25,7 @@ import com.evamoreno.inventario.stock.MovimientoService;
 import com.evamoreno.inventario.stock.StockService;
 
 /**
- * Carga productos y lotes de DEMOSTRACIÓN (marcas ficticias) para desarrollar y probar.
+ * Carga productos, lotes y clientes de DEMOSTRACIÓN (nombres ficticios) para desarrollar y probar.
  * Solo corre con el perfil "dev" (al ejecutar con mvnw spring-boot:run) y solo si las tablas están vacías.
  * Nunca se ejecuta en producción.
  *
@@ -102,25 +106,32 @@ class DatosDemoLoader implements ApplicationRunner {
     private final MovimientoService movimientoService;
     private final LoteRepository loteRepository;
     private final StockService stock;
+    private final ClienteService clienteService;
+    private final ClienteRepository clienteRepository;
 
     DatosDemoLoader(ProductoService productoService, ProductoRepository productoRepository,
             CategoriaRepository categoriaRepository, MovimientoService movimientoService,
-            LoteRepository loteRepository, StockService stock) {
+            LoteRepository loteRepository, StockService stock, ClienteService clienteService,
+            ClienteRepository clienteRepository) {
         this.productoService = productoService;
         this.productoRepository = productoRepository;
         this.categoriaRepository = categoriaRepository;
         this.movimientoService = movimientoService;
         this.loteRepository = loteRepository;
         this.stock = stock;
+        this.clienteService = clienteService;
+        this.clienteRepository = clienteRepository;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         if (productoRepository.count() == 0) {
-            for (Demo d : PRODUCTOS) {
+            for (int i = 0; i < PRODUCTOS.size(); i++) {
+                Demo d = PRODUCTOS.get(i);
                 Long categoriaId = categoriaRepository.findByNombreIgnoreCase(d.categoria()).orElseThrow().getId();
+                BigDecimal costo = BigDecimal.valueOf(250 + 135L * i, 2); // costos inventados: 2.50, 3.85, 5.20...
                 productoService.crear(new ProductoRequest(null, d.nombre(), d.marca(), categoriaId, d.presentacion(),
-                        d.unidad(), d.stockMinimo(), d.codigosBarras()));
+                        d.unidad(), d.stockMinimo(), costo, d.codigosBarras()));
             }
             log.info("Perfil dev: se cargaron {} productos de demostración", PRODUCTOS.size());
         }
@@ -135,13 +146,27 @@ class DatosDemoLoader implements ApplicationRunner {
                     continue;
                 }
                 for (LoteDemo l : d.lotes()) {
-                    LocalDate vence = l.diasParaVencer() == null ? null : hoy.plusDays(l.diasParaVencer());
+                    // El vencimiento se guarda por mes: los "vencidos" van al mes anterior
+                    LocalDate vence = l.diasParaVencer() == null ? null
+                            : l.diasParaVencer() < 0 ? hoy.minusMonths(1) : hoy.plusDays(l.diasParaVencer());
                     movimientoService.registrarEntrada(new EntradaRequest(producto.getId(), l.numero(), vence,
                             l.cantidad(), "Datos de demostración"));
                     cargados++;
                 }
             }
             log.info("Perfil dev: se cargaron {} lotes de demostración", cargados);
+        }
+        if (clienteRepository.count() == 0) {
+            clienteService.crear(new ClienteDto.Request("Botica Demo S.A.C.", "20123456789", new BigDecimal("15"), null,
+                    List.of(new ClienteDto.LocalRequest(null, "Local 1", "Av. Los Olivos 123, Los Olivos", "Dra. Ana",
+                                    "987654321"),
+                            new ClienteDto.LocalRequest(null, "Local 2", "Jr. Las Flores 456, Comas", "Sr. Luis",
+                                    "912345678"))));
+            clienteService.crear(new ClienteDto.Request("Clínica Ejemplo", "20987654321", new BigDecimal("10"), null,
+                    List.of(new ClienteDto.LocalRequest(null, null, "Av. Central 789, Lima", "Srta. Rosa", null))));
+            clienteService.crear(new ClienteDto.Request("Consultorio Dr. Pérez", null, null,
+                    "Sin porcentaje: la app lo pedirá en su primer pedido", null));
+            log.info("Perfil dev: se cargaron 3 clientes de demostración");
         }
     }
 }
