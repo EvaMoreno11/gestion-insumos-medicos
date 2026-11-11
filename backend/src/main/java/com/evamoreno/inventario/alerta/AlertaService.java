@@ -12,6 +12,7 @@ import com.evamoreno.inventario.producto.Producto;
 import com.evamoreno.inventario.producto.ProductoRepository;
 import com.evamoreno.inventario.producto.ProductoResumen;
 import com.evamoreno.inventario.stock.LoteRepository;
+import com.evamoreno.inventario.stock.StockComprometido;
 import com.evamoreno.inventario.stock.StockService;
 
 @Service
@@ -21,19 +22,24 @@ public class AlertaService {
     private final ProductoRepository productos;
     private final LoteRepository lotes;
     private final StockService stock;
+    private final StockComprometido comprometido;
 
-    public AlertaService(ProductoRepository productos, LoteRepository lotes, StockService stock) {
+    public AlertaService(ProductoRepository productos, LoteRepository lotes, StockService stock,
+            StockComprometido comprometido) {
         this.productos = productos;
         this.lotes = lotes;
         this.stock = stock;
+        this.comprometido = comprometido;
     }
 
     /** Productos activos con stock disponible menor o igual al mínimo. Primero los agotados. */
     public List<ProductoResumen> stockBajo() {
         List<Long> ids = productos.idsConStockBajo(stock.hoy());
         Map<Long, Integer> disponibles = stock.disponiblePorProducto(ids);
+        Map<Long, Integer> pedidos = comprometido.pedidoEnBorradores(ids);
         return productos.findAllByIdIn(ids).stream()
-                .map((Producto p) -> ProductoResumen.de(p, disponibles.getOrDefault(p.getId(), 0)))
+                .map((Producto p) -> ProductoResumen.de(p, disponibles.getOrDefault(p.getId(), 0),
+                        pedidos.getOrDefault(p.getId(), 0)))
                 .sorted(Comparator.comparingInt(ProductoResumen::stockDisponible)
                         .thenComparing(ProductoResumen::nombre))
                 .toList();

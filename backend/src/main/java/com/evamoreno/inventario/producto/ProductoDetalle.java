@@ -8,11 +8,14 @@ import java.util.List;
 import com.evamoreno.inventario.precio.CategoriaPrecioDto.PrecioCategoria;
 import com.evamoreno.inventario.stock.Lote;
 import com.evamoreno.inventario.stock.LoteResponse;
+import com.evamoreno.inventario.stock.StockComprometido;
 
 /**
  * Todos los datos de un producto, con su stock y sus lotes.
  *
  * @param stockDisponible unidades en lotes no vencidos (las que se pueden despachar)
+ * @param stockSeparado   de lo disponible, lo que esperan los pedidos pendientes (borradores)
+ * @param stockLibre      disponible menos separado: lo que se puede ofrecer a un pedido nuevo
  * @param stockVencido    unidades en lotes vencidos (hay que darlas de baja)
  * @param lotes           lotes con unidades, en orden FEFO (primero el que vence antes)
  * @param costo           costo de compra (dato interno)
@@ -29,6 +32,8 @@ public record ProductoDetalle(
         String categoria,
         int stockMinimo,
         int stockDisponible,
+        int stockSeparado,
+        int stockLibre,
         int stockVencido,
         EstadoStock estadoStock,
         BigDecimal costo,
@@ -39,13 +44,16 @@ public record ProductoDetalle(
         Instant creadoEn,
         Instant actualizadoEn) {
 
-    static ProductoDetalle de(Producto p, List<Lote> lotesConStock, LocalDate hoy, List<PrecioCategoria> precios) {
+    static ProductoDetalle de(Producto p, List<Lote> lotesConStock, LocalDate hoy, List<PrecioCategoria> precios,
+            int pedidoEnBorradores) {
         List<LoteResponse> lotes = lotesConStock.stream().map(l -> LoteResponse.de(l, hoy)).toList();
         int vencido = lotes.stream().filter(LoteResponse::vencido).mapToInt(LoteResponse::cantidad).sum();
         int disponible = lotes.stream().mapToInt(LoteResponse::cantidad).sum() - vencido;
+        int separado = StockComprometido.separado(disponible, pedidoEnBorradores);
         return new ProductoDetalle(p.getId(), p.getCodigo(), p.getNombre(), p.getMarca(), p.getPresentacion(),
                 p.getUnidadMedida(), p.getCategoria().getId(), p.getCategoria().getNombre(), p.getStockMinimo(),
-                disponible, vencido, EstadoStock.de(disponible, p.getStockMinimo()), p.getCosto(), precios, p.isActivo(),
+                disponible, separado, disponible - separado, vencido,
+                EstadoStock.de(disponible, p.getStockMinimo()), p.getCosto(), precios, p.isActivo(),
                 p.getCodigosBarras().stream().map(ProductoCodigoBarras::getCodigo).toList(),
                 lotes, p.getCreadoEn(), p.getActualizadoEn());
     }

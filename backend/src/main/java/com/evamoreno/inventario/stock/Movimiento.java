@@ -42,12 +42,21 @@ public class Movimiento {
     @Column(length = 300)
     private String nota;
 
+    /** Ítem de pedido que originó esta salida (null si no viene de un pedido). */
+    @Column(name = "pedido_item_id")
+    private Long pedidoItemId;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant fecha;
 
     protected Movimiento() {
         // requerido por JPA
+    }
+
+    Movimiento(Lote lote, TipoMovimiento tipo, int cantidad, String nota, Long pedidoItemId) {
+        this(lote, tipo, cantidad, nota);
+        this.pedidoItemId = pedidoItemId;
     }
 
     Movimiento(Lote lote, TipoMovimiento tipo, int cantidad, String nota) {
@@ -76,6 +85,10 @@ public class Movimiento {
 
     public int getStockResultante() {
         return stockResultante;
+    }
+
+    public Long getPedidoItemId() {
+        return pedidoItemId;
     }
 
     public String getNota() {

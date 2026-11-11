@@ -90,6 +90,26 @@ public class MovimientoService {
         return resultado(producto.getId(), registrados);
     }
 
+    /**
+     * Salida FEFO de un ítem de pedido, al despachar. Devuelve las salidas generadas (una por lote),
+     * que quedan vinculadas al ítem para saber qué lotes se entregaron.
+     */
+    public List<Movimiento> registrarSalidaDePedido(Long productoId, int cantidad, Long pedidoItemId, String nota) {
+        Producto producto = productoActivo(productoId);
+        PlanFefo plan = PlanFefo.calcular(lotes.disponiblesParaSalidaBloqueados(productoId, stock.hoy()), cantidad);
+        if (!plan.alcanza()) {
+            throw new ConflictoException("Stock insuficiente de " + producto.getNombre() + ": se pidieron "
+                    + cantidad + " y hay " + plan.cantidadCubierta() + " disponibles");
+        }
+        List<Movimiento> registrados = new ArrayList<>();
+        for (PlanFefo.Asignacion asignacion : plan.asignaciones()) {
+            asignacion.lote().restar(asignacion.cantidad());
+            registrados.add(movimientos.save(new Movimiento(asignacion.lote(), TipoMovimiento.SALIDA,
+                    asignacion.cantidad(), nota, pedidoItemId)));
+        }
+        return registrados;
+    }
+
     // ------------------------------------------------------------------ ajuste
 
     public ResultadoMovimiento registrarAjuste(AjusteRequest r) {
