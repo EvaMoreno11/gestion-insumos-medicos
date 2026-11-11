@@ -142,6 +142,78 @@ erDiagram
 
 `POST /api/importacion/clientes` lee la hoja **Clientes** de la [plantilla](plantilla_clientes.xlsx), con **una fila por local**: las filas con el mismo nombre forman un solo cliente. El RUC y el porcentaje son del cliente, así que no pueden diferir entre sus filas. Funciona igual que la de inventario: valida primero, todo o nada, y los clientes que ya existen no se modifican.
 
+## Fase 3: Pedidos
+
+```mermaid
+erDiagram
+    CLIENTE ||--o{ PEDIDO : hace
+    CLIENTE_LOCAL ||--o{ PEDIDO : "se entrega en"
+    PEDIDO ||--o{ PEDIDO_ITEM : contiene
+    PRODUCTO ||--o{ PEDIDO_ITEM : "se pide en"
+    PEDIDO_ITEM ||--o{ MOVIMIENTO : "sale en"
+
+    PEDIDO {
+        bigint id PK
+        bigint cliente_id FK
+        bigint cliente_local_id FK
+        numeric porcentaje "copia del porcentaje del cliente, editable"
+        varchar estado "BORRADOR | DESPACHADO | ANULADO"
+        varchar numero "0001-007323; se asigna al despachar"
+        varchar nota
+        timestamptz despachado_en
+    }
+    PEDIDO_ITEM {
+        bigint id PK
+        bigint pedido_id FK
+        bigint producto_id FK "NULL = ítem agregado a mano"
+        varchar descripcion "copia del nombre del producto"
+        varchar presentacion
+        varchar marca
+        int cantidad "> 0; puede superar el stock"
+        numeric precio_unitario "NULL = falta definirlo"
+        boolean precio_manual "true = lo escribió el usuario"
+    }
+    NUMERACION_NOTA {
+        varchar serie
+        bigint siguiente
+    }
+    NEGOCIO {
+        varchar nombre
+        varchar direccion
+        varchar telefono
+    }
+```
+
+### Ciclo de vida
+
+```mermaid
+stateDiagram-v2
+    [*] --> BORRADOR: crear
+    BORRADOR --> BORRADOR: agregar, cambiar o quitar ítems
+    BORRADOR --> DESPACHADO: despachar (completo y con precios)
+    BORRADOR --> ANULADO: anular
+    DESPACHADO --> [*]
+    ANULADO --> [*]
+```
+
+### Reglas
+
+- **El precio se guarda en el pedido.** Al agregar un ítem se calcula (costo + porcentaje del pedido) y queda escrito en la línea. Cambiar después el costo del producto o el porcentaje del cliente no altera los pedidos ya hechos.
+- **Precio a mano.** Cualquier línea admite un precio escrito por el usuario (`precio_manual`). Al cambiar el porcentaje del pedido se recalculan solo los precios automáticos.
+- **Primer pedido de un cliente.** Si el cliente aún no tiene porcentaje, hay que indicarlo al crear el pedido y se le guarda para los siguientes.
+- **Se puede pedir más de lo que hay.** El total se calcula con la cantidad pedida y el ítem indica cuánto falta. El pedido queda en borrador hasta que llegue la mercadería.
+- **Prioridad por orden de llegada.** El stock disponible se reparte entre los borradores del más antiguo al más nuevo (`RepartoDeStock`). Con 10 unidades, si el primer pedido pide 8 y el segundo 6, el primero está completo y al segundo le faltan 4. Es un cálculo, no una reserva física: el stock real solo baja al despachar.
+- **El inventario muestra lo separado.** Cada producto informa `stockDisponible`, `stockSeparado` (lo que esperan los borradores) y `stockLibre`. El inventario conoce ese dato mediante la interfaz `StockComprometido`, que implementa el módulo de pedidos: así `producto` no depende de `pedido`.
+- **Ítems a mano.** Un ítem sin `producto_id` es algo que aún no está en el catálogo: aparece en la nota y en "Por comprar", pero no mueve stock.
+- **Despachar es todo o nada.** Exige ítems, precios y cero faltantes. En una sola transacción toma el número de nota (bloqueando la fila de numeración), genera las salidas por FEFO vinculadas a cada ítem y marca el pedido como despachado.
+- **Los lotes se eligen al despachar**, no al tomar el pedido: así no importa que entre tanto hayan llegado lotes nuevos.
+- **Un pedido despachado no se modifica.** Solo los borradores se editan o se anulan.
+
+### Nota de pedido
+
+`GET /api/pedidos/{id}/nota.pdf` y `/nota.xlsx` generan el mismo documento (`NotaPedido`) en dos formatos. Cuando un ítem salió de varios lotes hay **una fila por lote**. No incluye costo, porcentaje ni categoría del cliente. Los datos del encabezado (nombre, dirección y teléfono del negocio) se guardan en la tabla `negocio` y se editan por API: no están en el código.
+
 ## Próximas fases
 
-- **Fase 3:** `pedido` y `pedido_item`, con el precio de cada línea guardado en el pedido. Las salidas de un pedido quedarán vinculadas a sus ítems.
+- **Fase 4:** aplicación web para el celular (PWA) con las pantallas de inventario, pedidos, entradas, clientes y productos.
+- **Fase 5:** autenticación y publicación.
