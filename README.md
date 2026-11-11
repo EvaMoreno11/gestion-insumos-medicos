@@ -28,9 +28,9 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes.
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
 - **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. No incluye costos ni porcentajes.
+- **Aplicación para el celular** (se instala desde el navegador): consultar inventario, armar pedidos con el total en vivo, registrar entradas, ver lo que falta comprar y administrar clientes y productos.
 
 **Planificadas para la primera versión**
-- Aplicación web para el celular (PWA): inventario, pedidos, entradas, clientes y productos.
 - Autenticación y publicación.
 
 **A futuro**
@@ -45,19 +45,21 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 | Backend | Java 25, Spring Boot 4, Spring Data JPA, Bean Validation, Apache POI (Excel), OpenPDF |
 | Base de datos | PostgreSQL 17, migraciones con Flyway |
 | Documentación API | OpenAPI / Swagger UI (springdoc) |
-| Tests | JUnit 5, MockMvc, Testcontainers |
-| Frontend | React, Vite, TypeScript, Tailwind CSS, PWA *(en desarrollo)* |
+| Frontend | React 19, React Router, TypeScript, Vite, Tailwind CSS 4; instalable en el celular (manifiesto web) |
+| Tests | JUnit 5, MockMvc y Testcontainers (backend); Vitest (frontend) |
 
 ## Estructura
 
 ```
 ├── backend/            API REST (Spring Boot)
-├── frontend/           Aplicación web (React)  — próximamente
+├── frontend/           Aplicación web para el celular (React)
 ├── docs/               Documentación y plantilla de carga de inventario
 └── docker-compose.yml  PostgreSQL para desarrollo local
 ```
 
 El backend está organizado **por funcionalidad**: cada paquete (`categoria`, `producto`, …) contiene su entidad, repositorio, servicio, controlador y DTOs. Ver el [modelo de datos](docs/modelo-datos.md).
+
+El frontend separa la comunicación con la API (`src/api`: tipos y una función por operación), los componentes reutilizables (`src/componentes`) y una pantalla por ruta (`src/paginas`). Las reglas de negocio viven en el backend: el frontend solo muestra lo que la API calcula (precios, faltantes, totales).
 
 ## API
 
@@ -108,6 +110,21 @@ cd backend
 
 `spring-boot:run` usa el perfil **dev**, que carga productos, lotes, clientes y pedidos de demostración con nombres ficticios. Incluye todos los casos: stock bajo, agotado, por vencer y vencido. El `.jar` de producción no los carga.
 
+### Aplicación (frontend)
+
+Requisito: **Node 24**. Con la API corriendo:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- En la PC: http://localhost:5173
+- **En el celular**, conectado al mismo wifi: abre la dirección *Network* que muestra `npm run dev` (por ejemplo `http://192.168.1.20:5173`). En iPhone, para instalarla: Safari → Compartir → **Agregar a inicio**.
+
+En desarrollo, Vite reenvía las llamadas a `/api` al backend (puerto 8080), así que no hace falta configurar nada más.
+
 ### Tests
 
 ```bash
@@ -115,7 +132,14 @@ cd backend
 ./mvnw test
 ```
 
-Los tests de integración levantan su propio PostgreSQL temporal con Testcontainers, así que Docker debe estar corriendo. En GitHub, la CI los ejecuta en cada *pull request*.
+Los tests de integración levantan su propio PostgreSQL temporal con Testcontainers, así que Docker debe estar corriendo.
+
+```bash
+cd frontend
+npm run lint && npm test && npm run build
+```
+
+En GitHub, la CI ejecuta ambos grupos en cada *pull request*.
 
 ## Hoja de ruta
 
@@ -124,7 +148,7 @@ Los tests de integración levantan su propio PostgreSQL temporal con Testcontain
 - [x] **Fase 2:** lotes, entradas, salidas FEFO, alertas e importación desde Excel
 - [x] **Precios y clientes:** costo por producto, porcentaje por cliente, locales e importación de clientes
 - [x] **Fase 3:** pedidos con precios por cliente, faltantes, lista por comprar y nota de pedido en PDF y Excel
-- [ ] **Fase 4:** frontend móvil (PWA)
+- [x] **Fase 4:** aplicación para el celular
 - [ ] **Fase 5:** autenticación y despliegue
 
 ## Autora
