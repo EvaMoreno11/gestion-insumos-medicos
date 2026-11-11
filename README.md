@@ -23,10 +23,15 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales.
 - **Categorías de precio** internas (A = 10 %, B = 15 %, C = 20 %, ampliables) que nunca se muestran al cliente.
 - **Clientes** con uno o varios locales de entrega, y carga inicial desde la [plantilla de clientes](docs/plantilla_clientes.xlsx).
+- **Pedidos por cliente:** se arman como borrador, con el precio de cada línea calculado (costo + porcentaje) y editable, y el total siempre actualizado. También admiten ítems escritos a mano que aún no están en el catálogo.
+- **Faltantes con prioridad:** se puede pedir más de lo que hay. El stock se separa para el pedido más antiguo, así dos pedidos nunca aparecen completos contando las mismas unidades.
+- **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes.
+- **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
+- **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. No incluye costos ni porcentajes.
 
 **Planificadas para la primera versión**
-- Pedidos ítem por ítem que muestran en tiempo real qué está disponible, qué es parcial y qué no hay.
-- Despacho de pedidos en una sola transacción y exportación a Excel con lote y F.V.
+- Aplicación web para el celular (PWA): inventario, pedidos, entradas, clientes y productos.
+- Autenticación y publicación.
 
 **A futuro**
 - Reconocer listas pegadas desde WhatsApp.
@@ -37,7 +42,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 
 | Capa | Tecnología |
 |---|---|
-| Backend | Java 25, Spring Boot 4, Spring Data JPA, Bean Validation, Apache POI (Excel) |
+| Backend | Java 25, Spring Boot 4, Spring Data JPA, Bean Validation, Apache POI (Excel), OpenPDF |
 | Base de datos | PostgreSQL 17, migraciones con Flyway |
 | Documentación API | OpenAPI / Swagger UI (springdoc) |
 | Tests | JUnit 5, MockMvc, Testcontainers |
@@ -75,6 +80,13 @@ El backend está organizado **por funcionalidad**: cada paquete (`categoria`, `p
 | `GET` / `POST` / `PUT` | `/api/clientes[/{id}]` | Buscar, registrar y actualizar clientes y sus locales |
 | `PATCH` | `/api/clientes/{id}/desactivar` · `/activar` | Desactivar o reactivar un cliente |
 | `GET` / `POST` / `PUT` | `/api/categorias-precio[/{id}]` | Categorías de precio (letra y porcentaje) |
+| `GET` / `POST` / `PUT` | `/api/pedidos[/{id}]` | Listar, crear y editar pedidos (borradores) |
+| `POST` / `PUT` / `DELETE` | `/api/pedidos/{id}/items[/{itemId}]` | Agregar, cambiar o quitar ítems; devuelve el pedido con su total |
+| `POST` | `/api/pedidos/{id}/despachar` · `/anular` | Despachar (descuenta lotes y numera la nota) o anular |
+| `GET` | `/api/pedidos/por-comprar` | Lista universal de lo que falta comprar |
+| `GET` | `/api/pedidos/{id}/nota.pdf` · `/nota.xlsx` | Nota de pedido para imprimir, enviar o facturar |
+| `GET` / `PUT` | `/api/pedidos/numeracion` | Número de la próxima nota de pedido |
+| `GET` / `PUT` | `/api/negocio` | Datos del negocio para el encabezado de la nota |
 
 Los errores siguen el estándar *Problem Details* (RFC 9457). Por ejemplo, un `400` indica qué campo falló y por qué.
 
@@ -94,7 +106,7 @@ cd backend
 - Estado de la API: http://localhost:8080/api/health
 - Documentación interactiva: http://localhost:8080/swagger-ui.html
 
-`spring-boot:run` usa el perfil **dev**, que carga productos, lotes y clientes de demostración con nombres ficticios. Incluye todos los casos: stock bajo, agotado, por vencer y vencido. El `.jar` de producción no los carga.
+`spring-boot:run` usa el perfil **dev**, que carga productos, lotes, clientes y pedidos de demostración con nombres ficticios. Incluye todos los casos: stock bajo, agotado, por vencer y vencido. El `.jar` de producción no los carga.
 
 ### Tests
 
@@ -111,7 +123,7 @@ Los tests de integración levantan su propio PostgreSQL temporal con Testcontain
 - [x] **Fase 1:** catálogo de productos y categorías, buscador e integración continua
 - [x] **Fase 2:** lotes, entradas, salidas FEFO, alertas e importación desde Excel
 - [x] **Precios y clientes:** costo por producto, porcentaje por cliente, locales e importación de clientes
-- [ ] **Fase 3:** pedidos con precios por cliente, faltantes, lista por comprar y nota de pedido en PDF y Excel
+- [x] **Fase 3:** pedidos con precios por cliente, faltantes, lista por comprar y nota de pedido en PDF y Excel
 - [ ] **Fase 4:** frontend móvil (PWA)
 - [ ] **Fase 5:** autenticación y despliegue
 

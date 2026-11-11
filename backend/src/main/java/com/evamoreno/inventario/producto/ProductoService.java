@@ -20,6 +20,7 @@ import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.common.TextoBusqueda;
 import com.evamoreno.inventario.precio.CategoriaPrecioService;
+import com.evamoreno.inventario.stock.StockComprometido;
 import com.evamoreno.inventario.stock.StockService;
 
 @Service
@@ -34,14 +35,17 @@ public class ProductoService {
     private final CategoriaService categorias;
     private final StockService stock;
     private final CategoriaPrecioService categoriasPrecio;
+    private final StockComprometido comprometido;
 
     public ProductoService(ProductoRepository productos, CodigoBarrasRepository codigosBarras,
-            CategoriaService categorias, StockService stock, CategoriaPrecioService categoriasPrecio) {
+            CategoriaService categorias, StockService stock, CategoriaPrecioService categoriasPrecio,
+            StockComprometido comprometido) {
         this.productos = productos;
         this.codigosBarras = codigosBarras;
         this.categorias = categorias;
         this.stock = stock;
         this.categoriasPrecio = categoriasPrecio;
+        this.comprometido = comprometido;
     }
 
     // ------------------------------------------------------------------ consultas
@@ -54,9 +58,11 @@ public class ProductoService {
         Page<Producto> page = productos.findAll(
                 ProductoEspecificaciones.filtrar(buscar, categoriaId, incluirInactivos), pageRequest);
         // Stock de toda la página en UNA consulta (no una por producto)
-        Map<Long, Integer> disponibles = stock.disponiblePorProducto(
-                page.getContent().stream().map(Producto::getId).toList());
-        return Pagina.de(page, p -> ProductoResumen.de(p, disponibles.getOrDefault(p.getId(), 0)));
+        List<Long> ids = page.getContent().stream().map(Producto::getId).toList();
+        Map<Long, Integer> disponibles = stock.disponiblePorProducto(ids);
+        Map<Long, Integer> pedidos = comprometido.pedidoEnBorradores(ids);
+        return Pagina.de(page, p -> ProductoResumen.de(p, disponibles.getOrDefault(p.getId(), 0),
+                pedidos.getOrDefault(p.getId(), 0)));
     }
 
     @Transactional(readOnly = true)
@@ -130,7 +136,8 @@ public class ProductoService {
 
     private ProductoDetalle detalle(Producto producto) {
         return ProductoDetalle.de(producto, stock.lotesConStock(producto.getId()), stock.hoy(),
-                categoriasPrecio.preciosPorCategoria(producto.getCosto()));
+                categoriasPrecio.preciosPorCategoria(producto.getCosto()),
+                comprometido.pedidoEnBorradores(List.of(producto.getId())).getOrDefault(producto.getId(), 0));
     }
 
     private Producto buscarEntidad(Long id) {

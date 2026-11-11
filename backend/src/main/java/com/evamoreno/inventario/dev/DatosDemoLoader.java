@@ -12,9 +12,13 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import com.evamoreno.inventario.categoria.CategoriaRepository;
+import com.evamoreno.inventario.cliente.Cliente;
 import com.evamoreno.inventario.cliente.ClienteDto;
 import com.evamoreno.inventario.cliente.ClienteRepository;
 import com.evamoreno.inventario.cliente.ClienteService;
+import com.evamoreno.inventario.pedido.PedidoDto;
+import com.evamoreno.inventario.pedido.PedidoRepository;
+import com.evamoreno.inventario.pedido.PedidoService;
 import com.evamoreno.inventario.producto.Producto;
 import com.evamoreno.inventario.producto.ProductoRepository;
 import com.evamoreno.inventario.producto.ProductoRequest;
@@ -25,7 +29,7 @@ import com.evamoreno.inventario.stock.MovimientoService;
 import com.evamoreno.inventario.stock.StockService;
 
 /**
- * Carga productos, lotes y clientes de DEMOSTRACIÓN (nombres ficticios) para desarrollar y probar.
+ * Carga productos, lotes, clientes y pedidos de DEMOSTRACIÓN (nombres ficticios) para desarrollar y probar.
  * Solo corre con el perfil "dev" (al ejecutar con mvnw spring-boot:run) y solo si las tablas están vacías.
  * Nunca se ejecuta en producción.
  *
@@ -108,11 +112,14 @@ class DatosDemoLoader implements ApplicationRunner {
     private final StockService stock;
     private final ClienteService clienteService;
     private final ClienteRepository clienteRepository;
+    private final PedidoService pedidoService;
+    private final PedidoRepository pedidoRepository;
 
     DatosDemoLoader(ProductoService productoService, ProductoRepository productoRepository,
             CategoriaRepository categoriaRepository, MovimientoService movimientoService,
             LoteRepository loteRepository, StockService stock, ClienteService clienteService,
-            ClienteRepository clienteRepository) {
+            ClienteRepository clienteRepository, PedidoService pedidoService,
+            PedidoRepository pedidoRepository) {
         this.productoService = productoService;
         this.productoRepository = productoRepository;
         this.categoriaRepository = categoriaRepository;
@@ -121,6 +128,8 @@ class DatosDemoLoader implements ApplicationRunner {
         this.stock = stock;
         this.clienteService = clienteService;
         this.clienteRepository = clienteRepository;
+        this.pedidoService = pedidoService;
+        this.pedidoRepository = pedidoRepository;
     }
 
     @Override
@@ -129,19 +138,23 @@ class DatosDemoLoader implements ApplicationRunner {
             for (int i = 0; i < PRODUCTOS.size(); i++) {
                 Demo d = PRODUCTOS.get(i);
                 Long categoriaId = categoriaRepository.findByNombreIgnoreCase(d.categoria()).orElseThrow().getId();
-                BigDecimal costo = BigDecimal.valueOf(250 + 135L * i, 2); // costos inventados: 2.50, 3.85, 5.20...
                 productoService.crear(new ProductoRequest(null, d.nombre(), d.marca(), categoriaId, d.presentacion(),
-                        d.unidad(), d.stockMinimo(), costo, d.codigosBarras()));
+                        d.unidad(), d.stockMinimo(), costoDemo(i), d.codigosBarras()));
             }
             log.info("Perfil dev: se cargaron {} productos de demostración", PRODUCTOS.size());
+        }
+        // Bases locales creadas antes de que existiera el costo: completa los costos de demostración
+        for (int i = 0; i < PRODUCTOS.size(); i++) {
+            Producto producto = buscar(PRODUCTOS.get(i));
+            if (producto != null && producto.getCosto() == null) {
+                productoService.actualizarCosto(producto.getId(), costoDemo(i));
+            }
         }
         if (loteRepository.count() == 0) {
             LocalDate hoy = stock.hoy();
             int cargados = 0;
             for (Demo d : PRODUCTOS) {
-                Producto producto = productoRepository
-                        .findByClaveUnica(Producto.calcularClaveUnica(d.nombre(), d.marca(), d.presentacion()))
-                        .orElse(null);
+                Producto producto = buscar(d);
                 if (producto == null) {
                     continue;
                 }
@@ -168,5 +181,50 @@ class DatosDemoLoader implements ApplicationRunner {
                     "Sin porcentaje: la app lo pedirá en su primer pedido", null));
             log.info("Perfil dev: se cargaron 3 clientes de demostración");
         }
+        if (pedidoRepository.count() == 0) {
+            cargarPedidos();
+        }
+    }
+
+    /** Dos pedidos pendientes: uno con un faltante y un ítem a mano, para probar todos los casos. */
+    private void cargarPedidos() {
+        Cliente botica = clienteRepository.findByClaveUnica(Cliente.calcularClaveUnica("Botica Demo S.A.C."))
+                .flatMap(c -> clienteRepository.findWithLocalesById(c.getId())).orElse(null);
+        Cliente clinica = clienteRepository.findByClaveUnica(Cliente.calcularClaveUnica("Clínica Ejemplo"))
+                .orElse(null);
+        if (botica == null || clinica == null || botica.getLocales().isEmpty()) {
+            return;
+        }
+        Long pedidoBotica = pedidoService.crear(new PedidoDto.CrearRequest(botica.getId(),
+                botica.getLocales().getFirst().getId(), null, null, "Pedido de demostración")).id();
+        agregar(pedidoBotica, 2, 6);   // Jeringa 5 ml Marca A
+        agregar(pedidoBotica, 10, 4);  // Guantes de látex talla M
+        agregar(pedidoBotica, 5, 2);   // Jeringa 20 ml: agotada, queda como faltante
+        pedidoService.agregarItem(pedidoBotica, new PedidoDto.ItemRequest(null, "Tensiómetro digital de brazo",
+                "Unidad", "Marca Z", 1, new BigDecimal("85.00")));
+
+        Long pedidoClinica = pedidoService.crear(
+                new PedidoDto.CrearRequest(clinica.getId(), null, null, null, null)).id();
+        agregar(pedidoClinica, 13, 30); // Gasa estéril 10 x 10 cm
+        log.info("Perfil dev: se cargaron 2 pedidos de demostración");
+    }
+
+    private void agregar(Long pedidoId, int indiceProducto, int cantidad) {
+        Producto producto = buscar(PRODUCTOS.get(indiceProducto));
+        if (producto != null && producto.isActivo()) {
+            pedidoService.agregarItem(pedidoId,
+                    new PedidoDto.ItemRequest(producto.getId(), null, null, null, cantidad, null));
+        }
+    }
+
+    private Producto buscar(Demo d) {
+        return productoRepository
+                .findByClaveUnica(Producto.calcularClaveUnica(d.nombre(), d.marca(), d.presentacion()))
+                .orElse(null);
+    }
+
+    /** Costos inventados: 2.50, 3.85, 5.20... */
+    private static BigDecimal costoDemo(int indice) {
+        return BigDecimal.valueOf(250 + 135L * indice, 2);
     }
 }
