@@ -94,6 +94,11 @@ public class Cliente {
         return local;
     }
 
+    /** Guarda el porcentaje elegido al registrar un pedido (p. ej. en el primer pedido del cliente). */
+    public void definirPorcentaje(BigDecimal porcentaje) {
+        this.porcentaje = porcentaje;
+    }
+
     public void setActivo(boolean activo) {
         this.activo = activo;
     }
