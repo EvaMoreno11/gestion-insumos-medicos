@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { mensajeDe } from '../api/http'
-import { negocio, pedidos } from '../api/recursos'
+import { negocio, pedidos, sesion as apiSesion } from '../api/recursos'
 import { Aviso, Boton, Campo, Cargando, Tarjeta } from '../componentes/basicos'
 import { Pantalla } from '../componentes/Pantalla'
+import { useSesion } from '../sesion-contexto'
 import { leerEntero } from '../util/formato'
 
 /** Datos que aparecen en la nota de pedido: el encabezado del negocio y la numeración. */
 export default function Configuracion() {
+  const sesion = useSesion()
   const [cargado, setCargado] = useState(false)
   const [nombre, setNombre] = useState('')
   const [direccion, setDireccion] = useState('')
@@ -67,11 +69,18 @@ export default function Configuracion() {
               onSubmit={(e) => {
                 e.preventDefault()
                 void ejecutar(async () => {
-                  await negocio.guardar({ nombre, direccion, telefono })
+                  const guardado = await negocio.guardar({ nombre, direccion, telefono })
+                  sesion.setNegocio(guardado.nombre)
                 }, 'Datos del negocio guardados.')
               }}
             >
-              <Campo etiqueta="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+              <Campo
+                etiqueta="Nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                ayuda="Aparece en el encabezado de la app y de la nota de pedido"
+                required
+              />
               <Campo
                 etiqueta="Dirección"
                 value={direccion}
@@ -114,8 +123,117 @@ export default function Configuracion() {
               </Boton>
             </form>
           </Tarjeta>
+
+          <Cuenta
+            usuario={sesion.usuario}
+            ocupado={ocupado}
+            onCambiarClave={(actual, nueva) =>
+              ejecutar(async () => {
+                await apiSesion.cambiarClave(actual, nueva)
+              }, 'Contraseña cambiada. En los demás dispositivos tendrán que volver a entrar.')
+            }
+            onSalir={() => void sesion.salir()}
+          />
         </div>
       )}
     </Pantalla>
+  )
+}
+
+/** Usuario actual, cambio de contraseña y cierre de sesión. */
+function Cuenta({
+  usuario,
+  ocupado,
+  onCambiarClave,
+  onSalir,
+}: {
+  usuario: string
+  ocupado: boolean
+  onCambiarClave: (actual: string, nueva: string) => Promise<void>
+  onSalir: () => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [actual, setActual] = useState('')
+  const [nueva, setNueva] = useState('')
+  const [repetir, setRepetir] = useState('')
+
+  const listo = actual !== '' && nueva.length >= 8 && nueva === repetir
+
+  return (
+    <Tarjeta>
+      <h2 className="font-semibold">Cuenta</h2>
+      <p className="mb-3 text-sm text-slate-500">
+        Sesión iniciada como <strong>{usuario}</strong>.
+      </p>
+
+      {abierto ? (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (listo) {
+              void onCambiarClave(actual, nueva).then(() => {
+                setAbierto(false)
+                setActual('')
+                setNueva('')
+                setRepetir('')
+              })
+            }
+          }}
+        >
+          <Campo
+            etiqueta="Contraseña actual"
+            type="password"
+            autoComplete="current-password"
+            value={actual}
+            onChange={(e) => setActual(e.target.value)}
+          />
+          <Campo
+            etiqueta="Nueva contraseña"
+            type="password"
+            autoComplete="new-password"
+            value={nueva}
+            onChange={(e) => setNueva(e.target.value)}
+            ayuda="Al menos 8 caracteres"
+          />
+          <Campo
+            etiqueta="Repite la nueva contraseña"
+            type="password"
+            autoComplete="new-password"
+            value={repetir}
+            onChange={(e) => setRepetir(e.target.value)}
+            error={repetir !== '' && repetir !== nueva ? 'No coincide' : undefined}
+          />
+          <p className="text-sm text-slate-500">
+            Si pierdes un celular, cambia la contraseña: ese dispositivo dejará de tener acceso.
+          </p>
+          <div className="flex gap-2">
+            <Boton type="submit" className="flex-1" disabled={ocupado || !listo}>
+              Guardar contraseña
+            </Boton>
+            <Boton variante="secundario" onClick={() => setAbierto(false)}>
+              Cancelar
+            </Boton>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-2">
+          <Boton variante="secundario" ancho onClick={() => setAbierto(true)}>
+            Cambiar contraseña
+          </Boton>
+          <Boton
+            variante="peligro"
+            ancho
+            onClick={() => {
+              if (window.confirm('¿Cerrar sesión en este dispositivo?')) {
+                onSalir()
+              }
+            }}
+          >
+            Cerrar sesión
+          </Boton>
+        </div>
+      )}
+    </Tarjeta>
   )
 }

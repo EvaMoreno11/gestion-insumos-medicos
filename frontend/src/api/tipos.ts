@@ -244,6 +244,18 @@ export interface PorComprar {
   noRegistrados: ItemNoRegistrado[]
 }
 
+// ---------------------------------------------------------------- sesión
+
+export interface EstadoSesion {
+  autenticado: boolean
+  usuario: string | null
+  /** true si aún no existe ninguna cuenta: hay que crear la primera */
+  requiereConfiguracion: boolean
+  /** true si para crear la primera cuenta se pide el código de configuración */
+  requiereCodigo: boolean
+  negocio: string
+}
+
 // ---------------------------------------------------------------- configuración
 
 export interface Negocio {

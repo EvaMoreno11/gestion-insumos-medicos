@@ -11,6 +11,9 @@ export default defineConfig({
     // En desarrollo, /api se reenvía al backend: el navegador solo habla con Vite
     proxy: {
       '/api': 'http://localhost:8080',
+      // Swagger también pasa por aquí, para usar la misma sesión que la app
+      '/swagger-ui': 'http://localhost:8080',
+      '/v3/api-docs': 'http://localhost:8080',
     },
   },
   test: {

@@ -10,11 +10,13 @@ import Pedidos from './paginas/Pedidos'
 import PorComprar from './paginas/PorComprar'
 import ProductoDetalle from './paginas/ProductoDetalle'
 import { ProductoFormulario, Productos } from './paginas/Productos'
+import { SesionProvider } from './sesion'
 
-/** Rutas de la aplicación: cada pantalla tiene su propia dirección. */
+/** Rutas de la aplicación: cada pantalla tiene su propia dirección. Todas exigen haber iniciado sesión. */
 export default function App() {
   return (
     <BrowserRouter>
+      <SesionProvider>
       <Routes>
         <Route path="/" element={<Inicio />} />
 
@@ -39,6 +41,7 @@ export default function App() {
         <Route path="/configuracion" element={<Configuracion />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </SesionProvider>
     </BrowserRouter>
   )
 }
