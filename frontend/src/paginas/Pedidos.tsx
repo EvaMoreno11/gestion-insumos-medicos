@@ -21,13 +21,14 @@ export default function Pedidos() {
     <Pantalla
       titulo="Pedidos"
       volver="/"
+      ancho="amplio"
       pie={
         <BotonEnlace a="/pedidos/nuevo" ancho>
           + Nuevo pedido
         </BotonEnlace>
       }
     >
-      <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl bg-slate-200 p-1" role="tablist">
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl bg-slate-200 p-1 lg:max-w-xl" role="tablist">
         {PESTANAS.map((p) => (
           <button
             key={p.estado}
@@ -50,7 +51,7 @@ export default function Pedidos() {
             {estado === 'BORRADOR' ? 'No hay pedidos pendientes.' : 'No hay pedidos en esta lista.'}
           </Vacio>
         )}
-        <ul className="space-y-2">
+        <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {datos?.contenido.map((p) => (
             <li key={p.id}>
               <Link

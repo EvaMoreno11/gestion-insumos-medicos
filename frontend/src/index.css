@@ -12,6 +12,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/*
+ * En la PC (1024 px o más) todo se ve un 12.5 % más grande: letra base de 18 px en vez de 16.
+ * Como los tamaños de la app están en rem, textos, botones y espacios crecen juntos.
+ */
+@media (min-width: 1024px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+
 body {
   @apply bg-slate-100 text-slate-900 antialiased;
   font-family:
@@ -24,11 +34,11 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* Los campos usan 16 px: con menos, Safari hace zoom al tocarlos */
+/* Los campos usan al menos 16 px (1 rem en el celular): con menos, Safari hace zoom al tocarlos */
 input,
 select,
 textarea {
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 button,

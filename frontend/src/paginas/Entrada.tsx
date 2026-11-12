@@ -95,9 +95,12 @@ export default function Entrada() {
   }
 
   return (
-    <Pantalla titulo="Registrar entrada" volver="/">
+    <Pantalla titulo="Registrar entrada" volver="/" ancho="amplio">
       <div className="space-y-3">
         {error && <Aviso tipo="error">{error}</Aviso>}
+
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+        <div className="lg:sticky lg:top-24">
 
         {!producto ? (
           <Tarjeta>
@@ -174,10 +177,11 @@ export default function Entrada() {
             </form>
           </Tarjeta>
         )}
+        </div>
 
         {registradas.length > 0 && (
           <section>
-            <h2 className="mb-2 mt-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <h2 className="mb-2 mt-4 text-sm font-semibold uppercase tracking-wide text-slate-500 lg:mt-0">
               Ingresado ahora ({registradas.length})
             </h2>
             <ul className="space-y-2">
@@ -200,6 +204,7 @@ export default function Entrada() {
             </ul>
           </section>
         )}
+        </div>
       </div>
     </Pantalla>
   )

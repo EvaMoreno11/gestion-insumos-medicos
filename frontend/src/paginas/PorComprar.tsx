@@ -11,11 +11,11 @@ export default function PorComprar() {
   const vacio = datos && datos.productos.length === 0 && datos.noRegistrados.length === 0
 
   return (
-    <Pantalla titulo="Por comprar" volver="/">
+    <Pantalla titulo="Por comprar" volver="/" ancho="amplio">
       <EstadoCarga cargando={cargando} error={error} hayDatos={datos !== undefined}>
         {vacio && <Vacio>No falta nada: todos los pedidos pendientes están completos.</Vacio>}
 
-        <ul className="space-y-2">
+        <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {datos?.productos.map((p) => (
             <li key={p.productoId}>
               <Tarjeta>
@@ -60,7 +60,7 @@ export default function PorComprar() {
             <p className="mb-2 text-sm text-slate-500">
               Ítems escritos a mano en un pedido. Hay que conseguirlos y, después, registrarlos como productos.
             </p>
-            <ul className="space-y-2">
+            <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
               {datos.noRegistrados.map((n, i) => (
                 <li key={i}>
                   <Link

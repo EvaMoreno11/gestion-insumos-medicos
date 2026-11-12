@@ -19,7 +19,10 @@ export function ResumenStock({ producto }: { producto: ProductoResumen }) {
   const { stockSeparado, stockLibre } = producto
   return (
     <>
-      {stockSeparado} separadas para pedidos · <strong>{stockLibre} libres</strong>
+      {stockSeparado} {stockSeparado === 1 ? 'separada' : 'separadas'} para pedidos ·{' '}
+      <strong>
+        {stockLibre} {stockLibre === 1 ? 'libre' : 'libres'}
+      </strong>
     </>
   )
 }

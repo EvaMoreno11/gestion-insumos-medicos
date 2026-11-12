@@ -40,6 +40,7 @@ export default function Inicio() {
   return (
     <Pantalla
       titulo="Insumos Médicos"
+      ancho="amplio"
       accion={
         <Link
           to="/configuracion"
@@ -50,7 +51,7 @@ export default function Inicio() {
         </Link>
       }
     >
-      <nav className="grid grid-cols-2 gap-3">
+      <nav className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
         {opciones.map((o) => (
           <Link
             key={o.a}

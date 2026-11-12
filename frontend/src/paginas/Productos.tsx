@@ -18,6 +18,7 @@ export function Productos() {
     <Pantalla
       titulo="Productos"
       volver="/"
+      ancho="amplio"
       pie={
         <BotonEnlace a="/productos/nuevo" ancho>
           + Nuevo producto
@@ -32,7 +33,7 @@ export function Productos() {
               Se muestran {datos.contenido.length} de {datos.totalElementos}. Escribe para afinar la búsqueda.
             </p>
           )}
-          <ul className="space-y-2">
+          <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
             {datos?.contenido.map((p) => (
               <li key={p.id}>
                 <Link

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { categorias, productos } from '../api/recursos'
 import type { ProductoResumen } from '../api/tipos'
@@ -22,6 +22,7 @@ interface Extra {
  */
 export default function Inventario() {
   const [params, setParams] = useSearchParams()
+  const navegar = useNavigate()
   const [texto, setTexto] = useState(params.get('buscar') ?? '')
   const categoriaId = params.get('categoria') ? Number(params.get('categoria')) : null
   const buscado = useRetardo(texto.trim())
@@ -86,8 +87,9 @@ export default function Inventario() {
   }
 
   return (
-    <Pantalla titulo="Inventario" volver="/">
+    <Pantalla titulo="Inventario" volver="/" ancho="amplio">
       <div className="space-y-3">
+        <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-3 lg:space-y-0">
         <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar: jer 5ml, guantes m…" autoFocus />
         <select
           aria-label="Categoría"
@@ -102,6 +104,7 @@ export default function Inventario() {
             </option>
           ))}
         </select>
+        </div>
 
         {error && <Aviso tipo="error">{error}</Aviso>}
 
@@ -111,7 +114,8 @@ export default function Inventario() {
           </p>
         )}
 
-        <ul className="space-y-2">
+        {/* Celular: tarjetas */}
+        <ul className="space-y-2 lg:hidden">
           {lista.map((p) => (
             <li key={p.id}>
               <Link
@@ -136,14 +140,59 @@ export default function Inventario() {
           ))}
         </ul>
 
+        {/* PC: tabla, para ver muchos productos a la vez */}
+        {lista.length > 0 && (
+          <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white lg:block">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-sm text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Producto</th>
+                  <th className="px-3 py-3 font-semibold">Presentación</th>
+                  <th className="px-3 py-3 font-semibold">Marca</th>
+                  <th className="px-3 py-3 text-right font-semibold">Disponible</th>
+                  <th className="px-3 py-3 text-right font-semibold">Separado</th>
+                  <th className="px-3 py-3 text-right font-semibold">Libre</th>
+                  <th className="px-4 py-3 font-semibold">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {lista.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => navegar(`/inventario/${p.id}`)}
+                    className="cursor-pointer hover:bg-marca-claro/60"
+                  >
+                    <td className="px-4 py-3">
+                      <Link to={`/inventario/${p.id}`} className="font-semibold leading-snug hover:underline">
+                        {p.nombre}
+                      </Link>
+                      <div className="text-sm text-slate-500">{p.categoria}</div>
+                    </td>
+                    <td className="px-3 py-3 text-slate-700">{p.presentacion}</td>
+                    <td className="px-3 py-3 text-slate-700">{p.marca}</td>
+                    <td className="px-3 py-3 text-right text-xl font-bold">{p.stockDisponible}</td>
+                    <td className="px-3 py-3 text-right text-slate-600">{p.stockSeparado || '—'}</td>
+                    <td className="px-3 py-3 text-right font-semibold">{p.stockLibre}</td>
+                    <td className="px-4 py-3">
+                      <EtiquetaStock estado={p.estadoStock} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {!primera.cargando && !primera.error && lista.length === 0 && (
           <Vacio>{buscado ? `No hay productos que coincidan con “${buscado}”.` : 'Aún no hay productos registrados.'}</Vacio>
         )}
         {cargandoMas && <Cargando />}
         {!primera.cargando && !cargandoMas && lista.length < total && (
-          <Boton variante="secundario" ancho onClick={verMas}>
-            Ver más
-          </Boton>
+          <div className="lg:mx-auto lg:max-w-xs">
+            <Boton variante="secundario" ancho onClick={verMas}>
+              Ver más
+            </Boton>
+          </div>
         )}
       </div>
     </Pantalla>

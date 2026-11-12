@@ -79,6 +79,7 @@ export default function PedidoDetalle() {
     <Pantalla
       titulo={titulo}
       volver="/pedidos"
+      ancho="amplio"
       pie={<Pie pedido={pedido} ocupado={ocupado} aplicar={aplicar} nota={nota} />}
     >
       <div className="space-y-3">
@@ -90,6 +91,9 @@ export default function PedidoDetalle() {
         )}
         {pedido.estado === 'ANULADO' && <Aviso tipo="alerta">Este pedido fue anulado.</Aviso>}
 
+        {/* En la PC: a la izquierda el cliente y el buscador (quedan fijos al bajar); a la derecha los ítems */}
+        <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
+        <div className="space-y-3 lg:sticky lg:top-24">
         {/* ---------------- cliente y categoría ---------------- */}
         <Tarjeta>
           <div className="flex items-start justify-between gap-3">
@@ -158,8 +162,10 @@ export default function PedidoDetalle() {
             )}
           </Tarjeta>
         )}
+        </div>
 
         {/* ---------------- ítems ---------------- */}
+        <div>
         {pedido.items.length === 0 ? (
           <p className="py-6 text-center text-slate-500">
             {borrador ? 'Busca un producto para empezar el pedido.' : 'Este pedido no tiene ítems.'}
@@ -182,6 +188,8 @@ export default function PedidoDetalle() {
             ))}
           </ul>
         )}
+        </div>
+        </div>
       </div>
     </Pantalla>
   )

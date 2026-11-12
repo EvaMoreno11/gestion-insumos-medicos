@@ -31,10 +31,10 @@ export default function ProductoDetalle() {
   const { datos: p, cargando, error } = useCarga(() => productos.obtener(id), id)
 
   return (
-    <Pantalla titulo="Producto" volver="/inventario">
+    <Pantalla titulo="Producto" volver="/inventario" ancho="amplio">
       <EstadoCarga cargando={cargando} error={error} hayDatos={p !== undefined}>
         {p && (
-          <div className="space-y-3">
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
             <Tarjeta>
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-lg font-semibold leading-snug">{p.nombre}</h2>
@@ -82,6 +82,7 @@ export default function ProductoDetalle() {
               )}
             </Tarjeta>
 
+            <div className="space-y-3 lg:col-start-2 lg:row-start-1 lg:row-span-2">
             <Tarjeta>
               <h3 className="font-semibold">Precios</h3>
               <p className="text-xs text-slate-500">Uso interno: costo más el porcentaje de cada categoría.</p>
@@ -112,6 +113,7 @@ export default function ProductoDetalle() {
               <BotonEnlace a={`/productos/${p.id}`} variante="secundario" ancho>
                 Editar
               </BotonEnlace>
+            </div>
             </div>
           </div>
         )}

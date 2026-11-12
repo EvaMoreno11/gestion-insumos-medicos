@@ -20,6 +20,7 @@ export function Clientes() {
     <Pantalla
       titulo="Clientes"
       volver="/"
+      ancho="amplio"
       pie={
         <BotonEnlace a="/clientes/nuevo" ancho>
           + Nuevo cliente
@@ -29,7 +30,7 @@ export function Clientes() {
       <div className="space-y-3">
         <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar por nombre o RUC…" />
         <EstadoCarga cargando={cargando} error={error} hayDatos={datos !== undefined}>
-          <ul className="space-y-2">
+          <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
             {datos?.contenido.map((c) => (
               <li key={c.id}>
                 <Link
