@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import { useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 // ---------------------------------------------------------------- botones
@@ -60,18 +60,34 @@ interface CampoProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
 }
 
-/** Campo de texto con su etiqueta. Para números usa inputMode="numeric" o "decimal": abre el teclado numérico. */
-export function Campo({ etiqueta, ayuda, error, className = '', ...resto }: CampoProps) {
+/**
+ * Campo de texto con su etiqueta. Para números usa inputMode="numeric" o "decimal": abre el teclado numérico.
+ * La etiqueta nombra el campo y la ayuda o el error se asocian con aria-describedby: un lector de pantalla
+ * los lee como descripción, no como parte del nombre.
+ */
+export function Campo({ etiqueta, ayuda, error, className = '', id, ...resto }: CampoProps) {
+  const idPropio = useId()
+  const idCampo = id ?? idPropio
+  const idDescripcion = `${idCampo}-descripcion`
+  const descripcion = error ?? ayuda
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{etiqueta}</span>
-      <input className={`${ESTILO_CAMPO} ${error ? 'border-red-400' : ''} ${className}`} {...resto} />
-      {error ? (
-        <span className="mt-1 block text-sm text-red-700">{error}</span>
-      ) : (
-        ayuda && <span className="mt-1 block text-sm text-slate-500">{ayuda}</span>
+    <div>
+      <label htmlFor={idCampo} className="mb-1 block text-sm font-medium text-slate-700">
+        {etiqueta}
+      </label>
+      <input
+        id={idCampo}
+        aria-describedby={descripcion ? idDescripcion : undefined}
+        aria-invalid={error ? true : undefined}
+        className={`${ESTILO_CAMPO} ${error ? 'border-red-400' : ''} ${className}`}
+        {...resto}
+      />
+      {descripcion && (
+        <span id={idDescripcion} className={`mt-1 block text-sm ${error ? 'text-red-700' : 'text-slate-500'}`}>
+          {descripcion}
+        </span>
       )}
-    </label>
+    </div>
   )
 }
 

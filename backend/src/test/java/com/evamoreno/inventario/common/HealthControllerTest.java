@@ -5,19 +5,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(HealthController.class)
-class HealthControllerTest {
+import com.evamoreno.inventario.IntegracionTest;
 
-    @Autowired
-    private MockMvc mockMvc;
+class HealthControllerTest extends IntegracionTest {
 
     @Test
-    void devuelveEstadoOk() throws Exception {
-        mockMvc.perform(get("/api/health"))
+    void devuelveEstadoOkSinNecesitarSesion() throws Exception {
+        // El servicio de hosting consulta esta ruta para saber si la app está en línea
+        mockMvcSinSesion.perform(get("/api/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("OK"))
                 .andExpect(jsonPath("$.servicio").value("inventario"))

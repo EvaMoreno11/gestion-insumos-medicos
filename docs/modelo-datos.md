@@ -213,7 +213,31 @@ stateDiagram-v2
 
 `GET /api/pedidos/{id}/nota.pdf` y `/nota.xlsx` generan el mismo documento (`NotaPedido`) en dos formatos. Cuando un ítem salió de varios lotes hay **una fila por lote**. No incluye costo, porcentaje ni categoría del cliente. Los datos del encabezado (nombre, dirección y teléfono del negocio) se guardan en la tabla `negocio` y se editan por API: no están en el código.
 
+## Fase 5: Inicio de sesión
+
+```mermaid
+erDiagram
+    USUARIO {
+        bigint id PK
+        varchar usuario "único sin distinguir mayúsculas"
+        varchar clave_hash "BCrypt, con prefijo {bcrypt}"
+        boolean activo
+        int intentos_fallidos
+        timestamptz bloqueado_hasta
+        timestamptz ultimo_ingreso
+    }
+```
+
+### Reglas
+
+- **Toda la API pide sesión**, salvo `/api/health` y las rutas de entrada (`/api/auth/estado`, `/login`, `/configurar`). La documentación Swagger también.
+- **Primera cuenta.** Si la tabla está vacía, la app pide crear la cuenta (`POST /api/auth/configurar`). Después esa ruta responde `409`: las siguientes cuentas no se pueden crear desde fuera. Si el servidor define `APP_CODIGO_CONFIGURACION`, crear la primera cuenta exige ese código, para que nadie se adelante al publicarla.
+- **Contraseñas.** Mínimo 8 caracteres. Se guardan con BCrypt, nunca en texto plano. El mensaje de error es siempre "Usuario o contraseña incorrectos", sin revelar si el usuario existe.
+- **Bloqueo.** Tras 5 intentos fallidos la cuenta se bloquea 15 minutos (`429`).
+- **Sesión.** Cookie `JSESSIONID` (`HttpOnly`, `SameSite=Lax`) que vence tras 12 horas sin uso. Con "Recordarme" se agrega la cookie `recordar`, firmada con `APP_CLAVE_RECORDAR`, que dura 30 días. Cambiar la contraseña invalida las cookies `recordar` de los demás dispositivos.
+- **CSRF.** Toda operación que cambia datos debe reenviar en la cabecera `X-XSRF-TOKEN` el token de la cookie `XSRF-TOKEN`. El frontend lo hace en `src/api/http.ts`.
+- **Permisos.** Todas las cuentas tienen los mismos. La tabla admite más usuarios para el futuro.
+
 ## Próximas fases
 
-- **Fase 4:** aplicación web para el celular (PWA) con las pantallas de inventario, pedidos, entradas, clientes y productos.
-- **Fase 5:** autenticación y publicación.
+- **Fase 5 (segunda parte):** publicación en internet.

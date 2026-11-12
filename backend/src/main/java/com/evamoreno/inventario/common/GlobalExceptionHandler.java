@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.evamoreno.inventario.seguridad.AuthService;
+
 /**
  * Convierte las excepciones en respuestas de error con el formato estándar
  * "Problem Details" (RFC 9457), por ejemplo:
@@ -39,6 +41,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(SolicitudInvalidaException.class)
     ProblemDetail solicitudInvalida(SolicitudInvalidaException ex) {
         return problema(HttpStatus.BAD_REQUEST, "Solicitud inválida", ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthService.CredencialesInvalidasException.class)
+    ProblemDetail credencialesInvalidas(AuthService.CredencialesInvalidasException ex) {
+        return problema(HttpStatus.UNAUTHORIZED, "No autorizado", ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthService.CuentaBloqueadaException.class)
+    ProblemDetail cuentaBloqueada(AuthService.CuentaBloqueadaException ex) {
+        return problema(HttpStatus.TOO_MANY_REQUESTS, "Cuenta bloqueada temporalmente", ex.getMessage());
     }
 
     @ExceptionHandler(ConflictoException.class)

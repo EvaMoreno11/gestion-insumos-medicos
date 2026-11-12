@@ -7,6 +7,7 @@ import type {
   ClienteDetalle,
   ClienteResumen,
   EntradaDatos,
+  EstadoSesion,
   EstadoPedido,
   Negocio,
   Numeracion,
@@ -86,6 +87,17 @@ export const pedidos = {
   numeracion: () => api<Numeracion>('/api/pedidos/numeracion'),
   fijarNumeracion: (siguiente: number) =>
     api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente } }),
+}
+
+export const sesion = {
+  estado: () => api<EstadoSesion>('/api/auth/estado'),
+  entrar: (usuario: string, clave: string, recordar: boolean) =>
+    api<EstadoSesion>('/api/auth/login', { metodo: 'POST', cuerpo: { usuario, clave, recordar } }),
+  crearCuenta: (usuario: string, clave: string, codigo: string) =>
+    api<void>('/api/auth/configurar', { metodo: 'POST', cuerpo: { usuario, clave, codigo } }),
+  cambiarClave: (actual: string, nueva: string) =>
+    api<void>('/api/auth/clave', { metodo: 'PUT', cuerpo: { actual, nueva } }),
+  salir: () => api<void>('/api/auth/salir', { metodo: 'POST' }),
 }
 
 export const negocio = {

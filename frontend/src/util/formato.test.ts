@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { construirUrl, interpretarError } from '../api/http'
+import { construirUrl, interpretarError, leerCookie } from '../api/http'
 import {
   dinero,
   escribirMesAnio,
@@ -104,6 +104,12 @@ describe('cliente HTTP', () => {
     })
     expect(error.message).toBe('El nombre es obligatorio. Debe ser mayor que 0')
     expect(error.errores.nombre).toBe('El nombre es obligatorio')
+  })
+
+  it('lee el token CSRF de las cookies', () => {
+    expect(leerCookie('XSRF-TOKEN', 'otra=1; XSRF-TOKEN=abc-123; JSESSIONID=x')).toBe('abc-123')
+    expect(leerCookie('XSRF-TOKEN', 'otra=1')).toBeNull()
+    expect(leerCookie('XSRF-TOKEN', '')).toBeNull()
   })
 
   it('si el servidor no responde con JSON, da un mensaje entendible', () => {

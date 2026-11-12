@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { pedidos } from '../api/recursos'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
+import { useSesion } from '../sesion-contexto'
 
 interface Opcion {
   a: string
@@ -12,6 +13,7 @@ interface Opcion {
 }
 
 export default function Inicio() {
+  const { negocio } = useSesion()
   // Contadores para los avisos de los botones; si fallan, la pantalla igual funciona
   const pendientes = useCarga(() => pedidos.listar('BORRADOR', 1))
   const porComprar = useCarga(() => pedidos.porComprar())
@@ -39,7 +41,7 @@ export default function Inicio() {
 
   return (
     <Pantalla
-      titulo="Insumos Médicos"
+      titulo={negocio}
       ancho="amplio"
       accion={
         <Link

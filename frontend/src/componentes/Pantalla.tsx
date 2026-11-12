@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
+import { useSesion } from '../sesion-contexto'
 
 interface Props {
   titulo: string
@@ -39,11 +40,12 @@ const SECCIONES = [
 
 /** Menú fijo a la izquierda, solo en pantallas grandes: se salta entre secciones sin volver al inicio. */
 function MenuLateral() {
+  const { negocio, usuario, salir } = useSesion()
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
       <div className="flex h-16 items-center gap-3 bg-marca px-5 text-white">
         <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg ring-1 ring-white/30" />
-        <span className="text-lg font-semibold">Insumos Médicos</span>
+        <span className="min-w-0 truncate text-lg font-semibold">{negocio}</span>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {SECCIONES.map((s) => (
@@ -64,6 +66,23 @@ function MenuLateral() {
           </NavLink>
         ))}
       </nav>
+      <div className="border-t border-slate-200 p-3">
+        <p className="truncate px-3 pb-2 text-sm text-slate-500">Sesión: {usuario}</p>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('¿Cerrar sesión en este dispositivo?')) {
+              void salir()
+            }
+          }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-medium text-slate-700 hover:bg-slate-100"
+        >
+          <span className="w-7 text-center text-xl" aria-hidden="true">
+            🚪
+          </span>
+          Cerrar sesión
+        </button>
+      </div>
     </aside>
   )
 }
