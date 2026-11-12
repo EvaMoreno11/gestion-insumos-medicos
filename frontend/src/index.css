@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/* Colores de la app (los mismos de la nota de pedido) */
+@theme {
+  --color-marca: #1f4e79;
+  --color-marca-oscuro: #163a5a;
+  --color-marca-claro: #e8f0f7;
+}
+
+html {
+  /* Evita que el iPhone agrande el texto al girar la pantalla */
+  -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * En la PC (1024 px o más) todo se ve un 12.5 % más grande: letra base de 18 px en vez de 16.
+ * Como los tamaños de la app están en rem, textos, botones y espacios crecen juntos.
+ */
+@media (min-width: 1024px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+
+body {
+  @apply bg-slate-100 text-slate-900 antialiased;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  /* Sin el "rebote" que arrastra toda la página al deslizar en iPhone */
+  overscroll-behavior-y: none;
+}
+
+/* Los campos usan al menos 16 px (1 rem en el celular): con menos, Safari hace zoom al tocarlos */
+input,
+select,
+textarea {
+  font-size: 1rem;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
