@@ -1,5 +1,7 @@
 package com.evamoreno.inventario.cliente;
 
+import com.evamoreno.inventario.common.TextoBusqueda;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -38,6 +40,10 @@ public class ClienteLocal {
     @Column(length = 30)
     private String telefono;
 
+    /** Nombre y contacto normalizados, con espacios al inicio y al final, para el buscador de clientes. */
+    @Column(name = "texto_busqueda", nullable = false, length = 400)
+    private String textoBusqueda;
+
     protected ClienteLocal() {
         // requerido por JPA
     }
@@ -52,6 +58,13 @@ public class ClienteLocal {
         this.direccion = direccion;
         this.contacto = contacto;
         this.telefono = telefono;
+        this.textoBusqueda = " " + TextoBusqueda.normalizar(
+                (nombre == null ? "" : nombre) + " " + (contacto == null ? "" : contacto)) + " ";
+    }
+
+    /** ¿Alguna palabra del nombre o del contacto empieza con este texto (ya normalizado)? */
+    boolean coincideCon(String token) {
+        return textoBusqueda.contains(" " + token);
     }
 
     public Long getId() {

@@ -4,7 +4,7 @@ import { mensajeDe } from '../api/http'
 import { categoriasPrecio, clientes } from '../api/recursos'
 import type { LocalDatos } from '../api/tipos'
 import { Aviso, Boton, BotonEnlace, Buscador, Campo, Cargando, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
-import { SelectorCategoria } from '../componentes/dominio'
+import { DatosCliente, SelectorCategoria } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
 import { porcentaje as textoPorcentaje } from '../util/formato'
@@ -28,7 +28,7 @@ export function Clientes() {
       }
     >
       <div className="space-y-3">
-        <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar por nombre o RUC…" />
+        <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar por nombre, RUC, local o contacto…" />
         <EstadoCarga cargando={cargando} error={error} hayDatos={datos !== undefined}>
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
             {datos?.contenido.map((c) => (
@@ -37,10 +37,7 @@ export function Clientes() {
                   to={`/clientes/${c.id}`}
                   className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 active:bg-slate-50"
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{c.nombre}</span>
-                    {c.rucDni && <span className="block text-sm text-slate-500">{c.rucDni}</span>}
-                  </span>
+                  <DatosCliente cliente={c} />
                   {c.porcentaje === null ? (
                     <Etiqueta color="ambar">Sin categoría</Etiqueta>
                   ) : (
@@ -180,14 +177,17 @@ export function ClienteFormulario() {
                   </Boton>
                 )}
               </div>
-              {variosLocales && (
-                <Campo
-                  etiqueta="Nombre del local"
-                  placeholder="Local 1, Sede Los Olivos…"
-                  value={local.nombre}
-                  onChange={(e) => cambiarLocal(i, 'nombre', e.target.value)}
-                />
-              )}
+              <Campo
+                etiqueta="Nombre del local"
+                placeholder="Botica Santa Rosa, Sede Los Olivos…"
+                value={local.nombre}
+                onChange={(e) => cambiarLocal(i, 'nombre', e.target.value)}
+                ayuda={
+                  variosLocales
+                    ? 'El nombre con el que lo conocen, p. ej. el de la botica'
+                    : 'Opcional: el nombre con el que lo conocen, p. ej. el de la botica'
+                }
+              />
               <Campo etiqueta="Dirección" value={local.direccion} onChange={(e) => cambiarLocal(i, 'direccion', e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
                 <Campo etiqueta="Contacto" value={local.contacto} onChange={(e) => cambiarLocal(i, 'contacto', e.target.value)} />

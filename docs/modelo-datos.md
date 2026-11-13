@@ -121,10 +121,11 @@ erDiagram
     CLIENTE_LOCAL {
         bigint id PK
         bigint cliente_id FK
-        varchar nombre "vacío si el cliente tiene un solo local"
+        varchar nombre "p. ej. el nombre de la botica; opcional si es el único local"
         varchar direccion
         varchar contacto
         varchar telefono
+        varchar texto_busqueda "nombre y contacto normalizados"
     }
 ```
 
@@ -137,6 +138,7 @@ erDiagram
 - **Un cliente sin porcentaje** es válido: la app lo pedirá en su primer pedido.
 - **Todo cliente tiene al menos un local.** Si tiene varios, cada uno necesita un nombre distinto; así el pedido siempre se registra para un punto de entrega con su dirección y su contacto.
 - **Los clientes no se eliminan, se desactivan**, igual que los productos.
+- **Buscador de clientes.** Encuentra por razón social, RUC o DNI, nombre del local o contacto, con las mismas reglas que el de productos: sin tildes ni mayúsculas, por inicio de palabra, y cada palabra puede estar en cualquiera de esos datos. Muchas boticas tienen un RUC a nombre de una persona, así que buscar "santa rosa" encuentra al cliente por su local "Botica Santa Rosa". Cada resultado indica qué locales coincidieron (`localesEncontrados`), pero el local del pedido siempre se elige a mano.
 
 ### Importación de clientes
 

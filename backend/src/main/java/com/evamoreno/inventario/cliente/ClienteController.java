@@ -36,7 +36,7 @@ public class ClienteController {
     }
 
     @GetMapping
-    @Operation(summary = "Buscar clientes por nombre o RUC/DNI")
+    @Operation(summary = "Buscar clientes por nombre, RUC/DNI, nombre del local o contacto")
     public Pagina<Resumen> buscar(
             @RequestParam(required = false) String buscar,
             @RequestParam(defaultValue = "false") boolean incluirInactivos,

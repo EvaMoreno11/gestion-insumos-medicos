@@ -1,9 +1,29 @@
 import { useState } from 'react'
 import { productos } from '../api/recursos'
-import type { CategoriaPrecio, EstadoStock, PedidoItem, ProductoResumen } from '../api/tipos'
+import type { CategoriaPrecio, ClienteResumen, EstadoStock, PedidoItem, ProductoResumen } from '../api/tipos'
 import { useCarga, useRetardo } from '../hooks'
 import { escribirMesAnio, porcentaje, unir } from '../util/formato'
 import { Aviso, Buscador, Campo, Etiqueta } from './basicos'
+
+// ---------------------------------------------------------------- clientes
+
+/**
+ * Nombre y RUC de un cliente en una lista de resultados. Si se le encontró por un local
+ * (nombre de la botica) o por un contacto, lo indica debajo.
+ */
+export function DatosCliente({ cliente }: { cliente: ClienteResumen }) {
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="block truncate font-semibold">{cliente.nombre}</span>
+      {cliente.rucDni && <span className="block text-sm text-slate-500">{cliente.rucDni}</span>}
+      {cliente.localesEncontrados?.map((l, i) => (
+        <span key={i} className="block truncate text-sm text-marca">
+          {unir(' · ', l.nombre && `Local: ${l.nombre}`, l.contacto && `Contacto: ${l.contacto}`)}
+        </span>
+      ))}
+    </span>
+  )
+}
 
 // ---------------------------------------------------------------- stock
 

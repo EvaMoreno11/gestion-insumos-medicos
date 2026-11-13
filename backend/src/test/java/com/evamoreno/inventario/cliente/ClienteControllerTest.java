@@ -126,6 +126,68 @@ class ClienteControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.totalElementos").value(2));
     }
 
+    @Test
+    void buscaPorElNombreDelLocalOElContactoYDiceDondeLoEncontro() throws Exception {
+        crear(URL, """
+                {"nombre": "Juan Pérez Quispe", "rucDni": "10456789012",
+                 "locales": [
+                   {"nombre": "Botica Santa Rosa", "contacto": "Sra. Marta"},
+                   {"nombre": "Botica El Niño", "contacto": "Dr. Ramírez"}
+                 ]}""");
+        crear(URL, """
+                {"nombre": "Clínica Los Andes", "locales": [{"contacto": "Dra. Rosa Díaz"}]}""");
+
+        // Por el nombre de la botica: aparece la razón social con su RUC y el local que coincidió
+        mockMvc.perform(get(URL).param("buscar", "santa rosa"))
+                .andExpect(jsonPath("$.totalElementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].nombre").value("Juan Pérez Quispe"))
+                .andExpect(jsonPath("$.contenido[0].rucDni").value("10456789012"))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados", hasSize(1)))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados[0].nombre").value("Botica Santa Rosa"))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados[0].contacto").value("Sra. Marta"));
+
+        // Por el contacto, sin tildes y con el inicio de la palabra
+        mockMvc.perform(get(URL).param("buscar", "rami"))
+                .andExpect(jsonPath("$.contenido[*].nombre", contains("Juan Pérez Quispe")))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados[0].nombre").value("Botica El Niño"));
+        mockMvc.perform(get(URL).param("buscar", "nino"))
+                .andExpect(jsonPath("$.contenido[*].nombre", contains("Juan Pérez Quispe")));
+
+        // "rosa" está en un local de cada cliente
+        mockMvc.perform(get(URL).param("buscar", "rosa"))
+                .andExpect(jsonPath("$.contenido[*].nombre", contains("Clínica Los Andes", "Juan Pérez Quispe")))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados[0].contacto").value("Dra. Rosa Díaz"));
+
+        // Las palabras se pueden combinar entre la razón social y los locales
+        mockMvc.perform(get(URL).param("buscar", "perez ramirez"))
+                .andExpect(jsonPath("$.totalElementos").value(1));
+        mockMvc.perform(get(URL).param("buscar", "andes ramirez"))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+
+        // Si coincide solo la razón social, no se listan locales
+        mockMvc.perform(get(URL).param("buscar", "quispe"))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados", hasSize(0)));
+    }
+
+    @Test
+    void alCambiarElLocalSeActualizaLaBusqueda() throws Exception {
+        String creado = enviar("""
+                {"nombre": "Distribuidora Norte", "locales": [{"nombre": "Botica Antigua"}]}""")
+                .andReturn().getResponse().getContentAsString();
+        Long id = ((Number) JsonPath.read(creado, "$.id")).longValue();
+        Long local = ((Number) JsonPath.read(creado, "$.locales[0].id")).longValue();
+
+        actualizar(id, """
+                {"nombre": "Distribuidora Norte", "locales": [{"id": %d, "nombre": "Botica Nueva Vida"}]}"""
+                .formatted(local))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(URL).param("buscar", "antigua"))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+        mockMvc.perform(get(URL).param("buscar", "nueva vida"))
+                .andExpect(jsonPath("$.contenido[0].localesEncontrados[0].nombre").value("Botica Nueva Vida"));
+    }
+
     // ------------------------------------------------------------------ actualizar
 
     @Test

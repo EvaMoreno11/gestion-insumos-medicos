@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.evamoreno.inventario.cliente.ClienteDto.Detalle;
+import com.evamoreno.inventario.cliente.ClienteDto.LocalEncontrado;
 import com.evamoreno.inventario.cliente.ClienteDto.LocalRequest;
 import com.evamoreno.inventario.cliente.ClienteDto.Request;
 import com.evamoreno.inventario.cliente.ClienteDto.Resumen;
@@ -26,12 +27,15 @@ import com.evamoreno.inventario.common.TextoBusqueda;
 import com.evamoreno.inventario.precio.CategoriaPrecioService;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 @Service
 @Transactional
 public class ClienteService {
 
     private static final int TAMANO_MAXIMO_PAGINA = 100;
+    private static final int MAX_LOCALES_ENCONTRADOS = 3;
 
     private final ClienteRepository clientes;
     private final CategoriaPrecioService categoriasPrecio;
@@ -43,14 +47,23 @@ public class ClienteService {
 
     // ------------------------------------------------------------------ consultas
 
-    /** Busca por nombre o RUC/DNI; cada palabra debe coincidir con el inicio de una palabra del cliente. */
+    /**
+     * Busca por nombre o RUC/DNI del cliente, o por el nombre o el contacto de alguno de sus locales.
+     * Cada palabra debe coincidir con el inicio de una palabra de esos datos.
+     */
     @Transactional(readOnly = true)
     public Pagina<Resumen> buscar(String buscar, boolean incluirInactivos, int pagina, int tamano) {
         List<String> tokens = TextoBusqueda.tokens(buscar);
         Specification<Cliente> filtro = (root, query, cb) -> {
             List<Predicate> condiciones = new ArrayList<>();
             for (String token : tokens) {
-                condiciones.add(cb.like(root.get("textoBusqueda"), "% " + token + "%"));
+                String patron = "% " + token + "%";
+                Subquery<Long> enLocales = query.subquery(Long.class);
+                Root<ClienteLocal> local = enLocales.from(ClienteLocal.class);
+                enLocales.select(local.get("id")).where(
+                        cb.equal(local.get("cliente"), root),
+                        cb.like(local.get("textoBusqueda"), patron));
+                condiciones.add(cb.or(cb.like(root.get("textoBusqueda"), patron), cb.exists(enLocales)));
             }
             if (!incluirInactivos) {
                 condiciones.add(cb.isTrue(root.get("activo")));
@@ -60,7 +73,20 @@ public class ClienteService {
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), Math.clamp(tamano, 1, TAMANO_MAXIMO_PAGINA),
                 Sort.by("nombre"));
         Map<BigDecimal, String> letras = categoriasPrecio.letrasPorPorcentaje();
-        return Pagina.de(clientes.findAll(filtro, pageRequest), c -> Resumen.de(c, letras));
+        return Pagina.de(clientes.findAll(filtro, pageRequest),
+                c -> Resumen.de(c, letras, localesEncontrados(c, tokens)));
+    }
+
+    /** Locales del cliente cuyo nombre o contacto contiene alguna de las palabras buscadas. */
+    private static List<LocalEncontrado> localesEncontrados(Cliente cliente, List<String> tokens) {
+        if (tokens.isEmpty()) {
+            return List.of();
+        }
+        return cliente.getLocales().stream()
+                .filter(local -> tokens.stream().anyMatch(local::coincideCon))
+                .limit(MAX_LOCALES_ENCONTRADOS)
+                .map(LocalEncontrado::de)
+                .toList();
     }
 
     @Transactional(readOnly = true)

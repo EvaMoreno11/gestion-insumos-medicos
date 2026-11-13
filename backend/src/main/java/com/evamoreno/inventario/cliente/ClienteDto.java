@@ -78,14 +78,25 @@ public final class ClienteDto {
     /**
      * Versión corta, para listas y el buscador.
      *
-     * @param categoria letra de la categoría de precio (A, B, C...) o null si su porcentaje no corresponde a ninguna
+     * @param categoria          letra de la categoría de precio (A, B, C...) o null si su porcentaje no corresponde
+     *                           a ninguna
+     * @param localesEncontrados locales cuyo nombre o contacto coincide con la búsqueda, para mostrar por qué
+     *                           apareció el cliente; vacío si no se buscó nada o solo coincidió su nombre o RUC
      */
     public record Resumen(Long id, String nombre, String rucDni, BigDecimal porcentaje, String categoria,
-            boolean activo) {
+            boolean activo, List<LocalEncontrado> localesEncontrados) {
 
-        static Resumen de(Cliente c, Map<BigDecimal, String> letras) {
+        static Resumen de(Cliente c, Map<BigDecimal, String> letras, List<LocalEncontrado> localesEncontrados) {
             return new Resumen(c.getId(), c.getNombre(), c.getRucDni(), c.getPorcentaje(),
-                    CategoriaPrecioService.letraDe(letras, c.getPorcentaje()), c.isActivo());
+                    CategoriaPrecioService.letraDe(letras, c.getPorcentaje()), c.isActivo(), localesEncontrados);
+        }
+    }
+
+    /** Local que coincidió con la búsqueda (por su nombre o por su contacto). */
+    public record LocalEncontrado(String nombre, String contacto) {
+
+        static LocalEncontrado de(ClienteLocal l) {
+            return new LocalEncontrado(l.getNombre(), l.getContacto());
         }
     }
 
