@@ -22,7 +22,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
 - **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales.
 - **Categorías de precio** internas (A = 10 %, B = 15 %, C = 20 %, ampliables) que nunca se muestran al cliente.
-- **Clientes** con uno o varios locales de entrega, y carga inicial desde la [plantilla de clientes](docs/plantilla_clientes.xlsx).
+- **Clientes** con uno o varios locales de entrega, y carga inicial desde la [plantilla de clientes](docs/plantilla_clientes.xlsx). Se buscan por razón social, RUC, nombre del local (p. ej. el de la botica) o contacto.
 - **Pedidos por cliente:** se arman como borrador, con el precio de cada línea calculado (costo + porcentaje) y editable, y el total siempre actualizado. También admiten ítems escritos a mano que aún no están en el catálogo.
 - **Faltantes con prioridad:** se puede pedir más de lo que hay. El stock se separa para el pedido más antiguo, así dos pedidos nunca aparecen completos contando las mismas unidades.
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes.
@@ -84,7 +84,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `GET` | `/api/alertas/stock-bajo` · `/por-vencer?dias=` · `/vencidos` | Alertas |
 | `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de inventario (por defecto solo valida) |
 | `POST` | `/api/importacion/clientes?soloValidar=` | Importar la plantilla de clientes (por defecto solo valida) |
-| `GET` / `POST` / `PUT` | `/api/clientes[/{id}]` | Buscar, registrar y actualizar clientes y sus locales |
+| `GET` / `POST` / `PUT` | `/api/clientes[/{id}]` | Buscar (por nombre, RUC, local o contacto), registrar y actualizar clientes y sus locales |
 | `PATCH` | `/api/clientes/{id}/desactivar` · `/activar` | Desactivar o reactivar un cliente |
 | `GET` / `POST` / `PUT` | `/api/categorias-precio[/{id}]` | Categorías de precio (letra y porcentaje) |
 | `GET` / `POST` / `PUT` | `/api/pedidos[/{id}]` | Listar, crear y editar pedidos (borradores) |

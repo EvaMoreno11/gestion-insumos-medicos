@@ -4,7 +4,7 @@ import { mensajeDe } from '../api/http'
 import { categoriasPrecio, clientes, pedidos } from '../api/recursos'
 import type { ClienteDetalle } from '../api/tipos'
 import { Aviso, Boton, BotonEnlace, Buscador, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
-import { SelectorCategoria } from '../componentes/dominio'
+import { DatosCliente, SelectorCategoria } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
 import { porcentaje as textoPorcentaje, unir } from '../util/formato'
@@ -65,7 +65,7 @@ export default function PedidoNuevo() {
     return (
       <Pantalla titulo="Nuevo pedido" volver="/pedidos">
         <div className="space-y-3">
-          <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar cliente por nombre o RUC…" autoFocus />
+          <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar cliente por nombre, RUC, local o contacto…" autoFocus />
           {error && <Aviso tipo="error">{error}</Aviso>}
           <EstadoCarga cargando={lista.cargando} error={lista.error} hayDatos={lista.datos !== undefined}>
             <ul className="space-y-2">
@@ -76,10 +76,7 @@ export default function PedidoNuevo() {
                     onClick={() => elegir(c.id)}
                     className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left active:bg-slate-50"
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{c.nombre}</span>
-                      {c.rucDni && <span className="block text-sm text-slate-500">{c.rucDni}</span>}
-                    </span>
+                    <DatosCliente cliente={c} />
                     {c.porcentaje === null ? (
                       <Etiqueta color="ambar">Sin categoría</Etiqueta>
                     ) : (

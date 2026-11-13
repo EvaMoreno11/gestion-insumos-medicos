@@ -86,6 +86,13 @@ export interface ClienteResumen {
   /** Letra de su categoría de precio (A, B, C...) o null */
   categoria: string | null
   activo: boolean
+  /** Locales cuyo nombre o contacto coincidió con la búsqueda (vacío si solo coincidió el nombre o el RUC) */
+  localesEncontrados?: LocalEncontrado[]
+}
+
+export interface LocalEncontrado {
+  nombre: string | null
+  contacto: string | null
 }
 
 export interface Local {
