@@ -27,7 +27,10 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Faltantes con prioridad:** se puede pedir más de lo que hay. El stock se separa para el pedido más antiguo, así dos pedidos nunca aparecen completos contando las mismas unidades.
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes.
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
+- **Entregas parciales:** si faltan unidades, se puede entregar lo que hay. Lo que falta pasa a un pedido nuevo (saldo) con los mismos precios y la prioridad del original. La app muestra lo pedido, lo entregado y lo pendiente; el cliente solo recibe la nota de lo que se le entrega.
 - **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. No incluye costos ni porcentajes.
+- **Pedidos "Solo tabla":** se entregan con un documento que solo tiene la tabla de productos y el total (sin nombres, fecha ni número). Descuentan el inventario igual que cualquier pedido y no gastan la numeración de las notas.
+- **Ítems escritos a mano → productos:** un ítem que no estaba en el inventario se registra como producto desde el pedido (con el formulario ya lleno) o se cambia por uno existente, y la línea conserva su cantidad y su precio.
 - **Aplicación para el celular** (se instala desde el navegador): consultar inventario, armar pedidos con el total en vivo, registrar entradas, ver lo que falta comprar y administrar clientes y productos.
 - **Inicio de sesión** con Spring Security: contraseñas con BCrypt, opción "Recordarme" por 30 días, bloqueo tras 5 intentos fallidos, protección CSRF y cambio de contraseña ([reglas](docs/modelo-datos.md#fase-5-inicio-de-sesión)).
 - El nombre del negocio que se muestra en la app se configura desde la propia app; no está en el código.
@@ -89,7 +92,8 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `GET` / `POST` / `PUT` | `/api/categorias-precio[/{id}]` | Categorías de precio (letra y porcentaje) |
 | `GET` / `POST` / `PUT` | `/api/pedidos[/{id}]` | Listar, crear y editar pedidos (borradores) |
 | `POST` / `PUT` / `DELETE` | `/api/pedidos/{id}/items[/{itemId}]` | Agregar, cambiar o quitar ítems; devuelve el pedido con su total |
-| `POST` | `/api/pedidos/{id}/despachar` · `/anular` | Despachar (descuenta lotes y numera la nota) o anular |
+| `PUT` | `/api/pedidos/{id}/items/{itemId}/producto` | Convertir un ítem escrito a mano en un producto del inventario |
+| `POST` | `/api/pedidos/{id}/despachar` · `/anular` | Despachar (descuenta lotes y numera la nota) o anular. Con `{"entregarLoDisponible": true}` entrega lo que hay y deja el resto en un saldo |
 | `GET` | `/api/pedidos/por-comprar` | Lista universal de lo que falta comprar |
 | `GET` | `/api/pedidos/{id}/nota.pdf` · `/nota.xlsx` | Nota de pedido para imprimir, enviar o facturar |
 | `GET` / `PUT` | `/api/pedidos/numeracion` | Número de la próxima nota de pedido |

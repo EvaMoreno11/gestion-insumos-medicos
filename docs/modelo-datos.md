@@ -153,6 +153,7 @@ erDiagram
     PEDIDO ||--o{ PEDIDO_ITEM : contiene
     PRODUCTO ||--o{ PEDIDO_ITEM : "se pide en"
     PEDIDO_ITEM ||--o{ MOVIMIENTO : "sale en"
+    PEDIDO |o--o{ PEDIDO : "lo que faltó pasa a un saldo"
 
     PEDIDO {
         bigint id PK
@@ -160,8 +161,10 @@ erDiagram
         bigint cliente_local_id FK
         numeric porcentaje "copia del porcentaje del cliente, editable"
         varchar estado "BORRADOR | DESPACHADO | ANULADO"
-        varchar numero "0001-007323; se asigna al despachar"
-        varchar nota
+        varchar numero "0001-007323; se asigna al despachar (no en Solo tabla)"
+        varchar nota "observaciones internas"
+        varchar documento "NOTA | SOLO_TABLA"
+        bigint origen_id FK "pedido original, si es un saldo"
         timestamptz despachado_en
     }
     PEDIDO_ITEM {
@@ -193,6 +196,7 @@ stateDiagram-v2
     [*] --> BORRADOR: crear
     BORRADOR --> BORRADOR: agregar, cambiar o quitar ítems
     BORRADOR --> DESPACHADO: despachar (completo y con precios)
+    BORRADOR --> DESPACHADO: entregar lo que hay (lo que falta pasa a un saldo nuevo en BORRADOR)
     BORRADOR --> ANULADO: anular
     DESPACHADO --> [*]
     ANULADO --> [*]
@@ -207,7 +211,12 @@ stateDiagram-v2
 - **Prioridad por orden de llegada.** El stock disponible se reparte entre los borradores del más antiguo al más nuevo (`RepartoDeStock`). Con 10 unidades, si el primer pedido pide 8 y el segundo 6, el primero está completo y al segundo le faltan 4. Es un cálculo, no una reserva física: el stock real solo baja al despachar.
 - **El inventario muestra lo separado.** Cada producto informa `stockDisponible`, `stockSeparado` (lo que esperan los borradores) y `stockLibre`. El inventario conoce ese dato mediante la interfaz `StockComprometido`, que implementa el módulo de pedidos: así `producto` no depende de `pedido`.
 - **Ítems a mano.** Un ítem sin `producto_id` es algo que aún no está en el catálogo: aparece en la nota y en "Por comprar", pero no mueve stock.
-- **Despachar es todo o nada.** Exige ítems, precios y cero faltantes. En una sola transacción toma el número de nota (bloqueando la fila de numeración), genera las salidas por FEFO vinculadas a cada ítem y marca el pedido como despachado.
+- **Despachar es todo o nada.** Exige ítems y precios. En una sola transacción toma el número de nota (bloqueando la fila de numeración), genera las salidas por FEFO vinculadas a cada ítem y marca el pedido como despachado. Si algo falla, no cambia nada.
+- **Entrega parcial.** Si faltan unidades, solo se despacha cuando se confirma (`entregarLoDisponible`). Lo que falta de cada ítem pasa a un pedido nuevo, el **saldo**, en la misma transacción: mismo cliente, local, porcentaje, observaciones, documento y precios (también los escritos a mano). El pedido despachado queda solo con lo entregado, así que su nota y su total son exactamente lo que recibe el cliente. Si no hay nada que entregar, no se despacha.
+- **El saldo conserva la prioridad.** `origen_id` apunta al pedido original (todos los saldos de un pedido apuntan al mismo), y el stock se reparte ordenando por `coalesce(origen_id, id)`: el saldo recibe la mercadería antes que los pedidos que llegaron después del original.
+- **Entrega por partes, solo para uso interno.** El detalle del pedido trae el `grupo` (original y saldos) con lo pedido, lo entregado, lo pendiente y lo anulado. Nada de eso sale en la nota.
+- **Solo tabla.** Un pedido `SOLO_TABLA` se entrega con un documento que tiene únicamente la tabla de productos y el total: sin nombre del negocio, cliente, fecha ni número. Se elige al crear el pedido y se puede cambiar mientras sea borrador. Descuenta el inventario como cualquier pedido, no consume la numeración de las notas y en el kárdex queda como "Pedido N (solo tabla)".
+- **Ítem a mano → producto.** `PUT /items/{itemId}/producto` convierte un ítem escrito a mano en un producto del catálogo. La línea toma el nombre, la presentación y la marca del producto; conserva la cantidad y el precio (si no tenía precio, se calcula).
 - **Los lotes se eligen al despachar**, no al tomar el pedido: así no importa que entre tanto hayan llegado lotes nuevos.
 - **Un pedido despachado no se modifica.** Solo los borradores se editan o se anulan.
 
