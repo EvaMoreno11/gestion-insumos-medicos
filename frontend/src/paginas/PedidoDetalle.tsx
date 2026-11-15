@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { categoriasPrecio, pedidos } from '../api/recursos'
 import type { ItemCambio } from '../api/recursos'
-import type { CategoriaPrecio, Pedido, PedidoItem } from '../api/tipos'
+import type { CategoriaPrecio, DocumentoPedido, GrupoPedido, Pedido, PedidoItem } from '../api/tipos'
 import { Aviso, Boton, Campo, Cargando, Etiqueta, Tarjeta } from '../componentes/basicos'
-import { BuscadorProductos, EtiquetaDisponibilidad, SelectorCategoria } from '../componentes/dominio'
+import { BuscadorProductos, EtiquetaDisponibilidad, SelectorCategoria, SelectorDocumento } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { compartirODescargar } from '../util/archivos'
 import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as textoPorcentaje, unir } from '../util/formato'
@@ -16,7 +16,8 @@ export default function PedidoDetalle() {
   const [categorias, setCategorias] = useState<CategoriaPrecio[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
-  const [panel, setPanel] = useState<'categoria' | 'manual' | null>(null)
+  const [panel, setPanel] = useState<'categoria' | 'manual' | 'documento' | null>(null)
+  const [confirmarParcial, setConfirmarParcial] = useState(false)
 
   useEffect(() => {
     let vigente = true
@@ -55,7 +56,12 @@ export default function PedidoDetalle() {
     setOcupado(true)
     setError(null)
     try {
-      const nombre = pedido.numero ? `nota-pedido-${pedido.numero}` : `pedido-borrador-${pedido.id}`
+      const nombre =
+        pedido.documento === 'SOLO_TABLA'
+          ? `pedido-${pedido.id}`
+          : pedido.numero
+            ? `nota-pedido-${pedido.numero}`
+            : `pedido-borrador-${pedido.id}`
       await compartirODescargar(await pedidos.nota(pedido.id, formato), `${nombre}.${formato}`)
     } catch (e) {
       setError(mensajeDe(e))
@@ -73,14 +79,38 @@ export default function PedidoDetalle() {
   }
 
   const borrador = pedido.estado === 'BORRADOR'
-  const titulo = pedido.numero ? `Nota ${pedido.numero}` : borrador ? 'Pedido' : 'Pedido anulado'
+  const titulo =
+    pedido.estado === 'ANULADO'
+      ? 'Pedido anulado'
+      : pedido.numero
+        ? `Nota ${pedido.numero}`
+        : pedido.estado === 'DESPACHADO'
+          ? 'Pedido despachado'
+          : 'Pedido'
+
+  function despachar() {
+    if (!pedido) {
+      return
+    }
+    if (!pedido.listoParaDespachar) {
+      setConfirmarParcial(true) // faltan unidades: primero se muestra qué sale y qué queda pendiente
+      return
+    }
+    const texto =
+      pedido.documento === 'SOLO_TABLA'
+        ? '¿Despachar el pedido? Se descontará del inventario. Sale como "Solo tabla": sin número de nota.'
+        : '¿Despachar el pedido? Se descontará del inventario y se le asignará el número de nota.'
+    if (window.confirm(texto)) {
+      void aplicar(() => pedidos.despachar(pedido.id))
+    }
+  }
 
   return (
     <Pantalla
       titulo={titulo}
       volver="/pedidos"
       ancho="amplio"
-      pie={<Pie pedido={pedido} ocupado={ocupado} aplicar={aplicar} nota={nota} />}
+      pie={<Pie pedido={pedido} ocupado={ocupado} aplicar={aplicar} nota={nota} onDespachar={despachar} />}
     >
       <div className="space-y-3">
         {error && <Aviso tipo="error">{error}</Aviso>}
@@ -90,6 +120,27 @@ export default function PedidoDetalle() {
           </Aviso>
         )}
         {pedido.estado === 'ANULADO' && <Aviso tipo="alerta">Este pedido fue anulado.</Aviso>}
+        {pedido.origenId !== null && (
+          <Aviso>
+            Es el saldo (lo que faltó entregar) de{' '}
+            <Link to={`/pedidos/${pedido.origenId}`} className="font-semibold text-marca underline">
+              {pedido.origenNumero ? `la nota ${pedido.origenNumero}` : 'un pedido anterior'}
+            </Link>
+            . Conserva su lugar en la fila para recibir el stock que llegue.
+          </Aviso>
+        )}
+        {pedido.grupo && <EntregaPorPartes grupo={pedido.grupo} actual={pedido.id} />}
+        {confirmarParcial && (
+          <ConfirmarEntregaParcial
+            pedido={pedido}
+            ocupado={ocupado}
+            onCancelar={() => setConfirmarParcial(false)}
+            onConfirmar={async () => {
+              await aplicar(() => pedidos.despachar(pedido.id, true))
+              setConfirmarParcial(false)
+            }}
+          />
+        )}
 
         {/* En la PC: a la izquierda el cliente y el buscador (quedan fijos al bajar); a la derecha los ítems */}
         <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
@@ -124,6 +175,45 @@ export default function PedidoDetalle() {
                     porcentaje,
                     guardarPorcentajeEnCliente: guardarEnCliente,
                     nota: pedido.nota,
+                  }),
+                )
+                if (ok) {
+                  setPanel(null)
+                }
+              }}
+            />
+          )}
+        </Tarjeta>
+
+        {/* ---------------- documento y observaciones ---------------- */}
+        <Tarjeta>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Documento</p>
+              <p className="font-medium">
+                {pedido.documento === 'SOLO_TABLA' ? 'Solo tabla (sin nombres ni número)' : 'Nota de pedido'}
+              </p>
+              {pedido.nota && <p className="mt-1 text-sm text-slate-600">Observaciones: {pedido.nota}</p>}
+            </div>
+            {borrador && (
+              <Boton
+                variante="texto"
+                className="min-h-10 shrink-0 px-2"
+                onClick={() => setPanel(panel === 'documento' ? null : 'documento')}
+              >
+                {panel === 'documento' ? 'Cerrar' : 'Cambiar'}
+              </Boton>
+            )}
+          </div>
+          {panel === 'documento' && (
+            <CambiarDocumento
+              pedido={pedido}
+              ocupado={ocupado}
+              onGuardar={async (documento, observaciones) => {
+                const ok = await aplicar(() =>
+                  pedidos.actualizar(pedido.id, {
+                    documento,
+                    nota: observaciones.trim() === '' ? null : observaciones,
                   }),
                 )
                 if (ok) {
@@ -181,8 +271,10 @@ export default function PedidoDetalle() {
                   item={item}
                   editable={borrador}
                   ocupado={ocupado}
+                  pedidoId={pedido.id}
                   onCambiar={(cambio) => aplicar(() => pedidos.cambiarItem(pedido.id, item.id, cambio))}
                   onQuitar={() => aplicar(() => pedidos.quitarItem(pedido.id, item.id))}
+                  onVincular={(productoId) => aplicar(() => pedidos.vincularProducto(pedido.id, item.id, productoId))}
                 />
               </li>
             ))}
@@ -202,11 +294,13 @@ function Pie({
   ocupado,
   aplicar,
   nota,
+  onDespachar,
 }: {
   pedido: Pedido
   ocupado: boolean
   aplicar: (accion: () => Promise<Pedido>) => Promise<boolean>
   nota: (formato: 'pdf' | 'xlsx') => void
+  onDespachar: () => void
 }) {
   const borrador = pedido.estado === 'BORRADOR'
   const avisos = [
@@ -234,14 +328,10 @@ function Pie({
           {borrador && (
             <Boton
               className="flex-1"
-              disabled={ocupado || !pedido.listoParaDespachar}
-              onClick={() => {
-                if (window.confirm('¿Despachar el pedido? Se descontará del inventario y se le asignará el número de nota.')) {
-                  void aplicar(() => pedidos.despachar(pedido.id))
-                }
-              }}
+              disabled={ocupado || !(pedido.listoParaDespachar || pedido.puedeEntregarParcial)}
+              onClick={onDespachar}
             >
-              Despachar
+              {pedido.listoParaDespachar || !pedido.puedeEntregarParcial ? 'Despachar' : 'Despachar lo que hay'}
             </Boton>
           )}
           <Boton variante="secundario" className={borrador ? '' : 'flex-1'} disabled={ocupado} onClick={() => nota('pdf')}>
@@ -277,18 +367,23 @@ function FilaItem({
   item,
   editable,
   ocupado,
+  pedidoId,
   onCambiar,
   onQuitar,
+  onVincular,
 }: {
   numero: number
   item: PedidoItem
   editable: boolean
   ocupado: boolean
+  pedidoId: number
   onCambiar: (cambio: ItemCambio) => void
   onQuitar: () => void
+  onVincular: (productoId: number) => void
 }) {
   const [cantidad, setCantidad] = useState(String(item.cantidad))
   const [precio, setPrecio] = useState(item.precioUnitario === null ? '' : item.precioUnitario.toFixed(2))
+  const [eligiendo, setEligiendo] = useState(false)
 
 
   function confirmarCantidad() {
@@ -401,6 +496,44 @@ function FilaItem({
         >
           Precio escrito a mano · volver al calculado
         </button>
+      )}
+
+      {editable && item.productoId === null && (
+        <div className="ml-7 mt-2 border-t border-slate-100 pt-2">
+          <p className="text-sm text-slate-600">No está en el inventario, así que no descuenta stock.</p>
+          <div className="mt-1 flex flex-wrap gap-x-4">
+            <Link
+              to={`/productos/nuevo?${new URLSearchParams({
+                pedido: String(pedidoId),
+                item: String(item.id),
+                nombre: item.descripcion,
+                presentacion: item.presentacion ?? '',
+                marca: item.marca ?? '',
+              }).toString()}`}
+              className="py-2 text-sm font-semibold text-marca"
+            >
+              Registrar como producto
+            </Link>
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => setEligiendo(!eligiendo)}
+              className="py-2 text-sm font-semibold text-marca"
+            >
+              {eligiendo ? 'Cancelar' : 'Elegir del inventario'}
+            </button>
+          </div>
+          {eligiendo && (
+            <BuscadorProductos
+              placeholder="¿Cuál producto es?"
+              autoFocus
+              onElegir={(p) => {
+                setEligiendo(false)
+                onVincular(p.id)
+              }}
+            />
+          )}
+        </div>
       )}
 
       {item.lotes.length > 0 && (
@@ -518,5 +651,182 @@ function ItemAMano({
         Agregar al pedido
       </Boton>
     </form>
+  )
+}
+
+function CambiarDocumento({
+  pedido,
+  ocupado,
+  onGuardar,
+}: {
+  pedido: Pedido
+  ocupado: boolean
+  onGuardar: (documento: DocumentoPedido, observaciones: string) => void
+}) {
+  const [documento, setDocumento] = useState<DocumentoPedido>(pedido.documento)
+  const [observaciones, setObservaciones] = useState(pedido.nota ?? '')
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+      <SelectorDocumento valor={documento} onCambio={setDocumento} />
+      <Campo
+        etiqueta="Observaciones"
+        placeholder="(No se factura)"
+        value={observaciones}
+        onChange={(e) => setObservaciones(e.target.value)}
+        maxLength={300}
+        ayuda="Solo para ustedes: no sale en la nota ni en la tabla."
+      />
+      <Boton ancho disabled={ocupado} onClick={() => onGuardar(documento, observaciones)}>
+        Guardar
+      </Boton>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ entrega por partes
+
+/** Lo pedido, lo entregado y lo pendiente de un pedido que se entregó por partes. Solo para uso interno. */
+function EntregaPorPartes({ grupo, actual }: { grupo: GrupoPedido; actual: number }) {
+  const ESTADO = { BORRADOR: 'Pendiente', DESPACHADO: 'Entregado', ANULADO: 'Anulado' } as const
+  return (
+    <Tarjeta>
+      <h2 className="font-semibold">Entrega por partes</h2>
+      <p className="text-sm text-slate-500">Solo lo ven ustedes: el cliente recibe cada nota por separado.</p>
+      <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-slate-50 p-2">
+          <dt className="text-xs uppercase tracking-wide text-slate-500">Pedido</dt>
+          <dd className="font-bold">{dinero(grupo.pedido)}</dd>
+        </div>
+        <div className="rounded-xl bg-emerald-50 p-2">
+          <dt className="text-xs uppercase tracking-wide text-emerald-800">Entregado</dt>
+          <dd className="font-bold text-emerald-900">{dinero(grupo.entregado)}</dd>
+        </div>
+        <div className="rounded-xl bg-amber-50 p-2">
+          <dt className="text-xs uppercase tracking-wide text-amber-900">Pendiente</dt>
+          <dd className="font-bold text-amber-900">{dinero(grupo.pendiente)}</dd>
+        </div>
+      </dl>
+      {grupo.anulado > 0 && (
+        <p className="mt-2 text-sm text-slate-600">No se entregó (saldo anulado): {dinero(grupo.anulado)}</p>
+      )}
+      <ul className="mt-3 divide-y divide-slate-100 text-sm">
+        {grupo.pedidos.map((p) => {
+          const nombre = p.numero ? `Nota ${p.numero}` : p.esSaldo ? 'Saldo' : 'Pedido'
+          const contenido = (
+            <>
+              <span className="min-w-0 truncate">
+                {nombre} · {ESTADO[p.estado]}
+                {p.despachadoEn ? ` el ${fechaCorta(p.despachadoEn)}` : ''}
+              </span>
+              <span className="shrink-0 font-semibold">{dinero(p.total)}</span>
+            </>
+          )
+          return (
+            <li key={p.id}>
+              {p.id === actual ? (
+                <div className="flex justify-between gap-3 py-2 font-medium">{contenido}</div>
+              ) : (
+                <Link to={`/pedidos/${p.id}`} className="flex justify-between gap-3 py-2 text-marca">
+                  {contenido}
+                </Link>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </Tarjeta>
+  )
+}
+
+/**
+ * Antes de despachar un pedido con faltantes: muestra qué sale ahora y qué queda pendiente (con montos).
+ * Lo pendiente pasa a un pedido nuevo (saldo).
+ */
+function ConfirmarEntregaParcial({
+  pedido,
+  ocupado,
+  onCancelar,
+  onConfirmar,
+}: {
+  pedido: Pedido
+  ocupado: boolean
+  onCancelar: () => void
+  onConfirmar: () => void
+}) {
+  useEffect(() => {
+    const alPresionar = (e: KeyboardEvent) => e.key === 'Escape' && onCancelar()
+    window.addEventListener('keydown', alPresionar)
+    return () => window.removeEventListener('keydown', alPresionar)
+  }, [onCancelar])
+
+  // Los ítems a mano no tienen control de stock: salen en la entrega
+  const ahora = pedido.items
+    .map((i) => ({ item: i, cantidad: i.productoId === null ? i.cantidad : Math.min(i.cantidad, i.disponible ?? 0) }))
+    .filter((x) => x.cantidad > 0)
+  const pendiente = pedido.items
+    .filter((i) => (i.faltante ?? 0) > 0)
+    .map((i) => ({ item: i, cantidad: i.faltante ?? 0 }))
+  const suma = (lista: { item: PedidoItem; cantidad: number }[]) =>
+    Math.round(lista.reduce((s, x) => s + x.cantidad * (x.item.precioUnitario ?? 0), 0) * 100) / 100
+
+  const lista = (filas: { item: PedidoItem; cantidad: number }[], mostrarDeCuanto: boolean) => (
+    <ul className="mt-1 divide-y divide-slate-100 text-sm">
+      {filas.map(({ item, cantidad }) => (
+        <li key={item.id} className="flex justify-between gap-3 py-1.5">
+          <span className="min-w-0">{item.descripcion}</span>
+          <span className="shrink-0 font-semibold">
+            {cantidad}
+            {mostrarDeCuanto && cantidad !== item.cantidad ? ` de ${item.cantidad}` : ''}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="titulo-entrega-parcial"
+    >
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl">
+        <h2 id="titulo-entrega-parcial" className="text-lg font-bold">
+          Este pedido tiene faltantes
+        </h2>
+
+        <section className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <h3 className="flex justify-between gap-3 font-semibold text-emerald-900">
+            <span>Se entrega ahora</span>
+            <span>{dinero(suma(ahora))}</span>
+          </h3>
+          {lista(ahora, true)}
+        </section>
+
+        <section className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <h3 className="flex justify-between gap-3 font-semibold text-amber-900">
+            <span>Queda pendiente</span>
+            <span>{dinero(suma(pendiente))}</span>
+          </h3>
+          {lista(pendiente, false)}
+        </section>
+
+        <p className="mt-3 text-sm text-slate-600">
+          Lo pendiente pasa a un pedido nuevo (saldo) para el mismo cliente y local, con los mismos precios y su lugar
+          en la fila. {pedido.documento === 'SOLO_TABLA' ? 'La tabla' : 'La nota'} que recibe el cliente solo lleva lo
+          que se entrega.
+        </p>
+
+        <div className="mt-4 flex gap-2">
+          <Boton variante="secundario" className="flex-1" disabled={ocupado} onClick={onCancelar} autoFocus>
+            Cancelar
+          </Boton>
+          <Boton className="flex-1" disabled={ocupado} onClick={onConfirmar}>
+            {ocupado ? 'Despachando…' : 'Despachar lo que hay'}
+          </Boton>
+        </div>
+      </div>
+    </div>
   )
 }

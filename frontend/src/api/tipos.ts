@@ -154,6 +154,9 @@ export interface ResultadoMovimiento {
 
 export type EstadoPedido = 'BORRADOR' | 'DESPACHADO' | 'ANULADO'
 
+/** NOTA: nota de pedido con nombres y número. SOLO_TABLA: solo la tabla con el total (sin nombres ni número). */
+export type DocumentoPedido = 'NOTA' | 'SOLO_TABLA'
+
 export type Disponibilidad = 'DISPONIBLE' | 'PARCIAL' | 'SIN_STOCK' | 'NO_REGISTRADO' | 'DESPACHADO'
 
 export interface LoteEntregado {
@@ -183,6 +186,7 @@ export interface Pedido {
   id: number
   numero: string | null
   estado: EstadoPedido
+  documento: DocumentoPedido
   clienteId: number
   cliente: string
   localId: number
@@ -198,6 +202,34 @@ export interface Pedido {
   itemsConFaltante: number
   itemsSinPrecio: number
   listoParaDespachar: boolean
+  /** Tiene faltantes, pero hay algo que entregar ya: lo que falta pasaría a un saldo */
+  puedeEntregarParcial: boolean
+  /** Pedido original, si este es un saldo */
+  origenId: number | null
+  origenNumero: string | null
+  /** El pedido original y sus saldos (solo si se entregó por partes) */
+  grupo: GrupoPedido | null
+  creadoEn: string
+  despachadoEn: string | null
+}
+
+export interface GrupoPedido {
+  /** Lo que pidió el cliente: entregado + pendiente + anulado */
+  pedido: number
+  entregado: number
+  pendiente: number
+  /** Saldos anulados: lo que finalmente no se entregó */
+  anulado: number
+  pedidos: PedidoDelGrupo[]
+}
+
+export interface PedidoDelGrupo {
+  id: number
+  numero: string | null
+  estado: EstadoPedido
+  documento: DocumentoPedido
+  total: number
+  esSaldo: boolean
   creadoEn: string
   despachadoEn: string | null
 }
@@ -206,12 +238,17 @@ export interface PedidoResumen {
   id: number
   numero: string | null
   estado: EstadoPedido
+  documento: DocumentoPedido
   clienteId: number
   cliente: string
   local: string | null
+  /** Observaciones internas */
+  nota: string | null
   total: number
   cantidadItems: number
   itemsConFaltante: number
+  origenId: number | null
+  origenNumero: string | null
   creadoEn: string
   despachadoEn: string | null
 }
@@ -238,6 +275,7 @@ export interface ProductoPorComprar {
 
 export interface ItemNoRegistrado {
   pedidoId: number
+  itemId: number
   cliente: string
   local: string | null
   descripcion: string

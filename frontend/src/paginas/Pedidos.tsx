@@ -64,6 +64,7 @@ export default function Pedidos() {
                     <span className="block truncate text-sm text-slate-500">
                       {unir(' · ', p.local, p.numero ? `N° ${p.numero}` : null, fechaCorta(p.despachadoEn ?? p.creadoEn))}
                     </span>
+                    {p.nota && <span className="block truncate text-sm text-slate-600">{p.nota}</span>}
                   </span>
                   <span className="shrink-0 text-lg font-bold">{dinero(p.total)}</span>
                 </div>
@@ -71,6 +72,10 @@ export default function Pedidos() {
                   <Etiqueta color="gris">
                     {p.cantidadItems} {p.cantidadItems === 1 ? 'ítem' : 'ítems'}
                   </Etiqueta>
+                  {p.documento === 'SOLO_TABLA' && <Etiqueta color="azul">Solo tabla</Etiqueta>}
+                  {p.origenId !== null && (
+                    <Etiqueta color="azul">{p.origenNumero ? `Saldo de ${p.origenNumero}` : 'Saldo'}</Etiqueta>
+                  )}
                   {p.estado === 'BORRADOR' &&
                     (p.itemsConFaltante > 0 ? (
                       <Etiqueta color="ambar">Faltan unidades en {p.itemsConFaltante}</Etiqueta>

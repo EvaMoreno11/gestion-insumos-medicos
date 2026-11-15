@@ -58,22 +58,35 @@ export default function PorComprar() {
           <section className="mt-6">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">No registrados</h2>
             <p className="mb-2 text-sm text-slate-500">
-              Ítems escritos a mano en un pedido. Hay que conseguirlos y, después, registrarlos como productos.
+              Ítems escritos a mano en un pedido. Al registrarlos como productos, la línea del pedido pasa a
+              descontar del inventario.
             </p>
             <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-              {datos.noRegistrados.map((n, i) => (
-                <li key={i}>
-                  <Link
-                    to={`/pedidos/${n.pedidoId}`}
-                    className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 active:bg-slate-50"
-                  >
+              {datos.noRegistrados.map((n) => (
+                <li key={n.itemId} className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <Link to={`/pedidos/${n.pedidoId}`} className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <span className="block font-medium leading-snug">{n.descripcion}</span>
                       <span className="block text-sm text-slate-500">{unir(' · ', n.presentacion, n.marca)}</span>
-                      <span className="block text-sm text-slate-500">{unir(' · ', n.cliente, n.local)}</span>
+                      <span className="block text-sm text-marca">{unir(' · ', n.cliente, n.local)}</span>
                     </span>
                     <span className="shrink-0 text-xl font-bold">{n.cantidad}</span>
                   </Link>
+                  <div className="mt-3">
+                    <BotonEnlace
+                      a={`/productos/nuevo?${new URLSearchParams({
+                        pedido: String(n.pedidoId),
+                        item: String(n.itemId),
+                        nombre: n.descripcion,
+                        presentacion: n.presentacion ?? '',
+                        marca: n.marca ?? '',
+                      }).toString()}`}
+                      variante="secundario"
+                      ancho
+                    >
+                      Registrar como producto
+                    </BotonEnlace>
+                  </div>
                 </li>
               ))}
             </ul>

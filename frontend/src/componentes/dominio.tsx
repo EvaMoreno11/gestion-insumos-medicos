@@ -1,9 +1,53 @@
 import { useState } from 'react'
 import { productos } from '../api/recursos'
-import type { CategoriaPrecio, ClienteResumen, EstadoStock, PedidoItem, ProductoResumen } from '../api/tipos'
+import type { CategoriaPrecio, ClienteResumen, DocumentoPedido, EstadoStock, PedidoItem, ProductoResumen } from '../api/tipos'
 import { useCarga, useRetardo } from '../hooks'
 import { escribirMesAnio, porcentaje, unir } from '../util/formato'
 import { Aviso, Buscador, Campo, Etiqueta } from './basicos'
+
+// ---------------------------------------------------------------- pedidos
+
+const DOCUMENTOS: { valor: DocumentoPedido; titulo: string; detalle: string }[] = [
+  { valor: 'NOTA', titulo: 'Nota de pedido', detalle: 'Con el nombre del negocio, el cliente, la fecha y el número.' },
+  { valor: 'SOLO_TABLA', titulo: 'Solo tabla', detalle: 'Solo los productos y el total: sin nombres, sin fecha y sin número.' },
+]
+
+/** Con qué documento se entrega el pedido. */
+export function SelectorDocumento({
+  valor,
+  onCambio,
+  deshabilitado,
+}: {
+  valor: DocumentoPedido
+  onCambio: (valor: DocumentoPedido) => void
+  deshabilitado?: boolean
+}) {
+  return (
+    <div className="space-y-2" role="radiogroup" aria-label="Documento">
+      {DOCUMENTOS.map((d) => (
+        <label
+          key={d.valor}
+          className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 ${
+            valor === d.valor ? 'border-marca bg-marca-claro' : 'border-slate-200'
+          }`}
+        >
+          <input
+            type="radio"
+            name="documento"
+            className="mt-1 h-5 w-5 accent-marca"
+            checked={valor === d.valor}
+            disabled={deshabilitado}
+            onChange={() => onCambio(d.valor)}
+          />
+          <span className="min-w-0">
+            <span className="block font-medium">{d.titulo}</span>
+            <span className="block text-sm text-slate-600">{d.detalle}</span>
+          </span>
+        </label>
+      ))}
+    </div>
+  )
+}
 
 // ---------------------------------------------------------------- clientes
 
