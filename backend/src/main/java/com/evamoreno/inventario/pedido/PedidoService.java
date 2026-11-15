@@ -12,7 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +35,7 @@ import com.evamoreno.inventario.pedido.PedidoDto.ActualizarRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.CrearRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.Detalle;
 import com.evamoreno.inventario.pedido.PedidoDto.Disponibilidad;
+import com.evamoreno.inventario.pedido.PedidoDto.Grupo;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemActualizarRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemNoRegistrado;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemRequest;
@@ -40,6 +43,7 @@ import com.evamoreno.inventario.pedido.PedidoDto.ItemResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.LoteEntregado;
 import com.evamoreno.inventario.pedido.PedidoDto.Numeracion;
 import com.evamoreno.inventario.pedido.PedidoDto.NumeracionRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.PedidoDelGrupo;
 import com.evamoreno.inventario.pedido.PedidoDto.PedidoQueEspera;
 import com.evamoreno.inventario.pedido.PedidoDto.PorComprar;
 import com.evamoreno.inventario.pedido.PedidoDto.ProductoPorComprar;
@@ -56,6 +60,7 @@ import com.evamoreno.inventario.stock.StockService;
 /**
  * Pedidos: se arman como borrador (con precios por cliente y aviso de faltantes),
  * y al despachar se descuentan los lotes por FEFO y se asigna el número de nota.
+ * Si faltan unidades, se puede entregar lo que hay: lo que falta pasa a un pedido nuevo (saldo).
  */
 @Service
 @Transactional
@@ -99,7 +104,11 @@ public class PedidoService {
                 .flatMap(p -> p.getItems().stream())
                 .toList();
         Map<Long, Integer> asignado = repartoPara(itemsDeBorradores);
-        return Pagina.de(page, p -> resumen(p, asignado));
+        List<Long> origenes = page.getContent().stream().map(Pedido::getOrigenId).filter(Objects::nonNull)
+                .distinct().toList();
+        Map<Long, String> numerosDeOrigen = new LinkedHashMap<>();
+        pedidos.findAllById(origenes).forEach(o -> numerosDeOrigen.put(o.getId(), o.getNumero()));
+        return Pagina.de(page, p -> resumen(p, asignado, numerosDeOrigen.get(p.getOrigenId())));
     }
 
     @Transactional(readOnly = true)
@@ -138,7 +147,7 @@ public class PedidoService {
         faltantes.sort((a, b) -> a.nombre().compareToIgnoreCase(b.nombre()));
 
         List<ItemNoRegistrado> noRegistrados = pendientes.stream().filter(PedidoItem::esManual)
-                .map(i -> new ItemNoRegistrado(i.getPedido().getId(), i.getPedido().getCliente().getNombre(),
+                .map(i -> new ItemNoRegistrado(i.getPedido().getId(), i.getId(), i.getPedido().getCliente().getNombre(),
                         i.getPedido().getLocal().getNombre(), i.getDescripcion(), i.getPresentacion(), i.getMarca(),
                         i.getCantidad()))
                 .toList();
@@ -160,7 +169,8 @@ public class PedidoService {
         }
         guardarPorcentajeSiCorresponde(cliente, porcentaje, r.guardarPorcentajeEnCliente());
 
-        Pedido pedido = new Pedido(cliente, elegirLocal(cliente, r.localId()), porcentaje, limpiar(r.nota()));
+        Pedido pedido = new Pedido(cliente, elegirLocal(cliente, r.localId()), porcentaje, limpiar(r.nota()),
+                r.documento() == null ? DocumentoPedido.NOTA : r.documento());
         return detalle(pedidos.saveAndFlush(pedido));
     }
 
@@ -171,7 +181,8 @@ public class PedidoService {
         ClienteLocal local = r.localId() == null ? pedido.getLocal() : elegirLocal(pedido.getCliente(), r.localId());
         BigDecimal porcentaje = r.porcentaje() == null ? pedido.getPorcentaje() : r.porcentaje();
         boolean cambioPorcentaje = porcentaje.compareTo(pedido.getPorcentaje()) != 0;
-        pedido.actualizar(local, porcentaje, limpiar(r.nota()));
+        pedido.actualizar(local, porcentaje, limpiar(r.nota()),
+                r.documento() == null ? pedido.getDocumento() : r.documento());
         guardarPorcentajeSiCorresponde(pedido.getCliente(), porcentaje, r.guardarPorcentajeEnCliente());
 
         if (cambioPorcentaje) {
@@ -247,13 +258,45 @@ public class PedidoService {
         return detalle(pedido);
     }
 
+    /**
+     * Un ítem escrito a mano pasa a ser un producto del catálogo (recién registrado o que ya existía):
+     * conserva la cantidad y el precio que se le había puesto; si no tenía precio, se calcula.
+     */
+    public Detalle vincularProducto(Long pedidoId, Long itemId, Long productoId) {
+        Pedido pedido = buscar(pedidoId);
+        pedido.exigirBorrador();
+        PedidoItem item = buscarItem(pedido, itemId);
+        if (!item.esManual()) {
+            throw new ConflictoException("\"" + item.getDescripcion() + "\" ya es un producto del inventario");
+        }
+        Producto producto = productos.findById(productoId).orElseThrow(
+                () -> new RecursoNoEncontradoException("No existe el producto con id " + productoId));
+        if (!producto.isActivo()) {
+            throw new ConflictoException("El producto " + producto.getCodigo() + " está desactivado");
+        }
+        if (pedido.getItems().stream().anyMatch(i -> !i.esManual() && i.getProducto().getId().equals(productoId))) {
+            throw new ConflictoException("\"" + producto.getNombre()
+                    + "\" ya está en el pedido: súmale la cantidad y quita el ítem escrito a mano");
+        }
+        item.vincular(producto);
+        if (item.getPrecioUnitario() == null) {
+            item.fijarPrecio(precioAutomatico(pedido, producto), false);
+        } else {
+            item.fijarPrecio(item.getPrecioUnitario(), true); // se respeta el precio que se le dio al cliente
+        }
+        return detalle(pedido);
+    }
+
     // ================================================================== despacho
 
     /**
-     * Entrega el pedido: exige que esté completo (todo con precio y sin faltantes), descuenta los lotes
-     * por FEFO y asigna el número de nota. Todo en una transacción: o se despacha completo o no cambia nada.
+     * Entrega el pedido: descuenta los lotes por FEFO y, si es una nota de pedido, le asigna su número
+     * ("Solo tabla" no consume la numeración). Todo en una transacción: o se despacha o no cambia nada.
+     *
+     * @param entregarLoDisponible si faltan unidades: false = no se despacha; true = se entrega lo que hay
+     *                             y lo que falta pasa a un pedido nuevo (saldo) con la prioridad del original
      */
-    public Detalle despachar(Long id) {
+    public Detalle despachar(Long id, boolean entregarLoDisponible) {
         Pedido pedido = buscar(id);
         pedido.exigirBorrador();
         pedidos.flush();
@@ -266,27 +309,67 @@ public class PedidoService {
             throw new ConflictoException("Falta el precio de: " + String.join("; ", sinPrecio));
         }
         Map<Long, Integer> asignado = repartoPara(pedido.getItems());
-        List<String> faltantes = pedido.getItems().stream()
-                .filter(i -> !i.esManual() && faltante(i, asignado) > 0)
-                .map(i -> i.getDescripcion() + " (faltan " + faltante(i, asignado) + ")").toList();
-        if (!faltantes.isEmpty()) {
-            throw new ConflictoException("No se puede despachar: faltan unidades de " + String.join("; ", faltantes));
+        List<PedidoItem> incompletos = pedido.getItems().stream().filter(i -> faltante(i, asignado) > 0).toList();
+        if (!incompletos.isEmpty()) {
+            if (!entregarLoDisponible) {
+                throw new ConflictoException("No se puede despachar: faltan unidades de " + incompletos.stream()
+                        .map(i -> i.getDescripcion() + " (faltan " + faltante(i, asignado) + ")")
+                        .collect(Collectors.joining("; "))
+                        + ". Para entregar lo que hay y dejar el resto pendiente, confirma la entrega parcial");
+            }
+            if (!hayAlgoQueEntregar(pedido, asignado)) {
+                throw new ConflictoException(
+                        "No hay nada que entregar todavía: no queda stock de ningún producto del pedido");
+            }
+            separarSaldo(pedido, incompletos, asignado);
         }
 
-        String numero = pedidos.numeracionBloqueada().tomarNumero();
+        String numero = pedido.getDocumento() == DocumentoPedido.NOTA
+                ? pedidos.numeracionBloqueada().tomarNumero()
+                : null;
+        String referencia = numero != null ? "Nota de pedido " + numero : "Pedido " + pedido.getId() + " (solo tabla)";
         for (PedidoItem item : pedido.getItems()) {
             if (!item.esManual()) {
                 movimientoService.registrarSalidaDePedido(item.getProducto().getId(), item.getCantidad(),
-                        item.getId(), "Nota de pedido " + numero);
+                        item.getId(), referencia);
             }
         }
         pedido.marcarDespachado(numero, Instant.now(clock));
         return detalle(pedido);
     }
 
+    /** Hay algo para entregar ya: un ítem a mano o unidades aseguradas de algún producto. */
+    private static boolean hayAlgoQueEntregar(Pedido pedido, Map<Long, Integer> asignado) {
+        return pedido.getItems().stream()
+                .anyMatch(i -> i.esManual() || asignado.getOrDefault(i.getId(), 0) > 0);
+    }
+
+    /**
+     * Lo que falta de cada ítem pasa a un pedido nuevo (saldo), con el mismo precio. En el pedido que se
+     * despacha queda solo lo que hay: así su nota y su total son exactamente lo que se entrega.
+     */
+    private void separarSaldo(Pedido pedido, List<PedidoItem> incompletos, Map<Long, Integer> asignado) {
+        Pedido saldo = Pedido.saldoDe(pedido);
+        for (PedidoItem item : incompletos) {
+            int falta = faltante(item, asignado);
+            saldo.getItems().add(PedidoItem.copiaPara(saldo, item, falta));
+            int hay = item.getCantidad() - falta;
+            if (hay == 0) {
+                pedido.getItems().remove(item);
+            } else {
+                item.setCantidad(hay);
+            }
+        }
+        pedidos.save(saldo);
+        pedidos.flush();
+    }
+
     // ================================================================== nota de pedido
 
-    /** Contenido de la nota (para Excel o PDF). En un borrador va sin número ni lotes. */
+    /**
+     * Contenido de la nota (para Excel o PDF). En un borrador va sin número ni lotes.
+     * Si el pedido es "Solo tabla", lleva únicamente la tabla con el total.
+     */
     @Transactional(readOnly = true)
     public NotaPedido nota(Long id) {
         Pedido pedido = buscar(id);
@@ -312,6 +395,11 @@ public class PedidoService {
             }
         }
 
+        boolean borrador = pedido.getEstado() == EstadoPedido.BORRADOR;
+        if (pedido.getDocumento() == DocumentoPedido.SOLO_TABLA) {
+            // Sin nombres, sin fecha y sin número: ni siquiera se leen los datos del negocio
+            return NotaPedido.soloTabla(filas, total(pedido), "pedido-" + pedido.getId(), borrador);
+        }
         NegocioDto datos = negocio.obtener();
         ClienteLocal local = pedido.getLocal();
         Instant momento = pedido.getDespachadoEn() != null ? pedido.getDespachadoEn() : Instant.now(clock);
@@ -320,7 +408,7 @@ public class PedidoService {
         return new NotaPedido(datos.nombre(), datos.direccion(), datos.telefono(), pedido.getNumero(),
                 pedido.getCliente().getNombre(), local.getNombre(), local.getDireccion(),
                 NotaPedido.unir(local.getContacto(), local.getTelefono()),
-                LocalDate.ofInstant(momento, clock.getZone()), filas, total(pedido), archivo);
+                LocalDate.ofInstant(momento, clock.getZone()), filas, total(pedido), archivo, borrador, false);
     }
 
     private static NotaPedido.Fila fila(Integer numero, PedidoItem item, String lote, String vencimiento,
@@ -441,14 +529,34 @@ public class PedidoService {
                 .toList();
         int conFaltante = (int) items.stream().filter(i -> i.faltante() != null && i.faltante() > 0).count();
         int sinPrecio = (int) items.stream().filter(i -> i.precioUnitario() == null).count();
+        boolean conPrecios = borrador && !items.isEmpty() && sinPrecio == 0;
         ClienteLocal local = pedido.getLocal();
-        return new Detalle(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getCliente().getId(),
-                pedido.getCliente().getNombre(), local.getId(), local.getNombre(), local.getDireccion(),
-                local.getContacto(), local.getTelefono(), pedido.getPorcentaje(),
+
+        List<Pedido> saldos = pedidos.findByOrigenIdOrderById(pedido.idOriginal());
+        Pedido original = pedido.esSaldo() ? pedidos.findById(pedido.getOrigenId()).orElseThrow() : pedido;
+        return new Detalle(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getDocumento(),
+                pedido.getCliente().getId(), pedido.getCliente().getNombre(), local.getId(), local.getNombre(),
+                local.getDireccion(), local.getContacto(), local.getTelefono(), pedido.getPorcentaje(),
                 CategoriaPrecioService.letraDe(categoriasPrecio.letrasPorPorcentaje(), pedido.getPorcentaje()),
                 pedido.getNota(), items, total(pedido), conFaltante, sinPrecio,
-                borrador && !items.isEmpty() && conFaltante == 0 && sinPrecio == 0,
+                conPrecios && conFaltante == 0,
+                conPrecios && conFaltante > 0 && hayAlgoQueEntregar(pedido, asignado),
+                pedido.getOrigenId(), pedido.esSaldo() ? original.getNumero() : null,
+                saldos.isEmpty() ? null : grupo(original, saldos),
                 pedido.getCreadoEn(), pedido.getDespachadoEn());
+    }
+
+    /** El pedido original y sus saldos, con lo entregado y lo pendiente (solo para uso interno). */
+    private static Grupo grupo(Pedido original, List<Pedido> saldos) {
+        List<Pedido> todos = Stream.concat(Stream.of(original), saldos.stream()).toList();
+        Function<EstadoPedido, BigDecimal> suma = estado -> todos.stream().filter(p -> p.getEstado() == estado)
+                .map(PedidoService::total).reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal entregado = suma.apply(EstadoPedido.DESPACHADO);
+        BigDecimal pendiente = suma.apply(EstadoPedido.BORRADOR);
+        BigDecimal anulado = suma.apply(EstadoPedido.ANULADO);
+        return new Grupo(entregado.add(pendiente).add(anulado), entregado, pendiente, anulado,
+                todos.stream().map(p -> new PedidoDelGrupo(p.getId(), p.getNumero(), p.getEstado(),
+                        p.getDocumento(), total(p), p.esSaldo(), p.getCreadoEn(), p.getDespachadoEn())).toList());
     }
 
     private static ItemResponse item(PedidoItem item, EstadoPedido estado, Map<Long, Integer> asignado,
@@ -475,12 +583,13 @@ public class PedidoService {
                         s.getLote().getFechaVencimiento(), s.getCantidad())).toList());
     }
 
-    private static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado) {
+    private static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero) {
         int conFaltante = pedido.getEstado() != EstadoPedido.BORRADOR ? 0
                 : (int) pedido.getItems().stream().filter(i -> faltante(i, asignado) > 0).count();
-        return new Resumen(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getCliente().getId(),
-                pedido.getCliente().getNombre(), pedido.getLocal().getNombre(), total(pedido),
-                pedido.getItems().size(), conFaltante, pedido.getCreadoEn(), pedido.getDespachadoEn());
+        return new Resumen(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getDocumento(),
+                pedido.getCliente().getId(), pedido.getCliente().getNombre(), pedido.getLocal().getNombre(),
+                pedido.getNota(), total(pedido), pedido.getItems().size(), conFaltante, pedido.getOrigenId(),
+                origenNumero, pedido.getCreadoEn(), pedido.getDespachadoEn());
     }
 
     private static String limpiar(String texto) {

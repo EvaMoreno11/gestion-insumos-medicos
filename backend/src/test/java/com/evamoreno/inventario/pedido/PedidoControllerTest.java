@@ -247,7 +247,8 @@ class PedidoControllerTest extends IntegracionTest {
         postJson(URL + "/" + pedido + "/despachar", "")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        "No se puede despachar: faltan unidades de Guantes talla M (faltan 2)"));
+                        "No se puede despachar: faltan unidades de Guantes talla M (faltan 2). Para entregar lo que hay "
+                                + "y dejar el resto pendiente, confirma la entrega parcial"));
 
         // Llega la mercadería: el mismo borrador pasa a estar completo
         entrada(guantes, "G2", HOY.plusMonths(12), 10);

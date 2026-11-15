@@ -23,6 +23,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * Dibuja la nota de pedido en Excel (.xlsx) con Apache POI, lista para imprimir en A4.
+ * Si es "Solo tabla", la hoja tiene únicamente la tabla de productos con el total.
  * Los totales son fórmulas, pero se guardan ya calculados para que también se vean
  * en visores que no recalculan (por ejemplo, la vista previa del iPhone).
  */
@@ -39,17 +40,21 @@ final class NotaPedidoExcel {
     private static final double[] ANCHOS = { 4.5, 33, 13, 13.5, 11, 8.5, 6.5, 9, 10 };
     private static final String[] TITULOS = { "N°", "DESCRIPCIÓN", "PRESENTACIÓN", "LABORATORIO", "LOTE", "F.V.",
             "CANT.", "PRECIO\n(inc. IGV)", "TOTAL\n(inc. IGV)" };
-    private static final int FILA_TITULOS = 8; // fila 9 de Excel
+    private static final int FILA_TITULOS_NOTA = 8; // fila 9 de Excel, debajo del encabezado
     private static final float ALTO_FILA = 30f;
 
     private final XSSFWorkbook libro = new XSSFWorkbook();
-    private final XSSFSheet hoja = libro.createSheet("Nota de pedido");
+    private final XSSFSheet hoja;
+    /** Fila donde empieza la tabla: debajo del encabezado, o la primera si es "Solo tabla". */
+    private final int filaTitulos;
 
-    private NotaPedidoExcel() {
+    private NotaPedidoExcel(boolean soloTabla) {
+        hoja = libro.createSheet(soloTabla ? "Pedido" : "Nota de pedido");
+        filaTitulos = soloTabla ? 0 : FILA_TITULOS_NOTA;
     }
 
     static byte[] generar(NotaPedido nota) {
-        NotaPedidoExcel excel = new NotaPedidoExcel();
+        NotaPedidoExcel excel = new NotaPedidoExcel(nota.soloTabla());
         try (excel.libro) {
             excel.dibujar(nota);
             ByteArrayOutputStream salida = new ByteArrayOutputStream();
@@ -65,8 +70,10 @@ final class NotaPedidoExcel {
         for (int i = 0; i < ANCHOS.length; i++) {
             hoja.setColumnWidth(i, (int) Math.round(ANCHOS[i] * 256));
         }
-        encabezado(nota);
-        datosDelCliente(nota);
+        if (!nota.soloTabla()) {
+            encabezado(nota);
+            datosDelCliente(nota);
+        }
         int ultima = tabla(nota);
         configurarImpresion(ultima);
         libro.getCreationHelper().createFormulaEvaluator().evaluateAll(); // deja los totales ya calculados
@@ -128,7 +135,7 @@ final class NotaPedidoExcel {
 
     /** @return índice de la última fila usada */
     private int tabla(NotaPedido nota) {
-        XSSFRow titulos = fila(FILA_TITULOS, 30);
+        XSSFRow titulos = fila(filaTitulos, 30);
         XSSFCellStyle estiloTitulo = estilo(fuente(8.5, true, BLANCO), HorizontalAlignment.CENTER, AZUL, true);
         estiloTitulo.setWrapText(true);
         for (int c = 0; c < TITULOS.length; c++) {
@@ -142,7 +149,7 @@ final class NotaPedidoExcel {
         XSSFCellStyle dinero = estilo(normal, HorizontalAlignment.RIGHT, null, true);
         dinero.setDataFormat(libro.createDataFormat().getFormat("#,##0.00"));
 
-        int r = FILA_TITULOS;
+        int r = filaTitulos;
         for (NotaPedido.Fila f : nota.filas()) {
             XSSFRow fila = fila(++r, ALTO_FILA);
             XSSFCell numero = fila.createCell(0);
@@ -168,7 +175,7 @@ final class NotaPedidoExcel {
             }
         }
 
-        int primera = FILA_TITULOS + 2; // en numeración de Excel
+        int primera = filaTitulos + 2; // en numeración de Excel
         int ultimaDeDatos = r + 1;
         XSSFRow filaTotal = fila(++r, ALTO_FILA);
         hoja.addMergedRegion(new CellRangeAddress(r, r, 5, 7));
@@ -197,7 +204,7 @@ final class NotaPedidoExcel {
         hoja.setFitToPage(true);
         hoja.setAutobreaks(true);
         hoja.setHorizontallyCenter(true);
-        hoja.setRepeatingRows(new CellRangeAddress(FILA_TITULOS, FILA_TITULOS, 0, 8)); // títulos en cada hoja
+        hoja.setRepeatingRows(new CellRangeAddress(filaTitulos, filaTitulos, 0, 8)); // títulos en cada hoja
         libro.setPrintArea(0, 0, 8, 0, ultimaFila);
         hoja.setMargin(PageMargin.LEFT, 0.35);
         hoja.setMargin(PageMargin.RIGHT, 0.35);
