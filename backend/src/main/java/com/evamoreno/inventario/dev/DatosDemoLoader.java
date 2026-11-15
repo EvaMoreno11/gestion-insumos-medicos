@@ -196,7 +196,7 @@ class DatosDemoLoader implements ApplicationRunner {
             return;
         }
         Long pedidoBotica = pedidoService.crear(new PedidoDto.CrearRequest(botica.getId(),
-                botica.getLocales().getFirst().getId(), null, null, "Pedido de demostración")).id();
+                botica.getLocales().getFirst().getId(), null, null, "Pedido de demostración", null)).id();
         agregar(pedidoBotica, 2, 6);   // Jeringa 5 ml Marca A
         agregar(pedidoBotica, 10, 4);  // Guantes de látex talla M
         agregar(pedidoBotica, 5, 2);   // Jeringa 20 ml: agotada, queda como faltante
@@ -204,7 +204,7 @@ class DatosDemoLoader implements ApplicationRunner {
                 "Unidad", "Marca Z", 1, new BigDecimal("85.00")));
 
         Long pedidoClinica = pedidoService.crear(
-                new PedidoDto.CrearRequest(clinica.getId(), null, null, null, null)).id();
+                new PedidoDto.CrearRequest(clinica.getId(), null, null, null, null, null)).id();
         agregar(pedidoClinica, 13, 30); // Gasa estéril 10 x 10 cm
         log.info("Perfil dev: se cargaron 2 pedidos de demostración");
     }

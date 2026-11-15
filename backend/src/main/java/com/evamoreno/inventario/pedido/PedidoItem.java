@@ -80,6 +80,28 @@ public class PedidoItem {
         return item;
     }
 
+    /** Copia de un ítem para el saldo: mismo producto o datos a mano, mismo precio, con la cantidad que falta. */
+    static PedidoItem copiaPara(Pedido saldo, PedidoItem original, int cantidad) {
+        PedidoItem item = new PedidoItem();
+        item.pedido = saldo;
+        item.producto = original.producto;
+        item.descripcion = original.descripcion;
+        item.presentacion = original.presentacion;
+        item.marca = original.marca;
+        item.cantidad = cantidad;
+        item.precioUnitario = original.precioUnitario;
+        item.precioManual = original.precioManual;
+        return item;
+    }
+
+    /** Un ítem a mano pasa a ser un producto del catálogo: toma su nombre, presentación y marca. */
+    void vincular(Producto producto) {
+        this.producto = producto;
+        this.descripcion = producto.getNombre();
+        this.presentacion = producto.getPresentacion();
+        this.marca = producto.getMarca();
+    }
+
     public boolean esManual() {
         return producto == null;
     }

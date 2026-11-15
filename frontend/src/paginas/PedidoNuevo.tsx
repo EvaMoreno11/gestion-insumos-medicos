@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { categoriasPrecio, clientes, pedidos } from '../api/recursos'
-import type { ClienteDetalle } from '../api/tipos'
-import { Aviso, Boton, BotonEnlace, Buscador, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
-import { DatosCliente, SelectorCategoria } from '../componentes/dominio'
+import type { ClienteDetalle, DocumentoPedido } from '../api/tipos'
+import { Aviso, Boton, BotonEnlace, Buscador, Campo, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
+import { DatosCliente, SelectorCategoria, SelectorDocumento } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
 import { porcentaje as textoPorcentaje, unir } from '../util/formato'
@@ -24,6 +24,8 @@ export default function PedidoNuevo() {
   const [localId, setLocalId] = useState<number>()
   const [porcentaje, setPorcentaje] = useState<number | null>(null)
   const [guardarEnCliente, setGuardarEnCliente] = useState(false)
+  const [documento, setDocumento] = useState<DocumentoPedido>('NOTA')
+  const [nota, setNota] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
@@ -52,6 +54,8 @@ export default function PedidoNuevo() {
         localId,
         porcentaje,
         guardarPorcentajeEnCliente: guardarEnCliente,
+        documento,
+        nota: nota.trim() === '' ? null : nota,
       })
       navegar(`/pedidos/${pedido.id}`, { replace: true })
     } catch (e) {
@@ -174,6 +178,22 @@ export default function PedidoNuevo() {
               Usarla también en sus próximos pedidos
             </label>
           )}
+        </Tarjeta>
+
+        <Tarjeta>
+          <h3 className="mb-2 font-semibold">Documento</h3>
+          <SelectorDocumento valor={documento} onCambio={setDocumento} />
+        </Tarjeta>
+
+        <Tarjeta>
+          <Campo
+            etiqueta="Observaciones"
+            placeholder="(No se factura)"
+            value={nota}
+            onChange={(e) => setNota(e.target.value)}
+            maxLength={300}
+            ayuda="Solo para ustedes: no sale en la nota ni en la tabla."
+          />
         </Tarjeta>
       </div>
     </Pantalla>

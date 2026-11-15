@@ -28,7 +28,10 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
-/** Un pedido de un cliente para uno de sus locales. */
+/**
+ * Un pedido de un cliente para uno de sus locales. Si se entrega incompleto, lo que falta
+ * pasa a un pedido nuevo (el "saldo") que apunta al original con {@code origenId}.
+ */
 @Entity
 @Table(name = "pedido")
 public class Pedido {
@@ -57,8 +60,17 @@ public class Pedido {
     @Column(length = 20, unique = true)
     private String numero;
 
+    /** Observaciones internas: no salen en la nota ni en la tabla. */
     @Column(length = 300)
     private String nota;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private DocumentoPedido documento = DocumentoPedido.NOTA;
+
+    /** Pedido original del que este es un saldo (lo que faltó entregar); null si no es un saldo. */
+    @Column(name = "origen_id")
+    private Long origenId;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
@@ -80,11 +92,32 @@ public class Pedido {
         // requerido por JPA
     }
 
-    public Pedido(Cliente cliente, ClienteLocal local, BigDecimal porcentaje, String nota) {
+    public Pedido(Cliente cliente, ClienteLocal local, BigDecimal porcentaje, String nota, DocumentoPedido documento) {
         this.cliente = cliente;
         this.local = local;
         this.porcentaje = porcentaje;
         this.nota = nota;
+        this.documento = documento;
+    }
+
+    /**
+     * Pedido nuevo para lo que faltó entregar: mismo cliente, local, porcentaje, observaciones y documento.
+     * Apunta al pedido original (si este ya era un saldo, al mismo original).
+     */
+    static Pedido saldoDe(Pedido entregado) {
+        Pedido saldo = new Pedido(entregado.cliente, entregado.local, entregado.porcentaje, entregado.nota,
+                entregado.documento);
+        saldo.origenId = entregado.idOriginal();
+        return saldo;
+    }
+
+    /** Id del pedido original del grupo: el propio, o aquel del que este es un saldo. */
+    public Long idOriginal() {
+        return origenId != null ? origenId : id;
+    }
+
+    public boolean esSaldo() {
+        return origenId != null;
     }
 
     /** Solo un borrador se puede modificar, despachar o anular. */
@@ -95,12 +128,14 @@ public class Pedido {
         }
     }
 
-    public void actualizar(ClienteLocal local, BigDecimal porcentaje, String nota) {
+    public void actualizar(ClienteLocal local, BigDecimal porcentaje, String nota, DocumentoPedido documento) {
         this.local = local;
         this.porcentaje = porcentaje;
         this.nota = nota;
+        this.documento = documento;
     }
 
+    /** @param numero número de la nota; null si se entrega "Solo tabla" (no consume la numeración) */
     public void marcarDespachado(String numero, Instant momento) {
         this.estado = EstadoPedido.DESPACHADO;
         this.numero = numero;
@@ -137,6 +172,14 @@ public class Pedido {
 
     public String getNota() {
         return nota;
+    }
+
+    public DocumentoPedido getDocumento() {
+        return documento;
+    }
+
+    public Long getOrigenId() {
+        return origenId;
     }
 
     public List<PedidoItem> getItems() {

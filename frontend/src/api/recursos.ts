@@ -6,6 +6,7 @@ import type {
   ClienteDatos,
   ClienteDetalle,
   ClienteResumen,
+  DocumentoPedido,
   EntradaDatos,
   EstadoSesion,
   EstadoPedido,
@@ -70,17 +71,31 @@ export const pedidos = {
   listar: (estado: EstadoPedido, tamano = 50) =>
     api<Pagina<PedidoResumen>>('/api/pedidos', { params: { estado, tamano } }),
   obtener: (id: number) => api<Pedido>(`/api/pedidos/${id}`),
-  crear: (datos: { clienteId: number; localId?: number; porcentaje?: number | null; guardarPorcentajeEnCliente?: boolean }) =>
-    api<Pedido>('/api/pedidos', { metodo: 'POST', cuerpo: datos }),
-  actualizar: (id: number, datos: { porcentaje?: number; guardarPorcentajeEnCliente?: boolean; nota?: string | null }) =>
-    api<Pedido>(`/api/pedidos/${id}`, { metodo: 'PUT', cuerpo: datos }),
+  crear: (datos: {
+    clienteId: number
+    localId?: number
+    porcentaje?: number | null
+    guardarPorcentajeEnCliente?: boolean
+    nota?: string | null
+    documento?: DocumentoPedido
+  }) => api<Pedido>('/api/pedidos', { metodo: 'POST', cuerpo: datos }),
+  /** La nota (observaciones) siempre se envía: si va vacía, se borra */
+  actualizar: (
+    id: number,
+    datos: { porcentaje?: number; guardarPorcentajeEnCliente?: boolean; nota: string | null; documento?: DocumentoPedido },
+  ) => api<Pedido>(`/api/pedidos/${id}`, { metodo: 'PUT', cuerpo: datos }),
   agregarItem: (id: number, item: ItemNuevo) =>
     api<Pedido>(`/api/pedidos/${id}/items`, { metodo: 'POST', cuerpo: item }),
   cambiarItem: (id: number, itemId: number, cambio: ItemCambio) =>
     api<Pedido>(`/api/pedidos/${id}/items/${itemId}`, { metodo: 'PUT', cuerpo: cambio }),
   quitarItem: (id: number, itemId: number) =>
     api<Pedido>(`/api/pedidos/${id}/items/${itemId}`, { metodo: 'DELETE' }),
-  despachar: (id: number) => api<Pedido>(`/api/pedidos/${id}/despachar`, { metodo: 'POST' }),
+  /** Con entregarLoDisponible, si faltan unidades se entrega lo que hay y el resto pasa a un saldo */
+  despachar: (id: number, entregarLoDisponible = false) =>
+    api<Pedido>(`/api/pedidos/${id}/despachar`, { metodo: 'POST', cuerpo: { entregarLoDisponible } }),
+  /** Un ítem escrito a mano pasa a ser un producto del inventario */
+  vincularProducto: (id: number, itemId: number, productoId: number) =>
+    api<Pedido>(`/api/pedidos/${id}/items/${itemId}/producto`, { metodo: 'PUT', cuerpo: { productoId } }),
   anular: (id: number) => api<Pedido>(`/api/pedidos/${id}/anular`, { metodo: 'POST' }),
   porComprar: () => api<PorComprar>('/api/pedidos/por-comprar'),
   nota: (id: number, formato: 'pdf' | 'xlsx') => descargar(`/api/pedidos/${id}/nota.${formato}`),

@@ -8,12 +8,20 @@ import java.util.List;
  * Contenido de una nota de pedido, listo para dibujarse en Excel o en PDF.
  * No incluye costo, porcentaje ni categoría del cliente: son datos internos.
  *
- * @param numero   número de la nota (0001-007323); null si el pedido aún es un borrador
- * @param contacto persona y teléfono de contacto del local, ya unidos
+ * @param numero    número de la nota (0001-007323); null si el pedido aún es un borrador o es "Solo tabla"
+ * @param contacto  persona y teléfono de contacto del local, ya unidos
+ * @param soloTabla true: se dibuja solo la tabla con el total (sin negocio, cliente, fecha ni número);
+ *                  en ese caso los datos del encabezado van vacíos
  */
 public record NotaPedido(String negocio, String negocioDireccion, String negocioTelefono, String numero,
         String cliente, String local, String puntoLlegada, String contacto, LocalDate fecha, List<Fila> filas,
-        BigDecimal total, String nombreArchivo) {
+        BigDecimal total, String nombreArchivo, boolean borrador, boolean soloTabla) {
+
+    /** Documento sin encabezado: solo la tabla de productos con el total. */
+    static NotaPedido soloTabla(List<Fila> filas, BigDecimal total, String nombreArchivo, boolean borrador) {
+        return new NotaPedido(null, null, null, null, null, null, null, null, null, filas, total, nombreArchivo,
+                borrador, true);
+    }
 
     /**
      * Una fila de la tabla. Cuando un ítem sale de varios lotes hay una fila por lote:
@@ -26,7 +34,7 @@ public record NotaPedido(String negocio, String negocioDireccion, String negocio
     }
 
     public boolean esBorrador() {
-        return numero == null;
+        return borrador;
     }
 
     /** "Av. Principal 123 · Tel. 987 654 321" (solo lo que exista). */

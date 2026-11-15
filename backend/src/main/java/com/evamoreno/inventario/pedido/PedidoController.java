@@ -20,6 +20,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.pedido.PedidoDto.ActualizarRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.CrearRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.DespacharRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.Detalle;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemActualizarRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemRequest;
@@ -27,6 +28,7 @@ import com.evamoreno.inventario.pedido.PedidoDto.Numeracion;
 import com.evamoreno.inventario.pedido.PedidoDto.NumeracionRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.PorComprar;
 import com.evamoreno.inventario.pedido.PedidoDto.Resumen;
+import com.evamoreno.inventario.pedido.PedidoDto.VincularProductoRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -95,10 +97,12 @@ public class PedidoController {
 
     @PostMapping("/{id}/despachar")
     @Operation(summary = "Despachar el pedido",
-            description = "Exige que todo tenga precio y que no falten unidades. Descuenta los lotes (primero el que "
-                    + "vence antes) y asigna el número de nota. Si algo falla, no cambia nada.")
-    public Detalle despachar(@PathVariable Long id) {
-        return service.despachar(id);
+            description = "Exige que todo tenga precio. Descuenta los lotes (primero el que vence antes) y, si es "
+                    + "una nota de pedido, le asigna su número (\"Solo tabla\" no consume la numeración). "
+                    + "Si faltan unidades, solo se despacha con entregarLoDisponible = true: se entrega lo que hay "
+                    + "y lo que falta pasa a un pedido nuevo (saldo). Si algo falla, no cambia nada.")
+    public Detalle despachar(@PathVariable Long id, @RequestBody(required = false) DespacharRequest request) {
+        return service.despachar(id, request != null && Boolean.TRUE.equals(request.entregarLoDisponible()));
     }
 
     @PostMapping("/{id}/anular")
@@ -128,6 +132,15 @@ public class PedidoController {
     @Operation(summary = "Quitar un ítem")
     public Detalle eliminarItem(@PathVariable Long id, @PathVariable Long itemId) {
         return service.eliminarItem(id, itemId);
+    }
+
+    @PutMapping("/{id}/items/{itemId}/producto")
+    @Operation(summary = "Convertir un ítem escrito a mano en un producto del inventario",
+            description = "Por ejemplo, después de registrar el producto. Conserva la cantidad y el precio; "
+                    + "si no tenía precio, se calcula (costo + porcentaje).")
+    public Detalle vincularProducto(@PathVariable Long id, @PathVariable Long itemId,
+            @Valid @RequestBody VincularProductoRequest request) {
+        return service.vincularProducto(id, itemId, request.productoId());
     }
 
     // ------------------------------------------------------------------ nota de pedido

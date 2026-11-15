@@ -40,8 +40,12 @@ public final class PedidoDto {
             @Schema(description = "true: el porcentaje enviado pasa a ser el del cliente para sus próximos pedidos")
             Boolean guardarPorcentajeEnCliente,
 
+            @Schema(description = "Observaciones internas: no salen en la nota", example = "(No se factura)")
             @Size(max = 300, message = "Máximo 300 caracteres")
-            String nota) {
+            String nota,
+
+            @Schema(description = "NOTA (por defecto) o SOLO_TABLA: sin nombres, sin fecha y sin número")
+            DocumentoPedido documento) {
     }
 
     /** Cambios en la cabecera de un borrador. Lo que no se envía (null) se conserva, salvo la nota. */
@@ -57,7 +61,23 @@ public final class PedidoDto {
             Boolean guardarPorcentajeEnCliente,
 
             @Size(max = 300, message = "Máximo 300 caracteres")
-            String nota) {
+            String nota,
+
+            @Schema(description = "NOTA o SOLO_TABLA. Si se omite, se conserva")
+            DocumentoPedido documento) {
+    }
+
+    /**
+     * @param entregarLoDisponible true: si faltan unidades, se entrega lo que hay y lo que falta pasa a un
+     *                             pedido nuevo (saldo). Sin esto, un pedido con faltantes no se despacha.
+     */
+    public record DespacharRequest(Boolean entregarLoDisponible) {
+    }
+
+    /** Convierte un ítem a mano en un producto del catálogo. */
+    public record VincularProductoRequest(
+            @NotNull(message = "El producto es obligatorio")
+            Long productoId) {
     }
 
     /** Nuevo ítem: con productoId es del catálogo; sin él, es un ítem a mano y la descripción es obligatoria. */
@@ -156,18 +176,42 @@ public final class PedidoDto {
     }
 
     /**
-     * @param categoria          letra interna del porcentaje (A, B, C...) o null; no se muestra al cliente
-     * @param total              suma de los ítems con precio (incluye lo que aún falta comprar)
-     * @param listoParaDespachar true si es un borrador con ítems, todos con precio y sin faltantes
+     * @param categoria            letra interna del porcentaje (A, B, C...) o null; no se muestra al cliente
+     * @param nota                 observaciones internas (no salen en la nota)
+     * @param total                suma de los ítems con precio (incluye lo que aún falta comprar)
+     * @param listoParaDespachar   true si es un borrador con ítems, todos con precio y sin faltantes
+     * @param puedeEntregarParcial true si tiene faltantes pero hay algo que entregar ya: se puede despachar
+     *                             lo disponible y dejar el resto en un saldo
+     * @param origenId             pedido original, si este es un saldo
+     * @param origenNumero         número de la nota del pedido original (null si aún no tiene o es "Solo tabla")
+     * @param grupo                el pedido original y sus saldos; null si el pedido no se dividió
      */
-    public record Detalle(Long id, String numero, EstadoPedido estado, Long clienteId, String cliente, Long localId,
-            String local, String direccion, String contacto, String telefono, BigDecimal porcentaje, String categoria,
-            String nota, List<ItemResponse> items, BigDecimal total, int itemsConFaltante, int itemsSinPrecio,
-            boolean listoParaDespachar, Instant creadoEn, Instant despachadoEn) {
+    public record Detalle(Long id, String numero, EstadoPedido estado, DocumentoPedido documento, Long clienteId,
+            String cliente, Long localId, String local, String direccion, String contacto, String telefono,
+            BigDecimal porcentaje, String categoria, String nota, List<ItemResponse> items, BigDecimal total,
+            int itemsConFaltante, int itemsSinPrecio, boolean listoParaDespachar, boolean puedeEntregarParcial,
+            Long origenId, String origenNumero, Grupo grupo, Instant creadoEn, Instant despachadoEn) {
     }
 
-    public record Resumen(Long id, String numero, EstadoPedido estado, Long clienteId, String cliente, String local,
-            BigDecimal total, int cantidadItems, int itemsConFaltante, Instant creadoEn, Instant despachadoEn) {
+    /**
+     * Un pedido entregado por partes: el original y sus saldos. Es solo para uso interno (no sale en la nota).
+     *
+     * @param pedido    lo que pidió el cliente: entregado + pendiente + no entregado
+     * @param entregado suma de los pedidos del grupo ya despachados
+     * @param pendiente suma de los saldos que siguen en borrador
+     * @param anulado   suma de los saldos anulados (lo que finalmente no se entregó)
+     */
+    public record Grupo(BigDecimal pedido, BigDecimal entregado, BigDecimal pendiente, BigDecimal anulado,
+            List<PedidoDelGrupo> pedidos) {
+    }
+
+    public record PedidoDelGrupo(Long id, String numero, EstadoPedido estado, DocumentoPedido documento,
+            BigDecimal total, boolean esSaldo, Instant creadoEn, Instant despachadoEn) {
+    }
+
+    public record Resumen(Long id, String numero, EstadoPedido estado, DocumentoPedido documento, Long clienteId,
+            String cliente, String local, String nota, BigDecimal total, int cantidadItems, int itemsConFaltante,
+            Long origenId, String origenNumero, Instant creadoEn, Instant despachadoEn) {
     }
 
     /** Pedido pendiente que espera unidades de un producto. */
@@ -183,7 +227,7 @@ public final class PedidoDto {
     }
 
     /** Ítem a mano de un pedido pendiente: hay que conseguirlo y, después, registrarlo en el catálogo. */
-    public record ItemNoRegistrado(Long pedidoId, String cliente, String local, String descripcion,
+    public record ItemNoRegistrado(Long pedidoId, Long itemId, String cliente, String local, String descripcion,
             String presentacion, String marca, int cantidad) {
     }
 

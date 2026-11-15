@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
-import { categorias, productos } from '../api/recursos'
+import { categorias, pedidos, productos } from '../api/recursos'
 import { Aviso, Boton, BotonEnlace, Buscador, Campo, Cargando, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
@@ -71,13 +71,19 @@ export function ProductoFormulario() {
   const id = parametro ? Number(parametro) : null
   const navegar = useNavigate()
   const listaCategorias = useCarga(() => categorias.listar())
+  // Si viene de un ítem escrito a mano en un pedido: el formulario llega lleno y, al guardar,
+  // ese ítem pasa a ser el producto nuevo
+  const [params] = useSearchParams()
+  const desdePedido = id === null && params.get('pedido') && params.get('item')
+    ? { pedido: Number(params.get('pedido')), item: Number(params.get('item')) }
+    : null
 
   const [cargado, setCargado] = useState(id === null)
   const [codigo, setCodigo] = useState('')
-  const [nombre, setNombre] = useState('')
-  const [marca, setMarca] = useState('')
+  const [nombre, setNombre] = useState(desdePedido ? (params.get('nombre') ?? '') : '')
+  const [marca, setMarca] = useState(desdePedido ? (params.get('marca') ?? '') : '')
   const [categoriaId, setCategoriaId] = useState('')
-  const [presentacion, setPresentacion] = useState('')
+  const [presentacion, setPresentacion] = useState(desdePedido ? (params.get('presentacion') ?? '') : '')
   const [unidadMedida, setUnidadMedida] = useState('Caja')
   const [stockMinimo, setStockMinimo] = useState('')
   const [costo, setCosto] = useState('')
@@ -127,7 +133,12 @@ export function ProductoFormulario() {
         codigosBarras,
       }
       if (id === null) {
-        await productos.crear(datos)
+        const creado = await productos.crear(datos)
+        if (desdePedido) {
+          await pedidos.vincularProducto(desdePedido.pedido, desdePedido.item, creado.id)
+          navegar(`/pedidos/${desdePedido.pedido}`, { replace: true })
+          return
+        }
       } else {
         await productos.actualizar(id, datos)
       }
@@ -141,7 +152,10 @@ export function ProductoFormulario() {
   const unidades = UNIDADES.includes(unidadMedida) ? UNIDADES : [unidadMedida, ...UNIDADES]
 
   return (
-    <Pantalla titulo={id === null ? 'Nuevo producto' : 'Editar producto'} volver="/productos">
+    <Pantalla
+      titulo={id === null ? 'Nuevo producto' : 'Editar producto'}
+      volver={desdePedido ? `/pedidos/${desdePedido.pedido}` : '/productos'}
+    >
       {!cargado ? (
         error ? (
           <Aviso tipo="error">{error}</Aviso>
@@ -157,6 +171,12 @@ export function ProductoFormulario() {
           }}
         >
           {error && <Aviso tipo="error">{error}</Aviso>}
+          {desdePedido && (
+            <Aviso>
+              Viene de un ítem escrito a mano en un pedido. Revisa los datos y elige la categoría: al guardar, el
+              ítem del pedido pasará a ser este producto, con la misma cantidad y el mismo precio.
+            </Aviso>
+          )}
 
           <Tarjeta className="space-y-3">
             <label className="block">

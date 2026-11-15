@@ -20,7 +20,10 @@ import org.openpdf.text.pdf.PdfPCell;
 import org.openpdf.text.pdf.PdfPTable;
 import org.openpdf.text.pdf.PdfWriter;
 
-/** Dibuja la nota de pedido en PDF (A4) con OpenPDF, con el mismo diseño que la versión en Excel. */
+/**
+ * Dibuja la nota de pedido en PDF (A4) con OpenPDF, con el mismo diseño que la versión en Excel.
+ * Si es "Solo tabla", dibuja únicamente la tabla de productos con el total.
+ */
 final class NotaPedidoPdf {
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -59,8 +62,10 @@ final class NotaPedidoPdf {
         documento.setFooter(pie);
 
         documento.open();
-        documento.add(encabezado(nota));
-        documento.add(datosDelCliente(nota));
+        if (!nota.soloTabla()) {
+            documento.add(encabezado(nota));
+            documento.add(datosDelCliente(nota));
+        }
         documento.add(tabla(nota));
         documento.close();
         return salida.toByteArray();
