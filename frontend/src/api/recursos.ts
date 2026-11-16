@@ -10,6 +10,7 @@ import type {
   EntradaDatos,
   EstadoSesion,
   EstadoPedido,
+  LoteAlerta,
   Negocio,
   Numeracion,
   Pagina,
@@ -102,6 +103,15 @@ export const pedidos = {
   numeracion: () => api<Numeracion>('/api/pedidos/numeracion'),
   fijarNumeracion: (siguiente: number) =>
     api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente } }),
+}
+
+/** Días hacia adelante que cuenta "Por vencer". */
+export const DIAS_POR_VENCER = 60
+
+export const alertas = {
+  stockBajo: () => api<ProductoResumen[]>('/api/alertas/stock-bajo'),
+  porVencer: (dias = DIAS_POR_VENCER) => api<LoteAlerta[]>('/api/alertas/por-vencer', { params: { dias } }),
+  vencidos: () => api<LoteAlerta[]>('/api/alertas/vencidos'),
 }
 
 export const sesion = {

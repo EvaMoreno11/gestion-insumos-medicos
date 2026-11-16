@@ -36,6 +36,21 @@ export interface ProductoResumen {
   activo: boolean
 }
 
+/** Lote por vencer o vencido, con los datos de su producto. */
+export interface LoteAlerta {
+  loteId: number
+  numeroLote: string | null
+  fechaVencimiento: string
+  /** Negativo si ya venció */
+  diasParaVencer: number
+  cantidad: number
+  productoId: number
+  productoCodigo: string
+  productoNombre: string
+  marca: string
+  presentacion: string
+}
+
 export interface Lote {
   id: number
   numeroLote: string | null

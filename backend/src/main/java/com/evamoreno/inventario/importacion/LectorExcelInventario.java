@@ -176,6 +176,7 @@ final class LectorExcelInventario {
             throw new ErrorCelda(Columna.NUMERO_LOTE, "solo letras, números, puntos, barras y guiones");
         }
         Integer stockMinimo = entero(row, columnas, Columna.STOCK_MINIMO);
+        LocalDate vencimiento = fecha(row, columnas, Columna.FECHA_VENCIMIENTO);
         return new Fila(numero,
                 codigo,
                 obligatorio(row, columnas, Columna.CATEGORIA, 80),
@@ -186,8 +187,8 @@ final class LectorExcelInventario {
                 stockMinimo == null ? 0 : stockMinimo,
                 codigosBarras(row, columnas),
                 numeroLote,
-                fecha(row, columnas, Columna.FECHA_VENCIMIENTO),
-                cantidad(row, columnas),
+                vencimiento,
+                cantidad(row, columnas, numeroLote != null || vencimiento != null),
                 costo(row, columnas));
     }
 
@@ -224,10 +225,19 @@ final class LectorExcelInventario {
         return codigos;
     }
 
-    private static int cantidad(Row row, Map<Columna, Integer> columnas) {
+    /**
+     * Cantidad vacía = 0 cuando la fila tampoco tiene lote ni vencimiento: es un producto que
+     * normalmente se vende pero hoy no tiene stock (se registra sin lotes). Si la fila indica un lote
+     * o un vencimiento, la cantidad es obligatoria, para no perder unidades por un olvido.
+     */
+    private static int cantidad(Row row, Map<Columna, Integer> columnas, boolean tieneLote) {
         Integer cantidad = entero(row, columnas, Columna.CANTIDAD);
         if (cantidad == null) {
-            throw new ErrorCelda(Columna.CANTIDAD, "es obligatoria (pon 0 si no hay unidades)");
+            if (tieneLote) {
+                throw new ErrorCelda(Columna.CANTIDAD,
+                        "es obligatoria si la fila tiene lote o vencimiento (pon 0 si no hay unidades)");
+            }
+            return 0;
         }
         return cantidad;
     }

@@ -189,6 +189,32 @@ class ImportacionControllerTest extends IntegracionTest {
     }
 
     @Test
+    void sinLoteNiVencimientoLaCantidadVaciaEsCero() throws Exception {
+        byte[] archivo = excel(
+                // Producto que hoy no tiene stock: lote, F.V. y cantidad vacíos
+                new Object[] { null, "Guantes", "Guantes de nitrilo talla M", "Marca B", "Caja x 100", "Caja", 3,
+                        null, null, null, null },
+                // Con lote pero sin cantidad: es un olvido, no se adivina
+                new Object[] { null, "Guantes", "Guantes de nitrilo talla S", "Marca B", "Caja x 100", "Caja", null,
+                        null, "N1", null, null });
+
+        importar(archivo, true)
+                .andExpect(jsonPath("$.errores[*].fila", contains(3)))
+                .andExpect(jsonPath("$.errores[0].mensaje",
+                        containsString("Cantidad: es obligatoria si la fila tiene lote o vencimiento")));
+
+        importar(excel(new Object[] { null, "Guantes", "Guantes de nitrilo talla M", "Marca B", "Caja x 100",
+                "Caja", 3, null, null, null, null }), false)
+                .andExpect(jsonPath("$.importado").value(true))
+                .andExpect(jsonPath("$.productosCreados").value(1))
+                .andExpect(jsonPath("$.entradasRegistradas").value(0));
+
+        mockMvc.perform(get("/api/productos").param("buscar", "nitrilo m"))
+                .andExpect(jsonPath("$.contenido[0].stockDisponible").value(0))
+                .andExpect(jsonPath("$.contenido[0].estadoStock").value("AGOTADO"));
+    }
+
+    @Test
     void siUnaFilaTieneErroresNoSeGuardaNingunaFila() throws Exception {
         byte[] archivo = excel(
                 jeringaLote1(),                                                                  // fila 2: bien
