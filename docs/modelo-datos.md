@@ -64,6 +64,7 @@ erDiagram
         varchar numero_lote "opcional; único por producto (en mayúsculas)"
         date fecha_vencimiento "opcional"
         int cantidad_actual ">= 0"
+        numeric costo_promedio "promedio ponderado de sus entradas"
         timestamptz fecha_ingreso
     }
     MOVIMIENTO {
@@ -72,6 +73,7 @@ erDiagram
         varchar tipo "ENTRADA | SALIDA | AJUSTE"
         int cantidad "positiva; en AJUSTE lleva signo"
         int stock_resultante "cantidad del lote después del movimiento"
+        numeric costo_unitario "ENTRADA: costo de compra; SALIDA y AJUSTE: costo del lote"
         varchar nota
         timestamptz fecha
     }
@@ -84,6 +86,9 @@ erDiagram
 - **FEFO:** una salida toma primero del lote que vence antes y los lotes sin vencimiento van al final. Si no alcanza el stock, **no sale nada** (409).
 - **Los lotes vencidos nunca se despachan.** Para sacarlos del inventario se registra un **ajuste** a 0 ("baja por vencimiento").
 - **Un número de lote no se repite en el mismo producto.** Si llega una entrada con el mismo número y otra fecha de vencimiento, se rechaza, porque probablemente es un error de digitación. Solo puede haber un lote "sin número" por producto (`UNIQUE NULLS NOT DISTINCT`).
+- **Cada entrada (compra) lleva su costo.** Es obligatorio y pasa a ser el costo del producto: el último costo de compra, con el que se calculan los precios de los pedidos nuevos. Los pedidos ya armados no cambian, porque cada línea guarda su precio.
+- **Costo promedio por lote.** Si un lote recibe unidades a distintos costos, su costo es el promedio ponderado: 10 a S/ 5.00 + 10 a S/ 5.50 = 20 a S/ 5.25. Las salidas no cambian el promedio, y si el lote se vació, la siguiente entrada empieza con su propio costo.
+- **Cada salida guarda cuánto costó.** Las salidas y los ajustes registran el costo promedio del lote en ese momento. Así se puede calcular la ganancia de cada pedido (venta − costo de lo entregado). Los costos y los precios incluyen IGV.
 - **La cantidad de un lote solo cambia mediante un movimiento.** Los métodos que la modifican son *package-private* y solo los usa `MovimientoService`, así no hay cambios de stock sin historial.
 - **Concurrencia:** las salidas bloquean los lotes que van a usar (`SELECT … FOR UPDATE`). Si dos personas despachan a la vez, la segunda espera a la primera y no se descuentan las mismas unidades dos veces.
 
@@ -93,7 +98,7 @@ erDiagram
 
 1. **Valida cada fila:** columnas obligatorias, números enteros, costo y vencimiento (`mm/aaaa`; si trae día, se ignora).
 2. **Crea lo que falta:** categorías (reconocidas sin importar tildes) y productos (reconocidos por código o por nombre, marca y presentación).
-3. **Registra una entrada** por cada fila con cantidad, y guarda el **costo** del producto si la fila lo trae. Una fila sin lote, sin vencimiento y sin cantidad es un producto que hoy no tiene stock: se registra sin lotes (cantidad 0). Si la fila trae lote o vencimiento, la cantidad es obligatoria. El costo es del producto, no del lote: dos filas del mismo producto con costos distintos son un error.
+3. **Registra una entrada** por cada fila con cantidad, con el costo de la fila (o el de otra fila del mismo producto), y guarda el **costo** del producto si la fila lo trae. Los productos sin stock pueden venir sin costo: lo toman con su primera entrada. Una fila sin lote, sin vencimiento y sin cantidad es un producto que hoy no tiene stock: se registra sin lotes (cantidad 0). Si la fila trae lote o vencimiento, la cantidad es obligatoria. El costo es del producto, no del lote: dos filas del mismo producto con costos distintos son un error.
 4. **Todo o nada:** todo ocurre en una transacción. Si una sola fila tiene error, no se guarda ninguna y el reporte indica fila y motivo.
 5. **`soloValidar=true`** (el valor por defecto) ejecuta los mismos pasos y al final deshace todo. Así la vista previa detecta exactamente los mismos problemas que la importación real.
 

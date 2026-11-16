@@ -56,10 +56,13 @@ class PedidoControllerTest extends IntegracionTest {
                  "unidadMedida": "Caja", "costo": %s}""".formatted(nombre, idCategoria("Otros"), costo));
     }
 
+    /** Entrada con el costo que ya tiene el producto (así no cambian los precios que se esperan). */
     private void entrada(Long productoId, String lote, LocalDate vence, int cantidad) throws Exception {
+        Object costo = JsonPath.read(mockMvc.perform(get("/api/productos/{id}", productoId)).andReturn()
+                .getResponse().getContentAsString(), "$.costo");
         postJson("/api/movimientos/entrada", """
-                {"productoId": %d, "numeroLote": "%s", "fechaVencimiento": "%s", "cantidad": %d}"""
-                .formatted(productoId, lote, vence, cantidad)).andExpect(status().isCreated());
+                {"productoId": %d, "numeroLote": "%s", "fechaVencimiento": "%s", "cantidad": %d, "costo": %s}"""
+                .formatted(productoId, lote, vence, cantidad, costo)).andExpect(status().isCreated());
     }
 
     private Long cliente(String nombre, String porcentaje) throws Exception {
@@ -190,7 +193,6 @@ class PedidoControllerTest extends IntegracionTest {
         Long sinCosto = crear("/api/productos", """
                 {"nombre": "Producto sin costo", "marca": "Marca A", "categoriaId": %d, "presentacion": "Unidad",
                  "unidadMedida": "Unidad"}""".formatted(idCategoria("Otros")));
-        entrada(sinCosto, "L1", HOY.plusMonths(6), 5);
         Long pedido = pedido(cliente("Botica Demo", "15"));
 
         Long item = id(agregar(pedido, sinCosto, 2)
@@ -205,7 +207,17 @@ class PedidoControllerTest extends IntegracionTest {
         putJson(URL + "/" + pedido + "/items/" + item, """
                 {"cantidad": 2, "precio": 3.5}""")
                 .andExpect(jsonPath("$.items[0].total").value(7.0))
+                .andExpect(jsonPath("$.itemsSinPrecio").value(0));
+
+        // Cuando llega con su costo, el producto lo toma y los ítems nuevos ya salen con precio
+        postJson("/api/movimientos/entrada", """
+                {"productoId": %d, "numeroLote": "L1", "cantidad": 5, "costo": 2}""".formatted(sinCosto))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get(URL + "/{id}", pedido))
+                .andExpect(jsonPath("$.items[0].precioUnitario").value(3.5)) // el escrito a mano se respeta
                 .andExpect(jsonPath("$.listoParaDespachar").value(true));
+        Long otro = pedido(cliente("Clínica Y", "15"));
+        agregar(otro, sinCosto, 1).andExpect(jsonPath("$.items[0].precioUnitario").value(2.3)); // 2 + 15 %
     }
 
     @Test

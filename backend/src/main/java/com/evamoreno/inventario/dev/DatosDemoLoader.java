@@ -163,7 +163,7 @@ class DatosDemoLoader implements ApplicationRunner {
                     LocalDate vence = l.diasParaVencer() == null ? null
                             : l.diasParaVencer() < 0 ? hoy.minusMonths(1) : hoy.plusDays(l.diasParaVencer());
                     movimientoService.registrarEntrada(new EntradaRequest(producto.getId(), l.numero(), vence,
-                            l.cantidad(), "Datos de demostración"));
+                            l.cantidad(), producto.getCosto(), "Datos de demostración"));
                     cargados++;
                 }
             }

@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.stock;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -12,6 +13,7 @@ public record MovimientoResponse(
         TipoMovimiento tipo,
         int cantidad,
         int stockResultanteLote,
+        BigDecimal costoUnitario,
         String nota,
         Long loteId,
         String numeroLote,
@@ -24,7 +26,7 @@ public record MovimientoResponse(
         Lote lote = m.getLote();
         Producto p = lote.getProducto();
         return new MovimientoResponse(m.getId(), m.getFecha(), m.getTipo(), m.getCantidad(), m.getStockResultante(),
-                m.getNota(), lote.getId(), lote.getNumeroLote(), lote.getFechaVencimiento(), p.getId(), p.getCodigo(),
+                m.getCostoUnitario(), m.getNota(), lote.getId(), lote.getNumeroLote(), lote.getFechaVencimiento(), p.getId(), p.getCodigo(),
                 p.getNombre());
     }
 }

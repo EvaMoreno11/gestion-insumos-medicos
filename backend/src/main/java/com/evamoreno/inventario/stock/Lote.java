@@ -1,5 +1,7 @@
 package com.evamoreno.inventario.stock;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -43,6 +45,10 @@ public class Lote {
     @Column(name = "cantidad_actual", nullable = false)
     private int cantidadActual;
 
+    /** Promedio ponderado del costo de las unidades del lote; null si se desconoce. */
+    @Column(name = "costo_promedio", precision = 12, scale = 4)
+    private BigDecimal costoPromedio;
+
     @CreationTimestamp
     @Column(name = "fecha_ingreso", nullable = false, updatable = false)
     private Instant fechaIngreso;
@@ -63,6 +69,21 @@ public class Lote {
     }
 
     void sumar(int unidades) {
+        cantidadActual += unidades;
+    }
+
+    /**
+     * Entrada con costo: el promedio se pondera con las unidades que ya hay.
+     * 10 a S/ 5.00 + 10 a S/ 5.50 = 20 a S/ 5.25. Si el lote estaba vacío o sin costo, toma el nuevo.
+     */
+    void sumar(int unidades, BigDecimal costo) {
+        if (costo != null) {
+            costoPromedio = costoPromedio == null || cantidadActual <= 0
+                    ? costo
+                    : costoPromedio.multiply(BigDecimal.valueOf(cantidadActual))
+                            .add(costo.multiply(BigDecimal.valueOf(unidades)))
+                            .divide(BigDecimal.valueOf((long) cantidadActual + unidades), 4, RoundingMode.HALF_UP);
+        }
         cantidadActual += unidades;
     }
 
@@ -91,6 +112,10 @@ public class Lote {
 
     public LocalDate getFechaVencimiento() {
         return fechaVencimiento;
+    }
+
+    public BigDecimal getCostoPromedio() {
+        return costoPromedio;
     }
 
     public int getCantidadActual() {

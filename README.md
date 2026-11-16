@@ -15,7 +15,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Buscador "¿tengo esto?" que no distingue mayúsculas ni tildes: `jer 5ml` encuentra "Jeringa 5 ml…" ([cómo funciona](docs/modelo-datos.md#cómo-funciona-el-buscador)).
 - Búsqueda por código de barras.
 - Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
-- Entradas, salidas y ajustes con historial (kárdex). Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
+- Entradas (compras) con su **costo**, salidas y ajustes con historial (kárdex). El producto toma el último costo de compra y cada lote guarda su costo promedio, así se sabe cuánto costó lo vendido. Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
 - Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo (para saber qué comprar), lotes que vencen en los próximos 60 días y lotes vencidos con unidades.
 - Importación del inventario desde la [plantilla de Excel](docs/plantilla_inventario.xlsx): modo de validación, reporte de errores por fila y todo o nada.

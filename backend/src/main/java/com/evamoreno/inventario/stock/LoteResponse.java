@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.stock;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
@@ -13,6 +14,7 @@ public record LoteResponse(
         String numeroLote,
         LocalDate fechaVencimiento,
         int cantidad,
+        BigDecimal costoPromedio,
         boolean vencido,
         Long diasParaVencer) {
 
@@ -21,6 +23,6 @@ public record LoteResponse(
                 ? null
                 : ChronoUnit.DAYS.between(hoy, lote.getFechaVencimiento());
         return new LoteResponse(lote.getId(), lote.getNumeroLote(), lote.getFechaVencimiento(),
-                lote.getCantidadActual(), lote.estaVencido(hoy), dias);
+                lote.getCantidadActual(), lote.getCostoPromedio(), lote.estaVencido(hoy), dias);
     }
 }
