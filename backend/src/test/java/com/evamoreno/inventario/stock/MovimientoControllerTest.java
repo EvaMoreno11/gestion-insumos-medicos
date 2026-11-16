@@ -43,7 +43,7 @@ class MovimientoControllerTest extends IntegracionTest {
 
     private ResultActions entrada(String lote, LocalDate vence, int cantidad) throws Exception {
         return postJson("/api/movimientos/entrada", """
-                {"productoId": %d, "numeroLote": %s, "fechaVencimiento": %s, "cantidad": %d}"""
+                {"productoId": %d, "numeroLote": %s, "fechaVencimiento": %s, "cantidad": %d, "costo": 5}"""
                 .formatted(productoId, lote == null ? "null" : "\"" + lote + "\"",
                         vence == null ? "null" : "\"" + vence + "\"", cantidad));
     }
@@ -57,6 +57,60 @@ class MovimientoControllerTest extends IntegracionTest {
     private Long idLote(ResultActions resultado) throws Exception {
         String json = resultado.andReturn().getResponse().getContentAsString();
         return ((Number) JsonPath.read(json, "$.movimientos[0].loteId")).longValue();
+    }
+
+    private ResultActions entradaConCosto(String lote, int cantidad, String costo) throws Exception {
+        return postJson("/api/movimientos/entrada", """
+                {"productoId": %d, "numeroLote": "%s", "cantidad": %d, "costo": %s}"""
+                .formatted(productoId, lote, cantidad, costo));
+    }
+
+    // ------------------------------------------------------------------ costos
+
+    @Test
+    void laEntradaExigeElCosto() throws Exception {
+        postJson("/api/movimientos/entrada", """
+                {"productoId": %d, "numeroLote": "L-1", "cantidad": 2}""".formatted(productoId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.costo").value("El costo es obligatorio"));
+        entradaConCosto("L-1", 2, "-1").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void elCostoDeLaEntradaPasaAlProductoYElLoteLoPromedia() throws Exception {
+        entradaConCosto("L-1", 10, "5.00").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.movimientos[0].costoUnitario").value(5.0));
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.costo").value(5.0))
+                .andExpect(jsonPath("$.lotes[0].costoPromedio").value(5.0));
+
+        // Mismo lote, otro costo: el producto toma el último y el lote promedia (10 a 5.00 + 10 a 5.50)
+        entradaConCosto("L-1", 10, "5.50").andExpect(jsonPath("$.movimientos[0].costoUnitario").value(5.5));
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.costo").value(5.5))
+                .andExpect(jsonPath("$.lotes[0].cantidad").value(20))
+                .andExpect(jsonPath("$.lotes[0].costoPromedio").value(5.25));
+
+        // Lo que sale lleva el costo del lote: así se sabe cuánto costó lo vendido
+        salida(4, null).andExpect(jsonPath("$.movimientos[0].costoUnitario").value(5.25));
+
+        // Lo que queda conserva su costo; una entrada nueva promedia con eso (16 a 5.25 + 4 a 6.50 = 5.50)
+        entradaConCosto("L-1", 4, "6.50");
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.costo").value(6.5))
+                .andExpect(jsonPath("$.lotes[0].costoPromedio").value(5.5));
+
+        // Si el lote se vació, la siguiente entrada empieza de nuevo con su costo
+        salida(20, null);
+        entradaConCosto("L-1", 3, "7.00");
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.lotes[0].costoPromedio").value(7.0));
+
+        mockMvc.perform(get("/api/movimientos").param("productoId", productoId.toString()))
+                .andExpect(jsonPath("$.contenido[0].tipo").value("ENTRADA"))
+                .andExpect(jsonPath("$.contenido[0].costoUnitario").value(7.0))
+                .andExpect(jsonPath("$.contenido[1].tipo").value("SALIDA"))
+                .andExpect(jsonPath("$.contenido[1].costoUnitario").value(5.5));
     }
 
     // ------------------------------------------------------------------ entradas

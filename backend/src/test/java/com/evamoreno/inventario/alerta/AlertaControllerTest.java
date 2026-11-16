@@ -37,7 +37,7 @@ class AlertaControllerTest extends IntegracionTest {
 
     private void entrada(Long productoId, String lote, LocalDate vence, int cantidad) throws Exception {
         mockMvc.perform(post("/api/movimientos/entrada").contentType(MediaType.APPLICATION_JSON).content("""
-                {"productoId": %d, "numeroLote": "%s", "fechaVencimiento": %s, "cantidad": %d}"""
+                {"productoId": %d, "numeroLote": "%s", "fechaVencimiento": %s, "cantidad": %d, "costo": 5}"""
                 .formatted(productoId, lote, vence == null ? "null" : "\"" + vence + "\"", cantidad)))
                 .andExpect(status().isCreated());
     }

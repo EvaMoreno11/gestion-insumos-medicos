@@ -53,9 +53,12 @@ public class MovimientoService {
                 .map(existente -> validarMismoVencimiento(existente, vencimiento))
                 .orElseGet(() -> lotes.save(new Lote(producto, numeroLote, vencimiento)));
 
-        lote.sumar(r.cantidad());
+        lote.sumar(r.cantidad(), r.costo());
         Movimiento movimiento = movimientos.save(
-                new Movimiento(lote, TipoMovimiento.ENTRADA, r.cantidad(), TextoBusqueda.limpiar(r.nota())));
+                Movimiento.entrada(lote, r.cantidad(), r.costo(), TextoBusqueda.limpiar(r.nota())));
+        if (r.costo() != null) {
+            producto.setCosto(r.costo()); // el último costo de compra: con él se calculan los precios nuevos
+        }
         return resultado(producto.getId(), List.of(movimiento));
     }
 

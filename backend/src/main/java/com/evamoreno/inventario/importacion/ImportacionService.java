@@ -89,6 +89,8 @@ public class ImportacionService {
         private final Set<Long> creados = new HashSet<>();
         private final Set<Long> existentes = new HashSet<>();
         private final Map<Long, BigDecimal> costosDelArchivo = new HashMap<>();
+        /** Costo de cada producto según el archivo (de cualquiera de sus filas), por nombre|marca|presentación. */
+        private final Map<String, BigDecimal> costoPorProducto = new HashMap<>();
         private int categoriasCreadas;
         private int entradas;
         private long unidades;
@@ -97,6 +99,9 @@ public class ImportacionService {
             this.filas = lectura.filas();
             this.errores = new ArrayList<>(lectura.errores());
             categorias.findAll().forEach(c -> categoriasPorNombre.put(TextoBusqueda.normalizar(c.getNombre()), c));
+            // Así un lote toma el costo de su producto aunque la fila con el costo venga después
+            filas.stream().filter(f -> f.costo() != null).forEach(f -> costoPorProducto
+                    .putIfAbsent(Producto.calcularClaveUnica(f.nombre(), f.marca(), f.presentacion()), f.costo()));
         }
 
         void ejecutar() {
@@ -120,10 +125,25 @@ public class ImportacionService {
             registrarCosto(fila, productoId);
             if (fila.cantidad() > 0) {
                 movimientoService.registrarEntrada(new EntradaRequest(productoId, fila.numeroLote(),
-                        fila.fechaVencimiento(), fila.cantidad(), "Importación de inventario (fila " + fila.numero() + ")"));
+                        fila.fechaVencimiento(), fila.cantidad(), costoDelLote(fila, productoId),
+                        "Importación de inventario (fila " + fila.numero() + ")"));
                 entradas++;
                 unidades += fila.cantidad();
             }
+        }
+
+        /**
+         * Costo de compra de las unidades de una fila: el de la fila; si no lo trae, el de otra fila del mismo
+         * producto; y si el archivo no lo tiene, el que el producto ya tenía registrado (o ninguno).
+         */
+        private BigDecimal costoDelLote(Fila fila, Long productoId) {
+            if (fila.costo() != null) {
+                return fila.costo();
+            }
+            BigDecimal delArchivo = costoPorProducto.get(
+                    Producto.calcularClaveUnica(fila.nombre(), fila.marca(), fila.presentacion()));
+            return delArchivo != null ? delArchivo
+                    : productos.findById(productoId).map(Producto::getCosto).orElse(null);
         }
 
         /** El costo es del producto, no del lote: todas las filas de un producto deben traer el mismo. */

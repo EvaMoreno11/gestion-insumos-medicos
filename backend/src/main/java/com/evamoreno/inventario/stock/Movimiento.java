@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.stock;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -46,6 +47,10 @@ public class Movimiento {
     @Column(name = "pedido_item_id")
     private Long pedidoItemId;
 
+    /** Entrada: costo de compra. Salida o ajuste: costo promedio del lote en ese momento. */
+    @Column(name = "costo_unitario", precision = 12, scale = 4)
+    private BigDecimal costoUnitario;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant fecha;
@@ -65,6 +70,18 @@ public class Movimiento {
         this.cantidad = cantidad;
         this.stockResultante = lote.getCantidadActual();
         this.nota = nota;
+        this.costoUnitario = lote.getCostoPromedio();
+    }
+
+    /** Entrada: guarda el costo de compra de esas unidades. */
+    static Movimiento entrada(Lote lote, int cantidad, BigDecimal costo, String nota) {
+        Movimiento m = new Movimiento(lote, TipoMovimiento.ENTRADA, cantidad, nota);
+        m.costoUnitario = costo;
+        return m;
+    }
+
+    public BigDecimal getCostoUnitario() {
+        return costoUnitario;
     }
 
     public Long getId() {

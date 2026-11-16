@@ -53,10 +53,13 @@ class EntregaParcialTest extends IntegracionTest {
                  "unidadMedida": "Caja", "costo": %s}""".formatted(nombre, idCategoria("Otros"), costo));
     }
 
+    /** Entrada con el costo que ya tiene el producto (así no cambian los precios que se esperan). */
     private void entrada(Long productoId, String lote, int cantidad) throws Exception {
+        Object costo = JsonPath.read(mockMvc.perform(get("/api/productos/{id}", productoId)).andReturn()
+                .getResponse().getContentAsString(), "$.costo");
         postJson("/api/movimientos/entrada", """
-                {"productoId": %d, "numeroLote": "%s", "fechaVencimiento": "%s", "cantidad": %d}"""
-                .formatted(productoId, lote, HOY.plusMonths(12), cantidad)).andExpect(status().isCreated());
+                {"productoId": %d, "numeroLote": "%s", "fechaVencimiento": "%s", "cantidad": %d, "costo": %s}"""
+                .formatted(productoId, lote, HOY.plusMonths(12), cantidad, costo)).andExpect(status().isCreated());
     }
 
     private Long cliente(String nombre) throws Exception {
