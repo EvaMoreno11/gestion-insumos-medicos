@@ -36,6 +36,57 @@ export interface ProductoResumen {
   activo: boolean
 }
 
+// ---------------------------------------------------------------- resumen ejecutivo
+
+export type TipoPeriodo = 'MES' | 'MES_ANTERIOR' | 'ANIO' | 'RANGO'
+
+export interface Periodo {
+  desde: string
+  hasta: string
+  anteriorDesde: string
+  anteriorHasta: string
+  nombre: string
+  nombreAnterior: string
+}
+
+export interface Resumen {
+  periodo: Periodo
+  ventas: { total: number; pedidos: number; totalAnterior: number; pedidosAnterior: number }
+  ganancia: {
+    ganancia: number
+    /** % sobre las ventas con costo; null si no hay */
+    margen: number | null
+    ventasConCosto: number
+    costoVendido: number
+    /** Ventas que no entran en la ganancia (ítems escritos a mano o lotes sin costo) */
+    ventasSinCosto: number
+    gananciaAnterior: number
+    margenAnterior: number | null
+  }
+  compras: { total: number; entradas: number; entradasSinCosto: number; totalAnterior: number }
+  ventasPorMes: { mes: string; ventas: number; ganancia: number }[]
+}
+
+export interface DetallesResumen {
+  periodo: Periodo
+  productosMasVendidos: { productoId: number; nombre: string; presentacion: string; marca: string; unidades: number; ventas: number }[]
+  mejoresClientes: { clienteId: number; nombre: string; pedidos: number; ventas: number }[]
+  clientesInactivos: { clienteId: number; nombre: string; ultimoPedido: string; diasSinComprar: number; totalHistorico: number }[]
+  diasInactivo: number
+  inventario: { valor: number; unidades: number; productosSinCosto: number; valorVencido: number; lotesVencidos: number }
+  sinMovimiento: {
+    productoId: number
+    nombre: string
+    presentacion: string
+    marca: string
+    stock: number
+    valor: number | null
+    ultimaSalida: string | null
+  }[]
+  diasSinMovimiento: number
+  pendiente: { total: number; pedidos: number; saldos: number }
+}
+
 /** Lote por vencer o vencido, con los datos de su producto. */
 export interface LoteAlerta {
   loteId: number

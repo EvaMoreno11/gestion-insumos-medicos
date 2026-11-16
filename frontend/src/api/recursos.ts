@@ -6,6 +6,7 @@ import type {
   ClienteDatos,
   ClienteDetalle,
   ClienteResumen,
+  DetallesResumen,
   DocumentoPedido,
   EntradaDatos,
   EstadoSesion,
@@ -21,6 +22,8 @@ import type {
   ProductoDetalle,
   ProductoResumen,
   ResultadoMovimiento,
+  Resumen,
+  TipoPeriodo,
 } from './tipos'
 
 export const productos = {
@@ -112,6 +115,18 @@ export const alertas = {
   stockBajo: () => api<ProductoResumen[]>('/api/alertas/stock-bajo'),
   porVencer: (dias = DIAS_POR_VENCER) => api<LoteAlerta[]>('/api/alertas/por-vencer', { params: { dias } }),
   vencidos: () => api<LoteAlerta[]>('/api/alertas/vencidos'),
+}
+
+/** Periodo del resumen: uno de los predefinidos, o un rango con sus fechas (aaaa-mm-dd). */
+export interface ConsultaPeriodo {
+  periodo: TipoPeriodo
+  desde?: string
+  hasta?: string
+}
+
+export const resumen = {
+  obtener: (consulta: ConsultaPeriodo) => api<Resumen>('/api/resumen', { params: { ...consulta } }),
+  detalles: (consulta: ConsultaPeriodo) => api<DetallesResumen>('/api/resumen/detalles', { params: { ...consulta } }),
 }
 
 export const sesion = {

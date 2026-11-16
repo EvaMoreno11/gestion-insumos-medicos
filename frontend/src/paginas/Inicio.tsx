@@ -49,6 +49,7 @@ export default function Inicio() {
       detalle: 'Stock bajo y vencimientos',
       aviso: totalAlertas,
     },
+    { a: '/resumen', icono: '📊', titulo: 'Resumen', detalle: 'Ventas, ganancia y compras' },
     { a: '/clientes', icono: '👥', titulo: 'Clientes', detalle: 'Agregar y editar' },
     { a: '/productos', icono: '🏷️', titulo: 'Productos', detalle: 'Agregar y editar' },
   ]

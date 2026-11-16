@@ -5,12 +5,14 @@ import Configuracion from './paginas/Configuracion'
 import Entrada from './paginas/Entrada'
 import Inicio from './paginas/Inicio'
 import Inventario from './paginas/Inventario'
+import MasDetalles from './paginas/MasDetalles'
 import PedidoDetalle from './paginas/PedidoDetalle'
 import PedidoNuevo from './paginas/PedidoNuevo'
 import Pedidos from './paginas/Pedidos'
 import PorComprar from './paginas/PorComprar'
 import ProductoDetalle from './paginas/ProductoDetalle'
 import { ProductoFormulario, Productos } from './paginas/Productos'
+import Resumen from './paginas/Resumen'
 import { SesionProvider } from './sesion'
 
 /** Rutas de la aplicación: cada pantalla tiene su propia dirección. Todas exigen haber iniciado sesión. */
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="/pedidos/:id" element={<PedidoDetalle />} />
         <Route path="/por-comprar" element={<PorComprar />} />
         <Route path="/alertas" element={<Alertas />} />
+        <Route path="/resumen" element={<Resumen />} />
+        <Route path="/resumen/detalles" element={<MasDetalles />} />
 
         <Route path="/entrada" element={<Entrada />} />
 

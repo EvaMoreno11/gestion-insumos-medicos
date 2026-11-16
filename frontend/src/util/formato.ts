@@ -95,3 +95,44 @@ export function cuandoVence(dias: number): string {
   }
   return dias === 1 ? 'Vence mañana' : `Vence en ${dias} días`
 }
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic']
+const MESES_LARGOS = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/** "2026-06" → "jun". */
+export function mesCorto(mes: string): string {
+  return MESES[Number(mes.slice(5, 7)) - 1] ?? mes
+}
+
+/** "2026-06" → "junio 2026". */
+export function mesLargo(mes: string): string {
+  return `${MESES_LARGOS[Number(mes.slice(5, 7)) - 1] ?? mes} ${mes.slice(0, 4)}`
+}
+
+/** Fecha de la API ("2026-03-01") → "01/03/2026", sin pasar por la zona horaria. */
+export function fechaDia(fecha: string | null | undefined): string {
+  if (!fecha) {
+    return '—'
+  }
+  const [anio, mes, dia] = fecha.split('-')
+  return `${dia}/${mes}/${anio}`
+}
+
+/** "2026-06-01", "2026-06-15" → "1 jun – 15 jun 2026" (o "28 dic 2025 – 3 ene 2026"). */
+export function rangoFechas(desde: string, hasta: string): string {
+  const parte = (fecha: string) => `${Number(fecha.slice(8, 10))} ${MESES[Number(fecha.slice(5, 7)) - 1]}`
+  const mismoAnio = desde.slice(0, 4) === hasta.slice(0, 4)
+  return mismoAnio
+    ? `${parte(desde)} – ${parte(hasta)} ${hasta.slice(0, 4)}`
+    : `${parte(desde)} ${desde.slice(0, 4)} – ${parte(hasta)} ${hasta.slice(0, 4)}`
+}
+
+/** Variación % de un valor respecto del anterior, redondeada; null si antes era 0 (no se puede comparar). */
+export function variacion(actual: number, anterior: number): number | null {
+  if (anterior === 0) {
+    return null
+  }
+  return Math.round(((actual - anterior) / Math.abs(anterior)) * 100)
+}

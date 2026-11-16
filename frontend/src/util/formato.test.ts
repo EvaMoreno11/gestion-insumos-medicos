@@ -3,6 +3,11 @@ import { construirUrl, interpretarError, leerCookie } from '../api/http'
 import {
   cuandoVence,
   dinero,
+  fechaDia,
+  mesCorto,
+  mesLargo,
+  rangoFechas,
+  variacion,
   escribirMesAnio,
   leerDecimal,
   leerEntero,
@@ -126,5 +131,24 @@ describe('cuándo vence un lote', () => {
     expect(cuandoVence(0)).toBe('Vence hoy')
     expect(cuandoVence(-1)).toBe('Venció ayer')
     expect(cuandoVence(-10)).toBe('Venció hace 10 días')
+  })
+})
+
+describe('resumen', () => {
+  it('nombra los meses', () => {
+    expect(mesCorto('2026-06')).toBe('jun')
+    expect(mesLargo('2026-09')).toBe('setiembre 2026')
+  })
+
+  it('muestra fechas y rangos sin cambiar de día por la zona horaria', () => {
+    expect(fechaDia('2026-03-01')).toBe('01/03/2026')
+    expect(rangoFechas('2026-06-01', '2026-06-15')).toBe('1 jun – 15 jun 2026')
+    expect(rangoFechas('2025-12-28', '2026-01-03')).toBe('28 dic 2025 – 3 ene 2026')
+  })
+
+  it('calcula la variación respecto del periodo anterior', () => {
+    expect(variacion(112, 100)).toBe(12)
+    expect(variacion(80, 100)).toBe(-20)
+    expect(variacion(50, 0)).toBeNull()
   })
 })
