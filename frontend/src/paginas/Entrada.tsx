@@ -6,13 +6,14 @@ import type { ProductoDetalle } from '../api/tipos'
 import { Aviso, Boton, Campo, Tarjeta } from '../componentes/basicos'
 import { BuscadorProductos, CampoMesAnio } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
-import { leerEntero, mesAnio, mesAnioAFecha, unir } from '../util/formato'
+import { dinero, leerDecimal, leerEntero, mesAnio, mesAnioAFecha, unir } from '../util/formato'
 
 interface Registrada {
   producto: string
   lote: string | null
   vencimiento: string | null
   cantidad: number
+  costo: number
   stock: number
 }
 
@@ -26,17 +27,24 @@ export default function Entrada() {
   const [lote, setLote] = useState('')
   const [vencimiento, setVencimiento] = useState('')
   const [cantidad, setCantidad] = useState('')
+  const [costo, setCosto] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [registradas, setRegistradas] = useState<Registrada[]>([])
 
+  /** Al elegir el producto, el costo viene lleno con el último de compra: solo se cambia si varió. */
+  function mostrar(p: ProductoDetalle) {
+    setProducto(p)
+    setLote('')
+    setVencimiento('')
+    setCantidad('')
+    setCosto(p.costo === null ? '' : String(p.costo))
+  }
+
   async function elegir(id: number) {
     setError(null)
     try {
-      setProducto(await productos.obtener(id))
-      setLote('')
-      setVencimiento('')
-      setCantidad('')
+      mostrar(await productos.obtener(id))
     } catch (e) {
       setError(mensajeDe(e))
     }
@@ -51,7 +59,7 @@ export default function Entrada() {
     let vigente = true
     productos
       .obtener(Number(preseleccionado))
-      .then((p) => vigente && setProducto(p))
+      .then((p) => vigente && mostrar(p))
       .catch((e: unknown) => vigente && setError(mensajeDe(e)))
     return () => {
       vigente = false
@@ -60,10 +68,17 @@ export default function Entrada() {
 
   const fecha = mesAnioAFecha(vencimiento)
   const cantidadValida = leerEntero(cantidad)
-  const listo = producto !== undefined && fecha !== undefined && cantidadValida !== null && cantidadValida > 0
+  const costoValido = leerDecimal(costo)
+  const listo =
+    producto !== undefined &&
+    fecha !== undefined &&
+    cantidadValida !== null &&
+    cantidadValida > 0 &&
+    costoValido !== null &&
+    costoValido >= 0
 
   async function guardar() {
-    if (!producto || fecha === undefined || cantidadValida === null) {
+    if (!producto || fecha === undefined || cantidadValida === null || costoValido === null) {
       return
     }
     setOcupado(true)
@@ -74,6 +89,7 @@ export default function Entrada() {
         numeroLote: lote.trim() === '' ? null : lote.trim(),
         fechaVencimiento: fecha,
         cantidad: cantidadValida,
+        costo: costoValido,
       })
       const movimiento = resultado.movimientos[0]
       setRegistradas((anteriores) => [
@@ -82,6 +98,7 @@ export default function Entrada() {
           lote: movimiento.numeroLote,
           vencimiento: movimiento.fechaVencimiento,
           cantidad: cantidadValida,
+          costo: costoValido,
           stock: resultado.stockDisponible,
         },
         ...anteriores,
@@ -164,13 +181,29 @@ export default function Entrada() {
                   error={fecha === undefined ? 'Escribe mes y año: 03/2027' : undefined}
                 />
               </div>
-              <Campo
-                etiqueta={`Cantidad (${producto.unidadMedida.toLowerCase()})`}
-                inputMode="numeric"
-                autoComplete="off"
-                value={cantidad}
-                onChange={(e) => setCantidad(e.target.value.replace(/\D/g, ''))}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <Campo
+                  etiqueta={`Cantidad (${producto.unidadMedida.toLowerCase()})`}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={cantidad}
+                  onChange={(e) => setCantidad(e.target.value.replace(/\D/g, ''))}
+                />
+                <Campo
+                  etiqueta={`Costo por ${producto.unidadMedida.toLowerCase()} (S/)`}
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  value={costo}
+                  onChange={(e) => setCosto(e.target.value.replace(/[^\d.,]/g, ''))}
+                  error={costo.trim() !== '' && costoValido === null ? 'Escribe un número, p. ej. 8.50' : undefined}
+                  ayuda={
+                    producto.costo === null
+                      ? 'Aún no tiene costo: escríbelo de la boleta'
+                      : `Último: ${dinero(producto.costo)}. Cámbialo si varió`
+                  }
+                />
+              </div>
               <Boton type="submit" ancho disabled={!listo || ocupado}>
                 {ocupado ? 'Guardando…' : 'Guardar y siguiente'}
               </Boton>
@@ -191,7 +224,12 @@ export default function Entrada() {
                     <span className="min-w-0">
                       <span className="block font-medium leading-snug">{r.producto}</span>
                       <span className="block text-sm text-slate-600">
-                        {unir(' · ', r.lote ? `Lote ${r.lote}` : 'Sin lote', r.vencimiento ? `vence ${mesAnio(r.vencimiento)}` : null)}
+                        {unir(
+                          ' · ',
+                          r.lote ? `Lote ${r.lote}` : 'Sin lote',
+                          r.vencimiento ? `vence ${mesAnio(r.vencimiento)}` : null,
+                          `${dinero(r.costo)} c/u`,
+                        )}
                       </span>
                     </span>
                     <span className="shrink-0 text-right">

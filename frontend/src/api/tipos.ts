@@ -56,6 +56,8 @@ export interface Lote {
   numeroLote: string | null
   fechaVencimiento: string | null
   cantidad: number
+  /** Promedio del costo de compra de sus unidades */
+  costoPromedio: number | null
   vencido: boolean
   diasParaVencer: number | null
 }
@@ -147,6 +149,8 @@ export interface EntradaDatos {
   /** aaaa-mm-dd; del vencimiento solo cuentan el mes y el año */
   fechaVencimiento: string | null
   cantidad: number
+  /** Costo de compra por unidad (de la boleta); pasa a ser el costo del producto */
+  costo: number
   nota?: string
 }
 
@@ -154,6 +158,8 @@ export interface Movimiento {
   id: number
   tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE'
   cantidad: number
+  /** Entrada: costo de compra. Salida o ajuste: costo promedio del lote */
+  costoUnitario: number | null
   numeroLote: string | null
   fechaVencimiento: string | null
   productoNombre: string
