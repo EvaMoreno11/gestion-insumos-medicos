@@ -93,7 +93,7 @@ erDiagram
 
 1. **Valida cada fila:** columnas obligatorias, números enteros, costo y vencimiento (`mm/aaaa`; si trae día, se ignora).
 2. **Crea lo que falta:** categorías (reconocidas sin importar tildes) y productos (reconocidos por código o por nombre, marca y presentación).
-3. **Registra una entrada** por cada fila con cantidad, y guarda el **costo** del producto si la fila lo trae. El costo es del producto, no del lote: dos filas del mismo producto con costos distintos son un error.
+3. **Registra una entrada** por cada fila con cantidad, y guarda el **costo** del producto si la fila lo trae. Una fila sin lote, sin vencimiento y sin cantidad es un producto que hoy no tiene stock: se registra sin lotes (cantidad 0). Si la fila trae lote o vencimiento, la cantidad es obligatoria. El costo es del producto, no del lote: dos filas del mismo producto con costos distintos son un error.
 4. **Todo o nada:** todo ocurre en una transacción. Si una sola fila tiene error, no se guarda ninguna y el reporte indica fila y motivo.
 5. **`soloValidar=true`** (el valor por defecto) ejecuta los mismos pasos y al final deshace todo. Así la vista previa detecta exactamente los mismos problemas que la importación real.
 
