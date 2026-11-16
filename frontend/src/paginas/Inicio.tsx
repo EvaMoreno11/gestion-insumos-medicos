@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { pedidos } from '../api/recursos'
+import { alertas, pedidos } from '../api/recursos'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
 import { useSesion } from '../sesion-contexto'
@@ -17,6 +17,13 @@ export default function Inicio() {
   // Contadores para los avisos de los botones; si fallan, la pantalla igual funciona
   const pendientes = useCarga(() => pedidos.listar('BORRADOR', 1))
   const porComprar = useCarga(() => pedidos.porComprar())
+  const stockBajo = useCarga(() => alertas.stockBajo())
+  const porVencer = useCarga(() => alertas.porVencer())
+  const vencidos = useCarga(() => alertas.vencidos())
+  const totalAlertas =
+    stockBajo.datos && porVencer.datos && vencidos.datos
+      ? stockBajo.datos.length + porVencer.datos.length + vencidos.datos.length
+      : undefined
 
   const opciones: Opcion[] = [
     { a: '/inventario', icono: '🔎', titulo: 'Consultar inventario', detalle: '¿Tengo este producto?' },
@@ -34,6 +41,13 @@ export default function Inicio() {
       titulo: 'Por comprar',
       detalle: 'Lo que falta para los pedidos',
       aviso: porComprar.datos ? porComprar.datos.productos.length + porComprar.datos.noRegistrados.length : undefined,
+    },
+    {
+      a: '/alertas',
+      icono: '🔔',
+      titulo: 'Alertas',
+      detalle: 'Stock bajo y vencimientos',
+      aviso: totalAlertas,
     },
     { a: '/clientes', icono: '👥', titulo: 'Clientes', detalle: 'Agregar y editar' },
     { a: '/productos', icono: '🏷️', titulo: 'Productos', detalle: 'Agregar y editar' },

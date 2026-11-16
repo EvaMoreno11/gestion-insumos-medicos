@@ -17,7 +17,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
 - Entradas, salidas y ajustes con historial (kárdex). Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
-- Alertas de stock bajo, lotes por vencer y lotes vencidos.
+- Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo (para saber qué comprar), lotes que vencen en los próximos 60 días y lotes vencidos con unidades.
 - Importación del inventario desde la [plantilla de Excel](docs/plantilla_inventario.xlsx): modo de validación, reporte de errores por fila y todo o nada.
 - Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
 - **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales.

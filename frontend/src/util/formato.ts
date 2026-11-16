@@ -84,3 +84,14 @@ export function unir(separador: string, ...partes: (string | null | undefined)[]
 export function porcentaje(valor: number): string {
   return `${Number(valor.toFixed(2))} %`
 }
+
+/** Cuándo vence un lote: "Vence en 45 días", "Vence mañana", "Vence hoy", "Venció hace 10 días". */
+export function cuandoVence(dias: number): string {
+  if (dias < 0) {
+    return dias === -1 ? 'Venció ayer' : `Venció hace ${-dias} días`
+  }
+  if (dias === 0) {
+    return 'Vence hoy'
+  }
+  return dias === 1 ? 'Vence mañana' : `Vence en ${dias} días`
+}

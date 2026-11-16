@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { construirUrl, interpretarError, leerCookie } from '../api/http'
 import {
+  cuandoVence,
   dinero,
   escribirMesAnio,
   leerDecimal,
@@ -115,5 +116,15 @@ describe('cliente HTTP', () => {
   it('si el servidor no responde con JSON, da un mensaje entendible', () => {
     expect(interpretarError(502, null).message).toBe('El servidor no responde. Intenta de nuevo en un momento.')
     expect(interpretarError(404, null).message).toBe('Error 404')
+  })
+})
+
+describe('cuándo vence un lote', () => {
+  it('cuenta los días que faltan o que pasaron', () => {
+    expect(cuandoVence(45)).toBe('Vence en 45 días')
+    expect(cuandoVence(1)).toBe('Vence mañana')
+    expect(cuandoVence(0)).toBe('Vence hoy')
+    expect(cuandoVence(-1)).toBe('Venció ayer')
+    expect(cuandoVence(-10)).toBe('Venció hace 10 días')
   })
 })
