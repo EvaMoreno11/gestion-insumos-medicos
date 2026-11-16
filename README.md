@@ -17,6 +17,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
 - Entradas (compras) con su **costo**, salidas y ajustes con historial (kárdex). El producto toma el último costo de compra y cada lote guarda su costo promedio, así se sabe cuánto costó lo vendido. Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
+- **Resumen ejecutivo:** ventas, ganancia bruta con margen y compras del periodo (este mes, el mes pasado, este año o un rango de fechas), comparados con el periodo anterior, y un gráfico de ventas de los últimos 12 meses. En **Más detalles**: productos más vendidos, mejores clientes, clientes que dejaron de comprar, valor del inventario, productos sin movimiento, vencido sin vender y pendiente por entregar.
 - Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo (para saber qué comprar), lotes que vencen en los próximos 60 días y lotes vencidos con unidades.
 - Importación del inventario desde la [plantilla de Excel](docs/plantilla_inventario.xlsx): modo de validación, reporte de errores por fila y todo o nada.
 - Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
@@ -85,6 +86,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `POST` | `/api/movimientos/ajuste` | Corregir un lote a la cantidad real |
 | `GET` | `/api/movimientos?productoId=` | Historial de un producto |
 | `GET` | `/api/alertas/stock-bajo` · `/por-vencer?dias=` · `/vencidos` | Alertas |
+| `GET` | `/api/resumen?periodo=` · `/api/resumen/detalles?periodo=` | Resumen ejecutivo (`MES`, `MES_ANTERIOR`, `ANIO` o `RANGO` con `desde` y `hasta`) |
 | `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de inventario (por defecto solo valida) |
 | `POST` | `/api/importacion/clientes?soloValidar=` | Importar la plantilla de clientes (por defecto solo valida) |
 | `GET` / `POST` / `PUT` | `/api/clientes[/{id}]` | Buscar (por nombre, RUC, local o contacto), registrar y actualizar clientes y sus locales |
