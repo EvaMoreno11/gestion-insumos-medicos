@@ -229,6 +229,17 @@ stateDiagram-v2
 
 `GET /api/pedidos/{id}/nota.pdf` y `/nota.xlsx` generan el mismo documento (`NotaPedido`) en dos formatos. Cuando un ítem salió de varios lotes hay **una fila por lote**. No incluye costo, porcentaje ni categoría del cliente. Los datos del encabezado (nombre, dirección y teléfono del negocio) se guardan en la tabla `negocio` y se editan por API: no están en el código.
 
+## Resumen ejecutivo
+
+`GET /api/resumen` y `/api/resumen/detalles` calculan todo con SQL agregado, sin tablas nuevas. Los montos incluyen IGV.
+
+- **Ventas:** pedidos despachados en el periodo, con nota o "Solo tabla". Cada entrega cuenta, también la de un saldo.
+- **Ganancia bruta:** ventas menos lo que costó lo entregado (el `costo_unitario` de las salidas de cada ítem). Las líneas sin costo conocido no entran: ítems escritos a mano o salidas de lotes sin costo. Su monto se informa aparte, para que el margen no salga inflado.
+- **Compras:** entradas registradas en la app (cantidad × costo). Las entradas del **inventario inicial** (`movimiento.inicial`, las que vienen de importar el Excel) no cuentan: son el stock con el que se empezó, no compras de ese mes.
+- **Comparación:** "este mes" (del 1 a hoy) se compara con los mismos días del mes pasado; "el mes pasado", con el mes anterior completo; "este año", con los mismos días del año pasado; un rango, con uno de igual largo justo antes.
+- **Más detalles:** top 10 de productos y clientes del periodo; clientes con compras que no tienen pedidos hace más de 60 días; valor del inventario vigente (stock × costo promedio de cada lote) y de lo vencido; productos con stock desde hace más de 90 días y sin ventas en ese tiempo; y lo pendiente por entregar (borradores y saldos).
+- **La ganancia empieza con los costos.** Solo se conoce para lo vendido desde que cada entrada guarda su costo, o sea, desde la importación del inventario.
+
 ## Fase 5: Inicio de sesión
 
 ```mermaid

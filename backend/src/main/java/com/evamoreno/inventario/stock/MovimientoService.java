@@ -44,7 +44,17 @@ public class MovimientoService {
 
     // ------------------------------------------------------------------ entrada
 
+    /** Una compra que se registra en la app. */
     public ResultadoMovimiento registrarEntrada(EntradaRequest r) {
+        return registrarEntrada(r, false);
+    }
+
+    /** Stock con el que se empieza (importación del Excel): no cuenta como compra en el resumen. */
+    public ResultadoMovimiento registrarEntradaInicial(EntradaRequest r) {
+        return registrarEntrada(r, true);
+    }
+
+    private ResultadoMovimiento registrarEntrada(EntradaRequest r, boolean inicial) {
         Producto producto = productoActivo(r.productoId());
         String numeroLote = normalizarNumeroLote(r.numeroLote());
         LocalDate vencimiento = Vencimientos.finDeMes(r.fechaVencimiento()); // solo cuentan el mes y el año
@@ -55,7 +65,7 @@ public class MovimientoService {
 
         lote.sumar(r.cantidad(), r.costo());
         Movimiento movimiento = movimientos.save(
-                Movimiento.entrada(lote, r.cantidad(), r.costo(), TextoBusqueda.limpiar(r.nota())));
+                Movimiento.entrada(lote, r.cantidad(), r.costo(), TextoBusqueda.limpiar(r.nota()), inicial));
         if (r.costo() != null) {
             producto.setCosto(r.costo()); // el último costo de compra: con él se calculan los precios nuevos
         }

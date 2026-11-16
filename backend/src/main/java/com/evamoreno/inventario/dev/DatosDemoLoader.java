@@ -162,7 +162,7 @@ class DatosDemoLoader implements ApplicationRunner {
                     // El vencimiento se guarda por mes: los "vencidos" van al mes anterior
                     LocalDate vence = l.diasParaVencer() == null ? null
                             : l.diasParaVencer() < 0 ? hoy.minusMonths(1) : hoy.plusDays(l.diasParaVencer());
-                    movimientoService.registrarEntrada(new EntradaRequest(producto.getId(), l.numero(), vence,
+                    movimientoService.registrarEntradaInicial(new EntradaRequest(producto.getId(), l.numero(), vence,
                             l.cantidad(), producto.getCosto(), "Datos de demostración"));
                     cargados++;
                 }

@@ -1,5 +1,8 @@
 import { useEffect, useEffectEvent, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { mensajeDe } from './api/http'
+import type { ConsultaPeriodo } from './api/recursos'
+import type { TipoPeriodo } from './api/tipos'
 
 interface Carga<T> {
   /** Último resultado recibido. Mientras llega uno nuevo se conserva el anterior (la lista no parpadea). */
@@ -59,4 +62,32 @@ export function useRetardo<T>(valor: T, milisegundos = 300): T {
     return () => clearTimeout(temporizador)
   }, [valor, milisegundos])
   return retrasado
+}
+
+const TIPOS_PERIODO: TipoPeriodo[] = ['MES', 'MES_ANTERIOR', 'ANIO', 'RANGO']
+
+/**
+ * Periodo del resumen guardado en la dirección (?periodo=MES, o RANGO con desde y hasta), así
+ * "Más detalles" abre con el mismo periodo y el botón Atrás del navegador lo respeta.
+ */
+export function usePeriodo(): [ConsultaPeriodo, (consulta: ConsultaPeriodo) => void, string] {
+  const [params, setParams] = useSearchParams()
+  const tipo = params.get('periodo') as TipoPeriodo | null
+  const periodo: TipoPeriodo = tipo && TIPOS_PERIODO.includes(tipo) ? tipo : 'MES'
+  const desde = params.get('desde') ?? undefined
+  const hasta = params.get('hasta') ?? undefined
+  const consulta: ConsultaPeriodo =
+    periodo === 'RANGO' && desde && hasta ? { periodo, desde, hasta } : { periodo: periodo === 'RANGO' ? 'MES' : periodo }
+  const cambiar = (nueva: ConsultaPeriodo) => {
+    const valores: Record<string, string> = { periodo: nueva.periodo }
+    if (nueva.periodo === 'RANGO' && nueva.desde && nueva.hasta) {
+      valores.desde = nueva.desde
+      valores.hasta = nueva.hasta
+    }
+    setParams(valores, { replace: true })
+  }
+  const textoParams = new URLSearchParams(
+    Object.entries(consulta).filter(([, v]) => v !== undefined) as [string, string][],
+  ).toString()
+  return [consulta, cambiar, textoParams]
 }
