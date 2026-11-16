@@ -51,6 +51,10 @@ public class Movimiento {
     @Column(name = "costo_unitario", precision = 12, scale = 4)
     private BigDecimal costoUnitario;
 
+    /** Entrada del inventario inicial (importación): es el stock con el que se empezó, no una compra. */
+    @Column(nullable = false)
+    private boolean inicial;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant fecha;
@@ -74,10 +78,15 @@ public class Movimiento {
     }
 
     /** Entrada: guarda el costo de compra de esas unidades. */
-    static Movimiento entrada(Lote lote, int cantidad, BigDecimal costo, String nota) {
+    static Movimiento entrada(Lote lote, int cantidad, BigDecimal costo, String nota, boolean inicial) {
         Movimiento m = new Movimiento(lote, TipoMovimiento.ENTRADA, cantidad, nota);
         m.costoUnitario = costo;
+        m.inicial = inicial;
         return m;
+    }
+
+    public boolean isInicial() {
+        return inicial;
     }
 
     public BigDecimal getCostoUnitario() {

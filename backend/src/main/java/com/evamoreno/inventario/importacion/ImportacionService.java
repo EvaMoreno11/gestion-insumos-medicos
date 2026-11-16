@@ -124,7 +124,7 @@ public class ImportacionService {
             Long productoId = buscarOCrearProducto(fila, categoria(fila.categoria()));
             registrarCosto(fila, productoId);
             if (fila.cantidad() > 0) {
-                movimientoService.registrarEntrada(new EntradaRequest(productoId, fila.numeroLote(),
+                movimientoService.registrarEntradaInicial(new EntradaRequest(productoId, fila.numeroLote(),
                         fila.fechaVencimiento(), fila.cantidad(), costoDelLote(fila, productoId),
                         "Importación de inventario (fila " + fila.numero() + ")"));
                 entradas++;
