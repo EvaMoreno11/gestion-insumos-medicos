@@ -33,6 +33,7 @@ const SECCIONES = [
   { a: '/pedidos', icono: '🧾', titulo: 'Pedidos' },
   { a: '/entrada', icono: '📦', titulo: 'Registrar entrada' },
   { a: '/por-comprar', icono: '🛒', titulo: 'Por comprar' },
+  { a: '/cobranzas', icono: '💰', titulo: 'Cobranzas' },
   { a: '/alertas', icono: '🔔', titulo: 'Alertas' },
   { a: '/resumen', icono: '📊', titulo: 'Resumen' },
   { a: '/clientes', icono: '👥', titulo: 'Clientes' },

@@ -136,3 +136,20 @@ export function variacion(actual: number, anterior: number): number | null {
   }
   return Math.round(((actual - anterior) / Math.abs(anterior)) * 100)
 }
+
+/** Hoy en la hora del dispositivo, como aaaa-mm-dd. */
+export function hoyLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Plazo de pago: null → "Sin plazo", 0 → "Contado", 15 → "Crédito a 15 días". */
+export function textoPlazo(plazoDias: number | null | undefined): string {
+  if (plazoDias === null || plazoDias === undefined) {
+    return 'Sin plazo'
+  }
+  if (plazoDias === 0) {
+    return 'Contado'
+  }
+  return `Crédito a ${plazoDias} ${plazoDias === 1 ? 'día' : 'días'}`
+}

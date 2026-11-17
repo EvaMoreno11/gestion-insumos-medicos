@@ -1,4 +1,5 @@
 import { resumen } from '../api/recursos'
+import { Link } from 'react-router'
 import { BotonEnlace, EstadoCarga } from '../componentes/basicos'
 import { Pantalla } from '../componentes/Pantalla'
 import { GraficoVentasMes, Indicador, SelectorPeriodo } from '../componentes/resumen'
@@ -25,7 +26,9 @@ export default function Resumen() {
                 {rangoFechas(datos.periodo.anteriorDesde, datos.periodo.anteriorHasta)}
               </p>
 
-              <div className={`space-y-3 lg:grid lg:grid-cols-3 lg:gap-4 lg:space-y-0 ${cargando ? 'opacity-60' : ''}`}>
+              <div
+                className={`space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 2xl:grid-cols-4 ${cargando ? 'opacity-60' : ''}`}
+              >
                 <Indicador
                   titulo="Ventas"
                   valor={dinero(datos.ventas.total)}
@@ -34,6 +37,11 @@ export default function Resumen() {
                   anterior={datos.ventas.totalAnterior}
                   nombreAnterior={datos.periodo.nombreAnterior}
                   subirEsBueno
+                  nota={
+                    datos.ventas.total > 0
+                      ? `De estas ventas: cobrado ${dinero(datos.ventas.cobrado)} · falta ${dinero(datos.ventas.total - datos.ventas.cobrado)}`
+                      : undefined
+                  }
                 />
                 <Indicador
                   titulo="Ganancia"
@@ -47,6 +55,21 @@ export default function Resumen() {
                     datos.ganancia.ventasSinCosto > 0
                       ? `No incluye ${dinero(datos.ganancia.ventasSinCosto)} vendidos sin costo registrado (ítems escritos a mano o productos sin costo).`
                       : `Ventas ${dinero(datos.ganancia.ventasConCosto)} − costo ${dinero(datos.ganancia.costoVendido)}`
+                  }
+                />
+                <Indicador
+                  titulo="Cobrado"
+                  valor={dinero(datos.cobrado.total)}
+                  detalle={`${datos.cobrado.pagos} ${datos.cobrado.pagos === 1 ? 'pago recibido' : 'pagos recibidos'}`}
+                  actual={datos.cobrado.total}
+                  anterior={datos.cobrado.totalAnterior}
+                  nombreAnterior={datos.periodo.nombreAnterior}
+                  subirEsBueno
+                  nota={
+                    <Link to="/cobranzas" className="font-medium text-marca">
+                      Te deben {dinero(datos.cobrado.porCobrar)}
+                      {datos.cobrado.vencido > 0 && ` (${dinero(datos.cobrado.vencido)} vencido)`} →
+                    </Link>
                   }
                 />
                 <Indicador

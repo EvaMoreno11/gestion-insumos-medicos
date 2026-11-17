@@ -51,7 +51,10 @@ export interface Periodo {
 
 export interface Resumen {
   periodo: Periodo
-  ventas: { total: number; pedidos: number; totalAnterior: number; pedidosAnterior: number }
+  /** cobrado: de lo vendido en el periodo, lo que se ha cobrado hasta hoy */
+  ventas: { total: number; pedidos: number; totalAnterior: number; pedidosAnterior: number; cobrado: number }
+  /** Plata que entró en el periodo, y lo que se debe hoy */
+  cobrado: { total: number; pagos: number; totalAnterior: number; porCobrar: number; vencido: number }
   ganancia: {
     ganancia: number
     /** % sobre las ventas con costo; null si no hay */
@@ -64,7 +67,7 @@ export interface Resumen {
     margenAnterior: number | null
   }
   compras: { total: number; entradas: number; entradasSinCosto: number; totalAnterior: number }
-  ventasPorMes: { mes: string; ventas: number; ganancia: number }[]
+  ventasPorMes: { mes: string; ventas: number; ganancia: number; cobrado: number }[]
 }
 
 export interface DetallesResumen {
@@ -173,6 +176,8 @@ export interface Local {
 
 export interface ClienteDetalle extends ClienteResumen {
   observaciones: string | null
+  /** Plazo de pago habitual: null = sin definir; 0 = contado; N = crédito a N días */
+  plazoDias: number | null
   locales: Local[]
 }
 
@@ -189,6 +194,7 @@ export interface ClienteDatos {
   rucDni: string
   porcentaje: number | null
   observaciones: string
+  plazoDias: number | null
   locales?: LocalDatos[]
 }
 
@@ -283,6 +289,64 @@ export interface Pedido {
   grupo: GrupoPedido | null
   creadoEn: string
   despachadoEn: string | null
+  /** Pagos y plazo; null si el pedido no está despachado */
+  cobro: Cobro | null
+}
+
+// ---------------------------------------------------------------- cobranzas
+
+export type MedioPago = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TRANSFERENCIA'
+
+/** SIN_PLAZO: se debe, pero nadie anotó todavía cómo paga el cliente */
+export type EstadoCobro = 'PAGADO' | 'POR_COBRAR' | 'VENCIDO' | 'SIN_PLAZO'
+
+export interface PagoRegistrado {
+  id: number
+  fecha: string
+  monto: number
+  medio: MedioPago
+  nota: string | null
+}
+
+export interface Cobro {
+  total: number
+  pagado: number
+  saldo: number
+  /** null = sin anotar; 0 = contado; N = crédito a N días desde el despacho */
+  plazoDias: number | null
+  vence: string | null
+  estado: EstadoCobro
+  /** Días que faltan para que venza (negativo: días de atraso) */
+  dias: number | null
+  pagos: PagoRegistrado[]
+}
+
+/** Una nota con saldo pendiente. */
+export interface Deuda {
+  pedidoId: number
+  numero: string | null
+  documento: DocumentoPedido
+  clienteId: number
+  cliente: string
+  local: string | null
+  despachado: string
+  total: number
+  pagado: number
+  saldo: number
+  plazoDias: number | null
+  vence: string | null
+  estado: EstadoCobro
+  dias: number | null
+}
+
+export interface Cobranzas {
+  totalPorCobrar: number
+  totalVencido: number
+  /** Clientes con al menos un cobro vencido */
+  clientesVencidos: number
+  vencidos: Deuda[]
+  porCobrar: Deuda[]
+  sinPlazo: Deuda[]
 }
 
 export interface GrupoPedido {

@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { alertas, pedidos } from '../api/recursos'
+import { alertas, cobranzas, pedidos } from '../api/recursos'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
 import { useSesion } from '../sesion-contexto'
@@ -10,6 +10,8 @@ interface Opcion {
   titulo: string
   detalle: string
   aviso?: number
+  /** El aviso va en rojo: algo ya se pasó de fecha */
+  urgente?: boolean
 }
 
 export default function Inicio() {
@@ -20,6 +22,7 @@ export default function Inicio() {
   const stockBajo = useCarga(() => alertas.stockBajo())
   const porVencer = useCarga(() => alertas.porVencer())
   const vencidos = useCarga(() => alertas.vencidos())
+  const cobros = useCarga(() => cobranzas.obtener())
   const totalAlertas =
     stockBajo.datos && porVencer.datos && vencidos.datos
       ? stockBajo.datos.length + porVencer.datos.length + vencidos.datos.length
@@ -41,6 +44,14 @@ export default function Inicio() {
       titulo: 'Por comprar',
       detalle: 'Lo que falta para los pedidos',
       aviso: porComprar.datos ? porComprar.datos.productos.length + porComprar.datos.noRegistrados.length : undefined,
+    },
+    {
+      a: '/cobranzas',
+      icono: '💰',
+      titulo: 'Cobranzas',
+      detalle: 'Pagos y créditos',
+      aviso: cobros.datos?.clientesVencidos,
+      urgente: true,
     },
     {
       a: '/alertas',
@@ -83,7 +94,12 @@ export default function Inicio() {
               <span className="mt-0.5 block text-sm leading-tight text-slate-500">{o.detalle}</span>
             </span>
             {o.aviso !== undefined && o.aviso > 0 && (
-              <span className="absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full bg-amber-500 px-2 text-sm font-bold text-white">
+              <span
+                className={`absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white ${
+                  o.urgente ? 'bg-red-600' : 'bg-amber-500'
+                }`}
+                aria-label={o.urgente ? `${o.aviso} con cobros vencidos` : undefined}
+              >
                 {o.aviso}
               </span>
             )}
