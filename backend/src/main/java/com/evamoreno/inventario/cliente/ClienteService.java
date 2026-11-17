@@ -107,6 +107,7 @@ public class ClienteService {
         validarUnico(nombre, rucDni, null);
 
         Cliente cliente = new Cliente(nombre, rucDni, request.porcentaje(), limpiarOpcional(request.observaciones()));
+        cliente.definirPlazo(request.plazoDias());
         List<LocalRequest> locales = request.locales() == null ? List.of() : request.locales();
         validarNombresDeLocales(locales);
         if (locales.isEmpty()) {
@@ -125,6 +126,7 @@ public class ClienteService {
         String rucDni = limpiarOpcional(request.rucDni());
         validarUnico(nombre, rucDni, id);
         cliente.actualizarDatos(nombre, rucDni, request.porcentaje(), limpiarOpcional(request.observaciones()));
+        cliente.definirPlazo(request.plazoDias());
 
         // Sin lista de locales = no se tocan
         if (request.locales() != null && !request.locales().isEmpty()) {

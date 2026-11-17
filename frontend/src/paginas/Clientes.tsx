@@ -71,6 +71,7 @@ export function ClienteFormulario() {
   const [rucDni, setRucDni] = useState('')
   const [porcentaje, setPorcentaje] = useState<number | null>(null)
   const [observaciones, setObservaciones] = useState('')
+  const [plazo, setPlazo] = useState('')
   const [locales, setLocales] = useState<LocalDatos[]>([{ ...LOCAL_VACIO }])
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -86,6 +87,7 @@ export function ClienteFormulario() {
         setRucDni(c.rucDni ?? '')
         setPorcentaje(c.porcentaje)
         setObservaciones(c.observaciones ?? '')
+        setPlazo(c.plazoDias === null ? '' : String(c.plazoDias))
         setLocales(
           c.locales.map((l) => ({
             id: l.id,
@@ -108,7 +110,7 @@ export function ClienteFormulario() {
     setOcupado(true)
     setError(null)
     try {
-      const datos = { nombre, rucDni, porcentaje, observaciones, locales }
+      const datos = { nombre, rucDni, porcentaje, observaciones, plazoDias: plazo === '' ? null : Number(plazo), locales }
       if (id === null) {
         await clientes.crear(datos)
       } else {
@@ -151,6 +153,13 @@ export function ClienteFormulario() {
               ayuda="Opcional: 11 dígitos (RUC) u 8 (DNI)"
             />
             <Campo etiqueta="Observaciones" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+            <Campo
+              etiqueta="Plazo de pago habitual (días)"
+              inputMode="numeric"
+              value={plazo}
+              onChange={(e) => setPlazo(e.target.value.replace(/\D/g, '').slice(0, 3))}
+              ayuda="0 = contado. Vacío = sin definir. Se llena solo al anotar el crédito de uno de sus pedidos."
+            />
           </Tarjeta>
 
           <Tarjeta>

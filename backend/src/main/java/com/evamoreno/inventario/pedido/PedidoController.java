@@ -26,6 +26,8 @@ import com.evamoreno.inventario.pedido.PedidoDto.ItemActualizarRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.Numeracion;
 import com.evamoreno.inventario.pedido.PedidoDto.NumeracionRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.PagoRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.PlazoRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.PorComprar;
 import com.evamoreno.inventario.pedido.PedidoDto.Resumen;
 import com.evamoreno.inventario.pedido.PedidoDto.VincularProductoRequest;
@@ -109,6 +111,28 @@ public class PedidoController {
     @Operation(summary = "Anular un borrador (libera el stock que tenía separado)")
     public Detalle anular(@PathVariable Long id) {
         return service.anular(id);
+    }
+
+    // ------------------------------------------------------------------ cobro
+
+    @PutMapping("/{id}/plazo")
+    @Operation(summary = "Anotar cómo paga el cliente un pedido despachado",
+            description = "plazoDias: 0 = contado; N = crédito a N días desde el despacho; vacío = sin anotar. "
+                    + "El plazo queda como el habitual del cliente para sus próximos pedidos.")
+    public Detalle definirPlazo(@PathVariable Long id, @Valid @RequestBody PlazoRequest request) {
+        return service.definirPlazo(id, request.plazoDias());
+    }
+
+    @PostMapping("/{id}/pagos")
+    @Operation(summary = "Registrar un pago (total o parcial) de un pedido despachado")
+    public Detalle registrarPago(@PathVariable Long id, @Valid @RequestBody PagoRequest request) {
+        return service.registrarPago(id, request);
+    }
+
+    @DeleteMapping("/{id}/pagos/{pagoId}")
+    @Operation(summary = "Eliminar un pago mal registrado")
+    public Detalle eliminarPago(@PathVariable Long id, @PathVariable Long pagoId) {
+        return service.eliminarPago(id, pagoId);
     }
 
     // ------------------------------------------------------------------ ítems

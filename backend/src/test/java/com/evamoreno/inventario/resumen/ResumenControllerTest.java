@@ -35,6 +35,9 @@ class ResumenControllerTest extends IntegracionTest {
     @Autowired
     private MovimientoService movimientos;
 
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
     // ------------------------------------------------------------------ ayudas
 
     private ResultActions postJson(String url, String json) throws Exception {
@@ -84,8 +87,10 @@ class ResumenControllerTest extends IntegracionTest {
 
     /** Mueve la fecha de despacho (12:00 de Lima de ese día). */
     private void despachadoEl(Long pedido, String dia) {
+        entityManager.flush();
         jdbc.update("UPDATE pedido SET despachado_en = ? WHERE id = ?",
                 Timestamp.from(Instant.parse(dia + "T17:00:00Z")), pedido);
+        entityManager.clear(); // que el pedido se vuelva a leer con la fecha nueva
     }
 
     // ------------------------------------------------------------------ pantalla principal
@@ -117,6 +122,16 @@ class ResumenControllerTest extends IntegracionTest {
         despachadoEl(del20DeMayo, "2026-05-20");
         pedido(botica, jeringa, 3); // un borrador no es una venta
 
+        // Cobros: S/ 40 de la nota de junio (hoy) y los S/ 22 de la del 10/05, pagados el 12/05.
+        // La del 20/05 (S/ 11) era a 7 días y nadie la pagó: está vencida.
+        postJson("/api/pedidos/" + deJunio + "/pagos", """
+                {"monto": 40, "medio": "YAPE"}""").andExpect(status().isOk());
+        postJson("/api/pedidos/" + del10DeMayo + "/pagos", """
+                {"monto": 22, "medio": "EFECTIVO", "fecha": "2026-05-12"}""").andExpect(status().isOk());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .put("/api/pedidos/" + del20DeMayo + "/plazo").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"plazoDias": 7}""")).andExpect(status().isOk());
+
         mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periodo.desde").value("2026-06-01"))
@@ -128,6 +143,14 @@ class ResumenControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.ventas.pedidos").value(1))
                 .andExpect(jsonPath("$.ventas.totalAnterior").value(22.0))
                 .andExpect(jsonPath("$.ventas.pedidosAnterior").value(1))
+                .andExpect(jsonPath("$.ventas.cobrado").value(40.0))           // de lo vendido en junio
+                .andExpect(jsonPath("$.cobrado.total").value(40.0))            // plata que entró en junio
+                .andExpect(jsonPath("$.cobrado.pagos").value(1))
+                .andExpect(jsonPath("$.cobrado.totalAnterior").value(22.0))    // del 1 al 15 de mayo
+                .andExpect(jsonPath("$.cobrado.porCobrar").value(56.0))        // 45 de junio + 11 del 20/05
+                .andExpect(jsonPath("$.cobrado.vencido").value(11.0))
+                .andExpect(jsonPath("$.ventasPorMes[10].cobrado").value(22.0))
+                .andExpect(jsonPath("$.ventasPorMes[11].cobrado").value(40.0))
                 .andExpect(jsonPath("$.ganancia.ventasConCosto").value(55.0))
                 .andExpect(jsonPath("$.ganancia.costoVendido").value(50.0))
                 .andExpect(jsonPath("$.ganancia.ganancia").value(5.0))

@@ -68,6 +68,14 @@ public class Pedido {
     @Column(nullable = false, length = 12)
     private DocumentoPedido documento = DocumentoPedido.NOTA;
 
+    /** Plazo de pago: null = aún no se anotó; 0 = contado; N = crédito a N días desde el despacho. */
+    @Column(name = "plazo_dias")
+    private Integer plazoDias;
+
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("fecha, id")
+    private List<Pago> pagos = new ArrayList<>();
+
     /** Pedido original del que este es un saldo (lo que faltó entregar); null si no es un saldo. */
     @Column(name = "origen_id")
     private Long origenId;
@@ -140,6 +148,25 @@ public class Pedido {
         this.estado = EstadoPedido.DESPACHADO;
         this.numero = numero;
         this.despachadoEn = momento;
+    }
+
+    /** Los pagos y el plazo son de un pedido ya entregado. */
+    public void exigirDespachado() {
+        if (estado != EstadoPedido.DESPACHADO) {
+            throw new ConflictoException("Solo se registran pagos de pedidos despachados");
+        }
+    }
+
+    public void definirPlazo(Integer plazoDias) {
+        this.plazoDias = plazoDias;
+    }
+
+    public Integer getPlazoDias() {
+        return plazoDias;
+    }
+
+    public List<Pago> getPagos() {
+        return pagos;
     }
 
     public void anular() {

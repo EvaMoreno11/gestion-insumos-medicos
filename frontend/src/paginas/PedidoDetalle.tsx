@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { categoriasPrecio, pedidos } from '../api/recursos'
 import type { ItemCambio } from '../api/recursos'
 import type { CategoriaPrecio, DocumentoPedido, GrupoPedido, Pedido, PedidoItem } from '../api/tipos'
 import { Aviso, Boton, Campo, Cargando, Etiqueta, Tarjeta } from '../componentes/basicos'
+import { TarjetaCobro } from '../componentes/cobro'
 import { BuscadorProductos, EtiquetaDisponibilidad, SelectorCategoria, SelectorDocumento } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { compartirODescargar } from '../util/archivos'
@@ -12,6 +13,7 @@ import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as tex
 
 export default function PedidoDetalle() {
   const id = Number(useParams().id)
+  const volver = useSearchParams()[0].get('desde') === 'cobranzas' ? '/cobranzas' : '/pedidos'
   const [pedido, setPedido] = useState<Pedido>()
   const [categorias, setCategorias] = useState<CategoriaPrecio[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +74,7 @@ export default function PedidoDetalle() {
 
   if (!pedido) {
     return (
-      <Pantalla titulo="Pedido" volver="/pedidos">
+      <Pantalla titulo="Pedido" volver={volver}>
         {error ? <Aviso tipo="error">{error}</Aviso> : <Cargando />}
       </Pantalla>
     )
@@ -108,7 +110,7 @@ export default function PedidoDetalle() {
   return (
     <Pantalla
       titulo={titulo}
-      volver="/pedidos"
+      volver={volver}
       ancho="amplio"
       pie={<Pie pedido={pedido} ocupado={ocupado} aplicar={aplicar} nota={nota} onDespachar={despachar} />}
     >
@@ -129,6 +131,7 @@ export default function PedidoDetalle() {
             . Conserva su lugar en la fila para recibir el stock que llegue.
           </Aviso>
         )}
+        {pedido.cobro && <TarjetaCobro pedido={pedido} cobro={pedido.cobro} ocupado={ocupado} aplicar={aplicar} />}
         {pedido.grupo && <EntregaPorPartes grupo={pedido.grupo} actual={pedido.id} />}
         {confirmarParcial && (
           <ConfirmarEntregaParcial

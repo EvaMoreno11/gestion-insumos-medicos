@@ -6,12 +6,14 @@ import type {
   ClienteDatos,
   ClienteDetalle,
   ClienteResumen,
+  Cobranzas,
   DetallesResumen,
   DocumentoPedido,
   EntradaDatos,
   EstadoSesion,
   EstadoPedido,
   LoteAlerta,
+  MedioPago,
   Negocio,
   Numeracion,
   Pagina,
@@ -101,11 +103,22 @@ export const pedidos = {
   vincularProducto: (id: number, itemId: number, productoId: number) =>
     api<Pedido>(`/api/pedidos/${id}/items/${itemId}/producto`, { metodo: 'PUT', cuerpo: { productoId } }),
   anular: (id: number) => api<Pedido>(`/api/pedidos/${id}/anular`, { metodo: 'POST' }),
+  /** Cómo paga: null = sin anotar; 0 = contado; N = crédito a N días. Queda como el plazo habitual del cliente */
+  definirPlazo: (id: number, plazoDias: number | null) =>
+    api<Pedido>(`/api/pedidos/${id}/plazo`, { metodo: 'PUT', cuerpo: { plazoDias } }),
+  registrarPago: (id: number, pago: { monto: number; medio: MedioPago; fecha?: string; nota?: string }) =>
+    api<Pedido>(`/api/pedidos/${id}/pagos`, { metodo: 'POST', cuerpo: pago }),
+  eliminarPago: (id: number, pagoId: number) =>
+    api<Pedido>(`/api/pedidos/${id}/pagos/${pagoId}`, { metodo: 'DELETE' }),
   porComprar: () => api<PorComprar>('/api/pedidos/por-comprar'),
   nota: (id: number, formato: 'pdf' | 'xlsx') => descargar(`/api/pedidos/${id}/nota.${formato}`),
   numeracion: () => api<Numeracion>('/api/pedidos/numeracion'),
   fijarNumeracion: (siguiente: number) =>
     api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente } }),
+}
+
+export const cobranzas = {
+  obtener: () => api<Cobranzas>('/api/cobranzas'),
 }
 
 /** Días hacia adelante que cuenta "Por vencer". */

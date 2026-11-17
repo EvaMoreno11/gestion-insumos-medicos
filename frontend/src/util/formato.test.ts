@@ -7,6 +7,7 @@ import {
   mesCorto,
   mesLargo,
   rangoFechas,
+  textoPlazo,
   variacion,
   escribirMesAnio,
   leerDecimal,
@@ -150,5 +151,14 @@ describe('resumen', () => {
     expect(variacion(112, 100)).toBe(12)
     expect(variacion(80, 100)).toBe(-20)
     expect(variacion(50, 0)).toBeNull()
+  })
+})
+
+describe('cobranzas', () => {
+  it('describe el plazo de pago', () => {
+    expect(textoPlazo(null)).toBe('Sin plazo')
+    expect(textoPlazo(0)).toBe('Contado')
+    expect(textoPlazo(1)).toBe('Crédito a 1 día')
+    expect(textoPlazo(15)).toBe('Crédito a 15 días')
   })
 })

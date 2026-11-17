@@ -32,6 +32,7 @@ import com.evamoreno.inventario.common.TextoBusqueda;
 import com.evamoreno.inventario.negocio.NegocioDto;
 import com.evamoreno.inventario.negocio.NegocioService;
 import com.evamoreno.inventario.pedido.PedidoDto.ActualizarRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.CobroResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.CrearRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.Detalle;
 import com.evamoreno.inventario.pedido.PedidoDto.Disponibilidad;
@@ -43,6 +44,8 @@ import com.evamoreno.inventario.pedido.PedidoDto.ItemResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.LoteEntregado;
 import com.evamoreno.inventario.pedido.PedidoDto.Numeracion;
 import com.evamoreno.inventario.pedido.PedidoDto.NumeracionRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.PagoRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.PagoResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.PedidoDelGrupo;
 import com.evamoreno.inventario.pedido.PedidoDto.PedidoQueEspera;
 import com.evamoreno.inventario.pedido.PedidoDto.PorComprar;
@@ -335,7 +338,72 @@ public class PedidoService {
             }
         }
         pedido.marcarDespachado(numero, Instant.now(clock));
+        pedido.definirPlazo(pedido.getCliente().getPlazoDias()); // plazo habitual del cliente (o sin plazo)
         return detalle(pedido);
+    }
+
+    // ================================================================== cobro
+
+    /**
+     * Anota cómo paga el cliente este pedido (contado o crédito a N días). El plazo queda como el
+     * habitual del cliente: sus próximos pedidos lo toman al despacharse.
+     */
+    public Detalle definirPlazo(Long id, Integer plazoDias) {
+        Pedido pedido = buscar(id);
+        pedido.exigirDespachado();
+        pedido.definirPlazo(plazoDias);
+        if (plazoDias != null) {
+            pedido.getCliente().definirPlazo(plazoDias);
+        }
+        return detalle(pedido);
+    }
+
+    public Detalle registrarPago(Long id, PagoRequest r) {
+        Pedido pedido = buscar(id);
+        pedido.exigirDespachado();
+        LocalDate hoy = LocalDate.now(clock);
+        LocalDate fecha = r.fecha() == null ? hoy : r.fecha();
+        if (fecha.isAfter(hoy)) {
+            throw new SolicitudInvalidaException("La fecha del pago no puede ser futura");
+        }
+        BigDecimal saldo = total(pedido).subtract(pagado(pedido));
+        if (saldo.signum() <= 0) {
+            throw new ConflictoException("Este pedido ya está pagado");
+        }
+        if (r.monto().compareTo(saldo) > 0) {
+            throw new ConflictoException("El pago (S/ " + r.monto().setScale(2, RoundingMode.HALF_UP)
+                    + ") es mayor que lo que falta cobrar (S/ " + saldo + ")");
+        }
+        pedido.getPagos().add(new Pago(pedido, fecha, r.monto().setScale(2, RoundingMode.HALF_UP), r.medio(),
+                limpiar(r.nota())));
+        return detalle(pedido);
+    }
+
+    /** Para corregir un pago mal registrado. */
+    public Detalle eliminarPago(Long id, Long pagoId) {
+        Pedido pedido = buscar(id);
+        Pago pago = pedido.getPagos().stream().filter(p -> pagoId.equals(p.getId())).findFirst()
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "El pago " + pagoId + " no pertenece al pedido " + id));
+        pedido.getPagos().remove(pago);
+        return detalle(pedido);
+    }
+
+    private static BigDecimal pagado(Pedido pedido) {
+        return pedido.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private CobroResponse cobro(Pedido pedido) {
+        if (pedido.getEstado() != EstadoPedido.DESPACHADO) {
+            return null;
+        }
+        Cobro c = Cobro.de(total(pedido), pagado(pedido), pedido.getPlazoDias(),
+                LocalDate.ofInstant(pedido.getDespachadoEn(), clock.getZone()), LocalDate.now(clock));
+        return new CobroResponse(c.total(), c.pagado(), c.saldo(), c.plazoDias(), c.vence(), c.estado(), c.dias(),
+                pedido.getPagos().stream()
+                        .map(p -> new PagoResponse(p.getId(), p.getFecha(), p.getMonto(), p.getMedio(), p.getNota()))
+                        .toList());
     }
 
     /** Hay algo para entregar ya: un ítem a mano o unidades aseguradas de algún producto. */
@@ -543,7 +611,7 @@ public class PedidoService {
                 conPrecios && conFaltante > 0 && hayAlgoQueEntregar(pedido, asignado),
                 pedido.getOrigenId(), pedido.esSaldo() ? original.getNumero() : null,
                 saldos.isEmpty() ? null : grupo(original, saldos),
-                pedido.getCreadoEn(), pedido.getDespachadoEn());
+                pedido.getCreadoEn(), pedido.getDespachadoEn(), cobro(pedido));
     }
 
     /** El pedido original y sus saldos, con lo entregado y lo pendiente (solo para uso interno). */

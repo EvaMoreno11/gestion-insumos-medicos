@@ -138,7 +138,7 @@ public class ImportacionClientesService {
             locales.add(new ClienteDto.LocalRequest(null, fila.local(), fila.direccion(), fila.contacto(),
                     fila.telefono()));
         }
-        return new ClienteDto.Request(primera.nombre(), rucDni, porcentaje, observaciones, locales);
+        return new ClienteDto.Request(primera.nombre(), rucDni, porcentaje, observaciones, null, locales);
     }
 
     /** Error atribuible a una fila concreta del Excel. */

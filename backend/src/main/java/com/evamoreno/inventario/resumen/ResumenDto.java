@@ -15,12 +15,27 @@ public final class ResumenDto {
 
     // ------------------------------------------------------------------ pantalla principal
 
-    public record Resumen(Periodo periodo, Ventas ventas, Ganancia ganancia, Compras compras,
+    public record Resumen(Periodo periodo, Ventas ventas, Ganancia ganancia, Cobrado cobrado, Compras compras,
             List<Mes> ventasPorMes) {
     }
 
-    /** @param pedidos pedidos despachados (cada entrega cuenta, también los saldos) */
-    public record Ventas(BigDecimal total, long pedidos, BigDecimal totalAnterior, long pedidosAnterior) {
+    /**
+     * @param pedidos pedidos despachados (cada entrega cuenta, también los saldos)
+     * @param cobrado de lo vendido en el periodo, cuánto se ha cobrado hasta hoy
+     */
+    public record Ventas(BigDecimal total, long pedidos, BigDecimal totalAnterior, long pedidosAnterior,
+            BigDecimal cobrado) {
+    }
+
+    /**
+     * Vender no es cobrar: esto es la plata que entró en el periodo (pagos registrados en esas fechas,
+     * sean de ventas de este periodo o de anteriores).
+     *
+     * @param porCobrar todo lo que se debe hoy
+     * @param vencido   de eso, lo que ya pasó su plazo
+     */
+    public record Cobrado(BigDecimal total, long pagos, BigDecimal totalAnterior, BigDecimal porCobrar,
+            BigDecimal vencido) {
     }
 
     /**
@@ -42,8 +57,8 @@ public final class ResumenDto {
     public record Compras(BigDecimal total, long entradas, long entradasSinCosto, BigDecimal totalAnterior) {
     }
 
-    /** @param mes "2026-06" */
-    public record Mes(String mes, BigDecimal ventas, BigDecimal ganancia) {
+    /** @param mes "2026-06" @param cobrado pagos recibidos en ese mes */
+    public record Mes(String mes, BigDecimal ventas, BigDecimal ganancia, BigDecimal cobrado) {
     }
 
     // ------------------------------------------------------------------ más detalles

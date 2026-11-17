@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { ConsultaPeriodo } from '../api/recursos'
 import type { Resumen, TipoPeriodo } from '../api/tipos'
-import { dinero, mesCorto, mesLargo, variacion } from '../util/formato'
+import { dinero, hoyLocal, mesCorto, mesLargo, variacion } from '../util/formato'
 import { Boton, Tarjeta } from './basicos'
 
 // ---------------------------------------------------------------- periodo
@@ -12,12 +12,6 @@ const PERIODOS: { valor: TipoPeriodo; titulo: string }[] = [
   { valor: 'ANIO', titulo: 'Este año' },
   { valor: 'RANGO', titulo: 'Fechas' },
 ]
-
-/** Hoy en la hora del dispositivo, como aaaa-mm-dd. */
-function hoyLocal(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /** Elegir el periodo: este mes, el mes pasado, este año o un rango de fechas. */
 export function SelectorPeriodo({
@@ -164,7 +158,9 @@ export function GraficoVentasMes({ meses }: { meses: Resumen['ventasPorMes'] }) 
       <h2 className="font-semibold">Ventas por mes</h2>
       <p className="mt-1 min-h-12 text-slate-600" aria-live="polite">
         <strong className="text-lg text-slate-900">{dinero(elegido.ventas)}</strong> en {mesLargo(elegido.mes)}
-        <span className="block text-sm">Ganancia {dinero(elegido.ganancia)}</span>
+        <span className="block text-sm">
+          Ganancia {dinero(elegido.ganancia)} · Cobrado {dinero(elegido.cobrado)}
+        </span>
       </p>
 
       <div className="relative mt-2">
@@ -176,7 +172,7 @@ export function GraficoVentasMes({ meses }: { meses: Resumen['ventasPorMes'] }) 
               <button
                 key={m.mes}
                 type="button"
-                aria-label={`${mesLargo(m.mes)}: ventas ${dinero(m.ventas)}, ganancia ${dinero(m.ganancia)}`}
+                aria-label={`${mesLargo(m.mes)}: ventas ${dinero(m.ventas)}, ganancia ${dinero(m.ganancia)}, cobrado ${dinero(m.cobrado)}`}
                 aria-pressed={i === activo}
                 onMouseEnter={() => setActivo(i)}
                 onFocus={() => setActivo(i)}
@@ -217,6 +213,7 @@ export function GraficoVentasMes({ meses }: { meses: Resumen['ventasPorMes'] }) 
               <th className="py-1 font-medium">Mes</th>
               <th className="py-1 text-right font-medium">Ventas</th>
               <th className="py-1 text-right font-medium">Ganancia</th>
+              <th className="py-1 text-right font-medium">Cobrado</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -225,6 +222,7 @@ export function GraficoVentasMes({ meses }: { meses: Resumen['ventasPorMes'] }) 
                 <td className="py-1.5">{mesLargo(m.mes)}</td>
                 <td className="py-1.5 text-right">{dinero(m.ventas)}</td>
                 <td className="py-1.5 text-right">{dinero(m.ganancia)}</td>
+                <td className="py-1.5 text-right">{dinero(m.cobrado)}</td>
               </tr>
             ))}
           </tbody>
