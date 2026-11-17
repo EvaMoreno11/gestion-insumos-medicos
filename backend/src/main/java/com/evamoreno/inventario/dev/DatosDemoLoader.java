@@ -170,15 +170,15 @@ class DatosDemoLoader implements ApplicationRunner {
             log.info("Perfil dev: se cargaron {} lotes de demostración", cargados);
         }
         if (clienteRepository.count() == 0) {
-            clienteService.crear(new ClienteDto.Request("Botica Demo S.A.C.", "20123456789", new BigDecimal("15"), null,
+            clienteService.crear(new ClienteDto.Request("Botica Demo S.A.C.", "20123456789", new BigDecimal("15"), null, null,
                     List.of(new ClienteDto.LocalRequest(null, "Local 1", "Av. Los Olivos 123, Los Olivos", "Dra. Ana",
                                     "987654321"),
                             new ClienteDto.LocalRequest(null, "Local 2", "Jr. Las Flores 456, Comas", "Sr. Luis",
                                     "912345678"))));
-            clienteService.crear(new ClienteDto.Request("Clínica Ejemplo", "20987654321", new BigDecimal("10"), null,
+            clienteService.crear(new ClienteDto.Request("Clínica Ejemplo", "20987654321", new BigDecimal("10"), null, null,
                     List.of(new ClienteDto.LocalRequest(null, null, "Av. Central 789, Lima", "Srta. Rosa", null))));
             clienteService.crear(new ClienteDto.Request("Consultorio Dr. Pérez", null, null,
-                    "Sin porcentaje: la app lo pedirá en su primer pedido", null));
+                    "Sin porcentaje: la app lo pedirá en su primer pedido", null, null));
             log.info("Perfil dev: se cargaron 3 clientes de demostración");
         }
         if (pedidoRepository.count() == 0) {

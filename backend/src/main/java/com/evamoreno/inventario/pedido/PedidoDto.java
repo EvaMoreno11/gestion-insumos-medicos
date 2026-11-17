@@ -10,6 +10,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
@@ -72,6 +73,30 @@ public final class PedidoDto {
      *                             pedido nuevo (saldo). Sin esto, un pedido con faltantes no se despacha.
      */
     public record DespacharRequest(Boolean entregarLoDisponible) {
+    }
+
+    /** Cómo paga: vacío = sin anotar; 0 = contado; N = crédito a N días desde el despacho. */
+    public record PlazoRequest(
+            @Min(value = 0, message = "Debe ser 0 o más")
+            @Max(value = 365, message = "Máximo 365 días")
+            Integer plazoDias) {
+    }
+
+    public record PagoRequest(
+            @Schema(example = "425.00")
+            @NotNull(message = "El monto es obligatorio")
+            @DecimalMin(value = "0.01", message = "Debe ser mayor que 0")
+            @Digits(integer = 10, fraction = 2, message = "Máximo 2 decimales")
+            BigDecimal monto,
+
+            @Schema(description = "Día en que pagó. Por defecto, hoy")
+            LocalDate fecha,
+
+            @NotNull(message = "Indica cómo pagó")
+            Pago.Medio medio,
+
+            @Size(max = 200, message = "Máximo 200 caracteres")
+            String nota) {
     }
 
     /** Convierte un ítem a mano en un producto del catálogo. */
@@ -185,12 +210,27 @@ public final class PedidoDto {
      * @param origenId             pedido original, si este es un saldo
      * @param origenNumero         número de la nota del pedido original (null si aún no tiene o es "Solo tabla")
      * @param grupo                el pedido original y sus saldos; null si el pedido no se dividió
+     * @param cobro                pagos y plazo; null si el pedido no está despachado
      */
     public record Detalle(Long id, String numero, EstadoPedido estado, DocumentoPedido documento, Long clienteId,
             String cliente, Long localId, String local, String direccion, String contacto, String telefono,
             BigDecimal porcentaje, String categoria, String nota, List<ItemResponse> items, BigDecimal total,
             int itemsConFaltante, int itemsSinPrecio, boolean listoParaDespachar, boolean puedeEntregarParcial,
-            Long origenId, String origenNumero, Grupo grupo, Instant creadoEn, Instant despachadoEn) {
+            Long origenId, String origenNumero, Grupo grupo, Instant creadoEn, Instant despachadoEn,
+            CobroResponse cobro) {
+    }
+
+    public record PagoResponse(Long id, LocalDate fecha, BigDecimal monto, Pago.Medio medio, String nota) {
+    }
+
+    /**
+     * Cobro de un pedido despachado. Solo para uso interno: no sale en la nota.
+     *
+     * @param vence null si aún no se anotó el plazo
+     * @param dias  días que faltan para que venza (negativo: días de atraso); null si no aplica
+     */
+    public record CobroResponse(BigDecimal total, BigDecimal pagado, BigDecimal saldo, Integer plazoDias,
+            LocalDate vence, Cobro.Estado estado, Long dias, List<PagoResponse> pagos) {
     }
 
     /**

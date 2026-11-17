@@ -45,6 +45,10 @@ public class Cliente {
     @Column(length = 300)
     private String observaciones;
 
+    /** Plazo de pago habitual: null = sin definir; 0 = contado; N = crédito a N días. */
+    @Column(name = "plazo_dias")
+    private Integer plazoDias;
+
     @Column(nullable = false)
     private boolean activo = true;
 
@@ -92,6 +96,15 @@ public class Cliente {
         ClienteLocal local = new ClienteLocal(this, nombre, direccion, contacto, telefono);
         locales.add(local);
         return local;
+    }
+
+    /** Plazo de pago habitual: sus próximos pedidos lo toman al despacharse. */
+    public void definirPlazo(Integer plazoDias) {
+        this.plazoDias = plazoDias;
+    }
+
+    public Integer getPlazoDias() {
+        return plazoDias;
     }
 
     /** Guarda el porcentaje elegido al registrar un pedido (p. ej. en el primer pedido del cliente). */

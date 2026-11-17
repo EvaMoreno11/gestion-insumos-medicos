@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.evamoreno.inventario.resumen.ResumenDto.ClienteInactivo;
 import com.evamoreno.inventario.resumen.ResumenDto.ClienteTop;
+import com.evamoreno.inventario.resumen.ResumenDto.Cobrado;
 import com.evamoreno.inventario.resumen.ResumenDto.Compras;
 import com.evamoreno.inventario.resumen.ResumenDto.Detalles;
 import com.evamoreno.inventario.resumen.ResumenDto.Ganancia;
@@ -83,12 +84,52 @@ public class ResumenService {
         Periodo periodo = Periodo.de(tipo, desde, hasta, hoy());
         Totales actual = totales(periodo.desde(), periodo.hasta());
         Totales anterior = totales(periodo.anteriorDesde(), periodo.anteriorHasta());
-        Ventas ventas = new Ventas(actual.ventas, actual.pedidos, anterior.ventas, anterior.pedidos);
+        Ventas ventas = new Ventas(actual.ventas, actual.pedidos, anterior.ventas, anterior.pedidos,
+                cobradoDeLoVendido(periodo.desde(), periodo.hasta()));
         Ganancia ganancia = new Ganancia(actual.ganancia(), actual.margen(), actual.ventasConCosto(),
                 actual.costo, actual.ventasSinCosto, anterior.ganancia(), anterior.margen());
         Compras compras = compras(periodo.desde(), periodo.hasta(), compras(periodo.anteriorDesde(),
                 periodo.anteriorHasta(), null).total());
-        return new Resumen(periodo, ventas, ganancia, compras, ventasPorMes(YearMonth.from(periodo.hasta())));
+        return new Resumen(periodo, ventas, ganancia, cobrado(periodo), compras,
+                ventasPorMes(YearMonth.from(periodo.hasta())));
+    }
+
+    /** De los pedidos despachados entre esas fechas, lo que se ha cobrado hasta hoy. */
+    private BigDecimal cobradoDeLoVendido(LocalDate desde, LocalDate hasta) {
+        return jdbc.sql("""
+                SELECT COALESCE(SUM(g.monto), 0) AS cobrado
+                FROM pago g JOIN pedido p ON p.id = g.pedido_id
+                WHERE p.estado = 'DESPACHADO' AND p.despachado_en >= :inicio AND p.despachado_en < :fin
+                """)
+                .param("inicio", inicioDelDia(desde))
+                .param("fin", inicioDelDia(hasta.plusDays(1)))
+                .query((rs, n) -> dinero(rs, "cobrado"))
+                .single();
+    }
+
+    /** Pagos recibidos en el periodo y lo que se debe hoy. */
+    private Cobrado cobrado(Periodo periodo) {
+        BigDecimal anterior = jdbc.sql("SELECT COALESCE(SUM(monto), 0) AS total FROM pago WHERE fecha BETWEEN :desde AND :hasta")
+                .param("desde", periodo.anteriorDesde()).param("hasta", periodo.anteriorHasta())
+                .query((rs, n) -> dinero(rs, "total")).single();
+        return jdbc.sql("""
+                SELECT (SELECT COALESCE(SUM(monto), 0) FROM pago WHERE fecha BETWEEN :desde AND :hasta) AS total,
+                       (SELECT COUNT(*) FROM pago WHERE fecha BETWEEN :desde AND :hasta) AS pagos,
+                       COALESCE(SUM(d.saldo), 0) AS por_cobrar,
+                       COALESCE(SUM(d.saldo) FILTER (WHERE d.plazo_dias IS NOT NULL
+                           AND (d.despachado_en AT TIME ZONE :zona)::date + d.plazo_dias < :hoy), 0) AS vencido
+                FROM (SELECT p.despachado_en, p.plazo_dias,
+                             (SELECT COALESCE(SUM(i.cantidad * i.precio_unitario), 0) FROM pedido_item i
+                              WHERE i.pedido_id = p.id)
+                             - (SELECT COALESCE(SUM(g.monto), 0) FROM pago g WHERE g.pedido_id = p.id) AS saldo
+                      FROM pedido p WHERE p.estado = 'DESPACHADO') d
+                WHERE d.saldo > 0
+                """)
+                .param("desde", periodo.desde()).param("hasta", periodo.hasta())
+                .param("zona", clock.getZone().getId()).param("hoy", hoy())
+                .query((rs, n) -> new Cobrado(dinero(rs, "total"), rs.getLong("pagos"), anterior,
+                        dinero(rs, "por_cobrar"), dinero(rs, "vencido")))
+                .single();
     }
 
     /** Lo vendido y su costo entre dos fechas (inclusive). */
@@ -129,13 +170,24 @@ public class ResumenService {
                 FROM (%s) lineas
                 GROUP BY mes
                 """.formatted(LINEAS_VENDIDAS), primero.atDay(1), ultimo.atEndOfMonth())
-                .query((rs, n) -> new Mes(rs.getString("mes"), dinero(rs, "ventas"), dinero(rs, "ganancia")))
+                .query((rs, n) -> new Mes(rs.getString("mes"), dinero(rs, "ventas"), dinero(rs, "ganancia"), cero()))
                 .list()
                 .forEach(m -> porMes.put(m.mes(), m));
+        Map<String, BigDecimal> cobradoPorMes = new HashMap<>();
+        jdbc.sql("""
+                SELECT to_char(fecha, 'YYYY-MM') AS mes, SUM(monto) AS cobrado
+                FROM pago WHERE fecha BETWEEN :desde AND :hasta
+                GROUP BY 1
+                """)
+                .param("desde", primero.atDay(1)).param("hasta", ultimo.atEndOfMonth())
+                .query((rs, n) -> Map.entry(rs.getString("mes"), dinero(rs, "cobrado")))
+                .list()
+                .forEach(e -> cobradoPorMes.put(e.getKey(), e.getValue()));
         List<Mes> meses = new ArrayList<>();
         for (YearMonth mes = primero; !mes.isAfter(ultimo); mes = mes.plusMonths(1)) {
             String clave = mes.toString();
-            meses.add(porMes.getOrDefault(clave, new Mes(clave, cero(), cero())));
+            Mes ventas = porMes.getOrDefault(clave, new Mes(clave, cero(), cero(), cero()));
+            meses.add(new Mes(clave, ventas.ventas(), ventas.ganancia(), cobradoPorMes.getOrDefault(clave, cero())));
         }
         return meses;
     }

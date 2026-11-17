@@ -12,6 +12,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -41,6 +43,12 @@ public final class ClienteDto {
 
             @Size(max = 300, message = "Máximo 300 caracteres")
             String observaciones,
+
+            @Schema(description = "Plazo de pago habitual. Vacío = sin definir; 0 = contado; N = crédito a N días",
+                    example = "15")
+            @Min(value = 0, message = "Debe ser 0 o más")
+            @Max(value = 365, message = "Máximo 365 días")
+            Integer plazoDias,
 
             @Schema(description = "Locales de entrega. Si se omite al crear, se registra un único local sin nombre. "
                     + "Al actualizar: con id se modifica, sin id se agrega, y los que no se envían se eliminan.")
@@ -101,12 +109,13 @@ public final class ClienteDto {
     }
 
     public record Detalle(Long id, String nombre, String rucDni, BigDecimal porcentaje, String categoria,
-            String observaciones, boolean activo, List<LocalResponse> locales, Instant creadoEn,
+            String observaciones, Integer plazoDias, boolean activo, List<LocalResponse> locales, Instant creadoEn,
             Instant actualizadoEn) {
 
         static Detalle de(Cliente c, Map<BigDecimal, String> letras) {
             return new Detalle(c.getId(), c.getNombre(), c.getRucDni(), c.getPorcentaje(),
-                    CategoriaPrecioService.letraDe(letras, c.getPorcentaje()), c.getObservaciones(), c.isActivo(),
+                    CategoriaPrecioService.letraDe(letras, c.getPorcentaje()), c.getObservaciones(),
+                    c.getPlazoDias(), c.isActivo(),
                     c.getLocales().stream().map(LocalResponse::de).toList(), c.getCreadoEn(), c.getActualizadoEn());
         }
     }
