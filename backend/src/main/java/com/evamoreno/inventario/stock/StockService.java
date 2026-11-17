@@ -45,6 +45,11 @@ public class StockService {
     }
 
     /** Lotes con unidades (vencidos incluidos), en orden FEFO. */
+    /** Lote de la última compra del producto (para reutilizarlo al registrar otra entrada); null si no hay. */
+    public Lote ultimoLoteComprado(Long productoId) {
+        return lotes.ultimoComprado(productoId).orElse(null);
+    }
+
     public List<Lote> lotesConStock(Long productoId) {
         return lotes.conStock(productoId);
     }

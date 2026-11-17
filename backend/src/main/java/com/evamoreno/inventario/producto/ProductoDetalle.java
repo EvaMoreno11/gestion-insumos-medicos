@@ -18,6 +18,7 @@ import com.evamoreno.inventario.stock.StockComprometido;
  * @param stockLibre      disponible menos separado: lo que se puede ofrecer a un pedido nuevo
  * @param stockVencido    unidades en lotes vencidos (hay que darlas de baja)
  * @param lotes           lotes con unidades, en orden FEFO (primero el que vence antes)
+ * @param ultimoLote      lote de la última compra, aunque ya no tenga unidades; null si nunca hubo entradas
  * @param costo           costo de compra (dato interno)
  * @param precios         precio de venta en cada categoría (A, B, C...); vacío si no tiene costo
  */
@@ -41,11 +42,12 @@ public record ProductoDetalle(
         boolean activo,
         List<String> codigosBarras,
         List<LoteResponse> lotes,
+        LoteResponse ultimoLote,
         Instant creadoEn,
         Instant actualizadoEn) {
 
-    static ProductoDetalle de(Producto p, List<Lote> lotesConStock, LocalDate hoy, List<PrecioCategoria> precios,
-            int pedidoEnBorradores) {
+    static ProductoDetalle de(Producto p, List<Lote> lotesConStock, Lote ultimoLote, LocalDate hoy,
+            List<PrecioCategoria> precios, int pedidoEnBorradores) {
         List<LoteResponse> lotes = lotesConStock.stream().map(l -> LoteResponse.de(l, hoy)).toList();
         int vencido = lotes.stream().filter(LoteResponse::vencido).mapToInt(LoteResponse::cantidad).sum();
         int disponible = lotes.stream().mapToInt(LoteResponse::cantidad).sum() - vencido;
@@ -55,6 +57,7 @@ public record ProductoDetalle(
                 disponible, separado, disponible - separado, vencido,
                 EstadoStock.de(disponible, p.getStockMinimo()), p.getCosto(), precios, p.isActivo(),
                 p.getCodigosBarras().stream().map(ProductoCodigoBarras::getCodigo).toList(),
-                lotes, p.getCreadoEn(), p.getActualizadoEn());
+                lotes, ultimoLote == null ? null : LoteResponse.de(ultimoLote, hoy), p.getCreadoEn(),
+                p.getActualizadoEn());
     }
 }

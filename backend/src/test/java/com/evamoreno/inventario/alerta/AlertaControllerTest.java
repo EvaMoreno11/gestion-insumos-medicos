@@ -46,12 +46,16 @@ class AlertaControllerTest extends IntegracionTest {
     void stockBajoIncluyeAgotadosYBajosPrimeroLosAgotados() throws Exception {
         Long normal = producto("Producto normal", 5);
         Long bajo = producto("Producto bajo", 5);
-        producto("Producto nunca ingresado", 0);
+        producto("Producto nunca ingresado", 1);
         Long soloVencido = producto("Producto solo vencido", 2);
+        // Sin stock mínimo no avisan, ni agotados ni con poco stock
+        producto("Producto sin mínimo agotado", 0);
+        Long sinMinimo = producto("Producto sin mínimo con poco", 0);
 
         entrada(normal, "N1", null, 10);
         entrada(bajo, "B1", hoy.plusMonths(3), 3);
         entrada(soloVencido, "V1", hoy.minusMonths(1), 10); // vencido no cuenta: queda agotado
+        entrada(sinMinimo, "S1", null, 1);
 
         mockMvc.perform(get("/api/alertas/stock-bajo"))
                 .andExpect(status().isOk())

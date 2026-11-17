@@ -49,7 +49,8 @@ export default function Alertas() {
       {pestana === 'stock' && (
         <EstadoCarga cargando={stockBajo.cargando} error={stockBajo.error} hayDatos={stockBajo.datos !== undefined}>
           <p className="mb-3 text-sm text-slate-600">
-            Productos con stock igual o menor a su mínimo, primero los agotados. El mínimo se cambia en Productos.
+            Productos con stock igual o menor a su mínimo, primero los agotados. Los productos sin stock mínimo no
+            avisan. El mínimo se cambia en Productos.
           </p>
           {stockBajo.datos?.length === 0 && <Vacio>Ningún producto está por debajo de su mínimo.</Vacio>}
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">

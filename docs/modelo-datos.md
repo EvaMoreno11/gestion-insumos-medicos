@@ -20,7 +20,7 @@ erDiagram
         varchar marca
         varchar presentacion "Caja x 100, Paquete x 10..."
         varchar unidad_medida "en qué se cuenta el stock"
-        int stock_minimo "para alertas (>= 0)"
+        int stock_minimo "para alertas; 0 = sin mínimo, no avisa"
         boolean activo "no se borra: se desactiva"
         bigint categoria_id FK
         varchar texto_busqueda "normalizado para el buscador"

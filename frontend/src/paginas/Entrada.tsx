@@ -136,25 +136,31 @@ export default function Entrada() {
               </Boton>
             </div>
 
-            {producto.lotes.length > 0 && (
-              <div className="mt-3">
-                <p className="mb-1 text-sm text-slate-600">Si es un lote que ya tienes, tócalo:</p>
-                <div className="flex flex-wrap gap-2">
-                  {producto.lotes.map((l) => (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => {
-                        setLote(l.numeroLote ?? '')
-                        setVencimiento(mesAnio(l.fechaVencimiento))
-                      }}
-                      className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm active:bg-slate-200"
-                    >
-                      {l.numeroLote ?? 'Sin número'}
-                      {l.fechaVencimiento ? ` · ${mesAnio(l.fechaVencimiento)}` : ''}
-                    </button>
-                  ))}
-                </div>
+            {producto.ultimoLote && !producto.ultimoLote.vencido && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3">
+                <p className="min-w-0 text-sm text-slate-700">
+                  Lote de la última compra:{' '}
+                  <strong>
+                    {unir(
+                      ' · ',
+                      producto.ultimoLote.numeroLote ?? 'sin número',
+                      producto.ultimoLote.fechaVencimiento ? `vence ${mesAnio(producto.ultimoLote.fechaVencimiento)}` : null,
+                    )}
+                  </strong>
+                </p>
+                <Boton
+                  variante="secundario"
+                  className="min-h-10 shrink-0 px-3 text-sm"
+                  onClick={() => {
+                    const ultimo = producto.ultimoLote
+                    if (ultimo) {
+                      setLote(ultimo.numeroLote ?? '')
+                      setVencimiento(mesAnio(ultimo.fechaVencimiento))
+                    }
+                  }}
+                >
+                  Usar este lote
+                </Boton>
               </div>
             )}
 
