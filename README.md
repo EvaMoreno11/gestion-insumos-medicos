@@ -17,6 +17,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
 - Entradas (compras) con su **costo** y un botón para reutilizar el lote de la última compra, salidas y ajustes con historial (kárdex). El producto toma el último costo de compra y cada lote guarda su costo promedio, así se sabe cuánto costó lo vendido. Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
+- **Descargar inventario y catálogo** (desde Consultar inventario): el inventario completo en Excel, con todos los productos aunque no tengan stock, sus costos y una hoja de lotes (uso interno); y el catálogo para clientes en PDF o Excel, por categoría, sin precios o con la lista de precios de un cliente (costo + su porcentaje). El catálogo incluye solo los productos con stock mínimo.
 - **Cobranzas:** cada pedido despachado queda por cobrar. Después se anota el plazo (contado o crédito a N días, que queda como el habitual del cliente) y los pagos parciales o totales (efectivo, Yape, Plin o transferencia). La pantalla separa lo vencido, lo que está por cobrar y lo que aún no tiene plazo, y el inicio avisa cuántos clientes tienen cobros vencidos.
 - **Resumen ejecutivo:** ventas, ganancia bruta con margen, lo cobrado y compras del periodo (este mes, el mes pasado, este año o un rango de fechas), comparados con el periodo anterior, y un gráfico de ventas de los últimos 12 meses. En **Más detalles**: productos más vendidos, mejores clientes, clientes que dejaron de comprar, valor del inventario, productos sin movimiento, vencido sin vender y pendiente por entregar.
 - Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo (para saber qué comprar; los que no tienen mínimo no avisan, por ejemplo si están descontinuados), lotes que vencen en los próximos 60 días y lotes vencidos con unidades.
@@ -89,6 +90,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `GET` | `/api/alertas/stock-bajo` · `/por-vencer?dias=` · `/vencidos` | Alertas |
 | `PUT` | `/api/pedidos/{id}/plazo` | Anotar cómo paga un pedido despachado (contado o crédito a N días) |
 | `POST` / `DELETE` | `/api/pedidos/{id}/pagos[/{pagoId}]` | Registrar un pago, o borrar uno mal registrado |
+| `GET` | `/api/exportar/inventario.xlsx` · `/catalogo.pdf` · `/catalogo.xlsx?clienteId=` | Inventario completo (interno) y catálogo para clientes |
 | `GET` | `/api/cobranzas` | Notas con saldo pendiente: vencidas, por cobrar y sin plazo |
 | `GET` | `/api/resumen?periodo=` · `/api/resumen/detalles?periodo=` | Resumen ejecutivo (`MES`, `MES_ANTERIOR`, `ANIO` o `RANGO` con `desde` y `hasta`) |
 | `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de inventario (por defecto solo valida) |

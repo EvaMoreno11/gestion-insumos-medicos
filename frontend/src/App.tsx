@@ -3,6 +3,7 @@ import Alertas from './paginas/Alertas'
 import { ClienteFormulario, Clientes } from './paginas/Clientes'
 import Cobranzas from './paginas/Cobranzas'
 import Configuracion from './paginas/Configuracion'
+import Descargas from './paginas/Descargas'
 import Entrada from './paginas/Entrada'
 import Inicio from './paginas/Inicio'
 import Inventario from './paginas/Inventario'
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/" element={<Inicio />} />
 
         <Route path="/inventario" element={<Inventario />} />
+        <Route path="/inventario/descargar" element={<Descargas />} />
         <Route path="/inventario/:id" element={<ProductoDetalle />} />
 
         <Route path="/pedidos" element={<Pedidos />} />

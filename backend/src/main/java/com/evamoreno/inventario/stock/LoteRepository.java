@@ -56,6 +56,10 @@ public interface LoteRepository extends JpaRepository<Lote, Long> {
     @Query("select l from Lote l where l.id = :id")
     Optional<Lote> buscarBloqueado(Long id);
 
+    /** Todos los lotes con unidades, con su producto (para exportar el inventario). */
+    @EntityGraph(attributePaths = { "producto", "producto.categoria" })
+    List<Lote> findByCantidadActualGreaterThan(int cantidad);
+
     /** Lote de la última entrada (compra) del producto, aunque ya no le queden unidades. */
     @Query(value = """
             SELECT l.* FROM lote l JOIN movimiento m ON m.lote_id = l.id

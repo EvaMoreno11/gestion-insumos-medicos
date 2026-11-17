@@ -117,6 +117,14 @@ export const pedidos = {
     api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente } }),
 }
 
+/** Archivos para descargar: inventario completo (interno) y catálogo para clientes. */
+export const exportar = {
+  inventario: () => descargar('/api/exportar/inventario.xlsx'),
+  /** Con clienteId: lista de precios de ese cliente; sin él, catálogo sin precios */
+  catalogo: (formato: 'pdf' | 'xlsx', clienteId?: number) =>
+    descargar(`/api/exportar/catalogo.${formato}${clienteId === undefined ? '' : `?clienteId=${clienteId}`}`),
+}
+
 export const cobranzas = {
   obtener: () => api<Cobranzas>('/api/cobranzas'),
 }
