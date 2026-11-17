@@ -32,14 +32,17 @@ public interface ProductoRepository extends JpaRepository<Producto, Long>, JpaSp
     @EntityGraph(attributePaths = "categoria")
     List<Producto> findAllByIdIn(Collection<Long> ids);
 
-    /** Productos activos cuyo stock disponible (lotes no vencidos) es menor o igual a su stock mínimo. */
+    /**
+     * Productos activos con stock mínimo (1 o más) cuyo stock disponible (lotes no vencidos) es menor o igual
+     * a ese mínimo. Un producto sin mínimo (0) no avisa: puede estar descontinuado o comprarse solo a pedido.
+     */
     @Query(value = """
             SELECT p.id
             FROM producto p
             LEFT JOIN lote l ON l.producto_id = p.id
                  AND l.cantidad_actual > 0
                  AND (l.fecha_vencimiento IS NULL OR l.fecha_vencimiento >= :hoy)
-            WHERE p.activo
+            WHERE p.activo AND p.stock_minimo > 0
             GROUP BY p.id, p.stock_minimo
             HAVING COALESCE(SUM(l.cantidad_actual), 0) <= p.stock_minimo
             """, nativeQuery = true)

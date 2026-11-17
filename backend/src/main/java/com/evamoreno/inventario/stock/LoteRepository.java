@@ -56,6 +56,15 @@ public interface LoteRepository extends JpaRepository<Lote, Long> {
     @Query("select l from Lote l where l.id = :id")
     Optional<Lote> buscarBloqueado(Long id);
 
+    /** Lote de la última entrada (compra) del producto, aunque ya no le queden unidades. */
+    @Query(value = """
+            SELECT l.* FROM lote l JOIN movimiento m ON m.lote_id = l.id
+            WHERE l.producto_id = :productoId AND m.tipo = 'ENTRADA'
+            ORDER BY m.id DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<Lote> ultimoComprado(Long productoId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select l from Lote l

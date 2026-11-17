@@ -113,6 +113,25 @@ class MovimientoControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.contenido[1].costoUnitario").value(5.5));
     }
 
+    @Test
+    void elDetalleTraeElLoteDeLaUltimaCompraAunqueSeHayaAgotado() throws Exception {
+        mockMvc.perform(get("/api/productos/{id}", productoId)).andExpect(jsonPath("$.ultimoLote").doesNotExist());
+
+        entrada("L-VIEJO", hoy.plusDays(200), 2);
+        entrada("L-NUEVO", hoy.plusDays(300), 3);
+        salida(5, null); // se agotan los dos lotes
+
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.lotes.length()").value(0))
+                .andExpect(jsonPath("$.ultimoLote.numeroLote").value("L-NUEVO"))
+                .andExpect(jsonPath("$.ultimoLote.cantidad").value(0));
+
+        // Si la última compra vuelve a entrar al lote viejo, ese pasa a ser el último
+        entrada("L-VIEJO", hoy.plusDays(200), 1);
+        mockMvc.perform(get("/api/productos/{id}", productoId))
+                .andExpect(jsonPath("$.ultimoLote.numeroLote").value("L-VIEJO"));
+    }
+
     // ------------------------------------------------------------------ entradas
 
     @Test

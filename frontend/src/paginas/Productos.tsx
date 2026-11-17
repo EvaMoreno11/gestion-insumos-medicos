@@ -230,14 +230,14 @@ export function ProductoFormulario() {
               <Campo
                 etiqueta="Stock mínimo"
                 inputMode="numeric"
-                placeholder="0"
                 value={stockMinimo}
                 onChange={(e) => setStockMinimo(e.target.value.replace(/\D/g, ''))}
+                ayuda="Vacío = no avisa"
               />
             </div>
             <p className="text-sm text-slate-500">
-              El precio de venta se calcula solo: costo más el porcentaje de cada cliente. Con el stock mínimo la app
-              avisa cuando queda poco.
+              El precio de venta se calcula solo: costo más el porcentaje de cada cliente. Con un stock mínimo (1 o
+              más) la app avisa en Alertas cuando queda poco; sin mínimo no avisa, por ejemplo si está descontinuado.
             </p>
             {id !== null && <p className="text-sm text-slate-500">Código interno: {codigo}</p>}
           </Tarjeta>

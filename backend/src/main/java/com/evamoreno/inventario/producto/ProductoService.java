@@ -135,7 +135,8 @@ public class ProductoService {
     // ------------------------------------------------------------------ reglas
 
     private ProductoDetalle detalle(Producto producto) {
-        return ProductoDetalle.de(producto, stock.lotesConStock(producto.getId()), stock.hoy(),
+        return ProductoDetalle.de(producto, stock.lotesConStock(producto.getId()),
+                stock.ultimoLoteComprado(producto.getId()), stock.hoy(),
                 categoriasPrecio.preciosPorCategoria(producto.getCosto()),
                 comprometido.pedidoEnBorradores(List.of(producto.getId())).getOrDefault(producto.getId(), 0));
     }

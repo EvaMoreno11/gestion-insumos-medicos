@@ -127,6 +127,8 @@ export interface ProductoDetalle extends ProductoResumen {
   precios: PrecioCategoria[]
   codigosBarras: string[]
   lotes: Lote[]
+  /** Lote de la última compra, aunque ya no tenga unidades; null si nunca hubo entradas */
+  ultimoLote: Lote | null
 }
 
 export interface ProductoDatos {
