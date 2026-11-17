@@ -229,12 +229,43 @@ stateDiagram-v2
 
 `GET /api/pedidos/{id}/nota.pdf` y `/nota.xlsx` generan el mismo documento (`NotaPedido`) en dos formatos. Cuando un ítem salió de varios lotes hay **una fila por lote**. No incluye costo, porcentaje ni categoría del cliente. Los datos del encabezado (nombre, dirección y teléfono del negocio) se guardan en la tabla `negocio` y se editan por API: no están en el código.
 
+## Cobranzas
+
+```mermaid
+erDiagram
+    PEDIDO ||--o{ PAGO : recibe
+    PEDIDO {
+        int plazo_dias "NULL = sin anotar; 0 = contado; N = crédito a N días"
+    }
+    CLIENTE {
+        int plazo_dias "plazo habitual"
+    }
+    PAGO {
+        bigint id PK
+        bigint pedido_id FK
+        date fecha
+        numeric monto "> 0"
+        varchar medio "EFECTIVO | YAPE | PLIN | TRANSFERENCIA"
+        varchar nota
+    }
+```
+
+### Reglas
+
+- **Despachar no pregunta por el pago.** Un pedido despachado queda por cobrar por su total. El plazo y los pagos se anotan después, cuando se sabe.
+- **Estado del cobro**, calculado (no se guarda): `PAGADO` si no falta nada; `SIN_PLAZO` si se debe y nadie anotó cómo paga; `POR_COBRAR` si tiene plazo y no venció; `VENCIDO` si pasó la fecha (día del despacho + plazo) y aún se debe. Un pedido sin plazo nunca vence solo: queda listado hasta que lo anoten.
+- **Plazo habitual.** Al anotar el plazo de un pedido, queda guardado en el cliente, y sus próximos pedidos lo toman al despacharse. Se puede cambiar en cada pedido y en la ficha del cliente.
+- **Pagos.** Un pedido admite varios pagos parciales; ninguno puede superar lo que falta ni tener fecha futura. Un pago mal registrado se borra.
+- **Cada nota se cobra por separado**, también las de una entrega parcial (el saldo es otro pedido, con su propio cobro).
+- **Solo para uso interno.** Nada de esto aparece en la nota ni en la tabla que recibe el cliente.
+
 ## Resumen ejecutivo
 
 `GET /api/resumen` y `/api/resumen/detalles` calculan todo con SQL agregado, sin tablas nuevas. Los montos incluyen IGV.
 
 - **Ventas:** pedidos despachados en el periodo, con nota o "Solo tabla". Cada entrega cuenta, también la de un saldo.
 - **Ganancia bruta:** ventas menos lo que costó lo entregado (el `costo_unitario` de las salidas de cada ítem). Las líneas sin costo conocido no entran: ítems escritos a mano o salidas de lotes sin costo. Su monto se informa aparte, para que el margen no salga inflado.
+- **Cobrado:** vender no es cobrar. La tarjeta "Cobrado" suma los pagos recibidos en el periodo (de ventas de ese periodo o de anteriores) y muestra lo que se debe hoy y lo vencido. "Ventas" indica además cuánto de lo vendido en el periodo ya se cobró. La ganancia sigue calculándose sobre lo vendido.
 - **Compras:** entradas registradas en la app (cantidad × costo). Las entradas del **inventario inicial** (`movimiento.inicial`, las que vienen de importar el Excel) no cuentan: son el stock con el que se empezó, no compras de ese mes.
 - **Comparación:** "este mes" (del 1 a hoy) se compara con los mismos días del mes pasado; "el mes pasado", con el mes anterior completo; "este año", con los mismos días del año pasado; un rango, con uno de igual largo justo antes.
 - **Más detalles:** top 10 de productos y clientes del periodo; clientes con compras que no tienen pedidos hace más de 60 días; valor del inventario vigente (stock × costo promedio de cada lote) y de lo vencido; productos con stock desde hace más de 90 días y sin ventas en ese tiempo; y lo pendiente por entregar (borradores y saldos).
