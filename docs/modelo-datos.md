@@ -137,7 +137,7 @@ erDiagram
 ### Reglas
 
 - **Precio de venta = costo × (1 + porcentaje del cliente)**, redondeado a 2 decimales (`HALF_UP`). Ejemplo: costo 4.80 y 15 % → 5.52.
-- **El porcentaje se guarda en el cliente como número.** Las categorías de precio solo le ponen una letra a un porcentaje (A = 10 %) para mostrarlo de forma discreta en la app. Un cliente con un porcentaje que no corresponde a ninguna letra, por ejemplo 12.5, es válido.
+- **El porcentaje se guarda en el cliente como número.** Las categorías de precio solo le ponen una letra a un porcentaje (A = 12 %) para mostrarlo de forma discreta en la app. Un cliente con un porcentaje que no corresponde a ninguna letra, por ejemplo 12.5, es válido.
 - **Las categorías son una tabla**, no un valor fijo en el código: se puede agregar una D o cambiar un porcentaje sin programar.
 - **El costo, el porcentaje y la letra son datos internos**: no aparecerán en la nota de pedido que recibe el cliente.
 - **Un cliente sin porcentaje** es válido: la app lo pedirá en su primer pedido.

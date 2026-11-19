@@ -83,7 +83,7 @@ class ImportacionClientesTest extends IntegracionTest {
     private static final Object[] BOTICA_LOCAL_2 = { "BOTICA DEMO S.A.C.", null, "Local 2",
             "Jr. Las Flores 456", "Sr. Luis", "912 345 678", null, null };
     private static final Object[] CLINICA = { "Clínica Ejemplo", "20987654321", null, "Av. Central 789", null, null,
-            "10%", "Un solo local" };
+            "12%", "Un solo local" };
     private static final Object[] CONSULTORIO = { "Juan Pérez (consultorio)", "45678912", null, null, null, null,
             null, null };
 
@@ -110,7 +110,7 @@ class ImportacionClientesTest extends IntegracionTest {
                 .andExpect(jsonPath("$.locales[1].contacto").value("Sr. Luis"));
 
         mockMvc.perform(get("/api/clientes").param("buscar", "clinica"))
-                .andExpect(jsonPath("$.contenido[0].porcentaje").value(10.0))
+                .andExpect(jsonPath("$.contenido[0].porcentaje").value(12.0))
                 .andExpect(jsonPath("$.contenido[0].categoria").value("A"));
     }
 

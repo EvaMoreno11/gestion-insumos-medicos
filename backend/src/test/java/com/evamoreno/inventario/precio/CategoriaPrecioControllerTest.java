@@ -18,11 +18,11 @@ class CategoriaPrecioControllerTest extends IntegracionTest {
     private static final String URL = "/api/categorias-precio";
 
     @Test
-    void vieneConLasCategoriasABYC() throws Exception {
+    void vieneConLasCategoriasABYCConLaAEn12() throws Exception {
         mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].letra", contains("A", "B", "C")))
-                .andExpect(jsonPath("$[*].porcentaje", contains(10.0, 15.0, 20.0)));
+                .andExpect(jsonPath("$[*].porcentaje", contains(12.0, 15.0, 20.0)));
     }
 
     @Test
@@ -61,7 +61,7 @@ class CategoriaPrecioControllerTest extends IntegracionTest {
         mockMvc.perform(get("/api/productos/{id}", id))
                 .andExpect(jsonPath("$.costo").value(4.8))
                 .andExpect(jsonPath("$.precios[*].letra", contains("A", "B", "C")))
-                .andExpect(jsonPath("$.precios[*].precio", contains(5.28, 5.52, 5.76)));
+                .andExpect(jsonPath("$.precios[*].precio", contains(5.38, 5.52, 5.76)));
 
         mockMvc.perform(get("/api/productos").param("buscar", "aerocamara"))
                 .andExpect(jsonPath("$.contenido[0].costo").value(4.8));

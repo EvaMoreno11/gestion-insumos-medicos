@@ -10,7 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * Etiqueta interna para un porcentaje de incremento sobre el costo: A = 10 %, B = 15 %, C = 20 %.
+ * Etiqueta interna para un porcentaje de incremento sobre el costo: A = 12 %, B = 15 %, C = 20 %.
  * Es una tabla (y no un valor fijo en el código) para poder agregar categorías sin programar.
  */
 @Entity

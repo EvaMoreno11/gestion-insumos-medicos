@@ -66,9 +66,9 @@ export default function Alertas() {
       {pestana === 'por-vencer' && (
         <EstadoCarga cargando={porVencer.cargando} error={porVencer.error} hayDatos={porVencer.datos !== undefined}>
           <p className="mb-3 text-sm text-slate-600">
-            Lotes que vencen en los próximos {DIAS_POR_VENCER} días. Salen primero en los pedidos.
+            Lotes que vencen en el próximo año ({DIAS_POR_VENCER} días), primero los que vencen antes. Salen primero en los pedidos.
           </p>
-          {porVencer.datos?.length === 0 && <Vacio>Ningún lote vence en los próximos {DIAS_POR_VENCER} días.</Vacio>}
+          {porVencer.datos?.length === 0 && <Vacio>Ningún lote vence en el próximo año.</Vacio>}
           <ListaLotes lotes={porVencer.datos ?? []} />
         </EstadoCarga>
       )}
