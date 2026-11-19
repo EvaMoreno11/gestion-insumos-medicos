@@ -68,6 +68,12 @@ Los datos del negocio solo están en Neon. Conviene hacer una copia **cada seman
 
 El script pide la cadena de conexión de Neon (no la guarda) y deja un archivo `inventario-AAAA-MM-DD_HHMM.dump` en `Documentos\Copias inventario`. Necesita Docker Desktop abierto. Guarda las copias en un lugar privado, por ejemplo una carpeta de Google Drive.
 
+Si Windows responde que "la ejecución de scripts está deshabilitada", ejecútalo así:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-de-seguridad.ps1
+```
+
 **Restaurar una copia** reemplaza los datos actuales por los de la copia, así que se hace solo si algo salió mal:
 
 ```powershell
