@@ -29,6 +29,8 @@ public interface ProductoRepository extends JpaRepository<Producto, Long>, JpaSp
 
     boolean existsByCategoriaId(Long categoriaId);
 
+    long countByCategoriaId(Long categoriaId);
+
     @EntityGraph(attributePaths = "categoria")
     List<Producto> findAllByIdIn(Collection<Long> ids);
 

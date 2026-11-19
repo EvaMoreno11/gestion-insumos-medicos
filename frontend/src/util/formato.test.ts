@@ -14,7 +14,9 @@ import {
   leerEntero,
   mesAnio,
   mesAnioAFecha,
+  ordenarPorNombre,
   porcentaje,
+  textoComparable,
   unir,
 } from './formato'
 
@@ -87,6 +89,18 @@ describe('textos', () => {
   it('muestra el porcentaje sin ceros de más', () => {
     expect(porcentaje(15)).toBe('15 %')
     expect(porcentaje(12.5)).toBe('12.5 %')
+  })
+
+  it('compara nombres sin mayúsculas, tildes ni espacios de más', () => {
+    expect(textoComparable('  Algodón   hidrófilo ')).toBe('algodon hidrofilo')
+    expect(textoComparable('ALGODON HIDROFILO')).toBe(textoComparable('algodón hidrófilo'))
+    expect(textoComparable('Cuidado personal')).not.toBe(textoComparable('Cuidado'))
+  })
+
+  it('ordena las categorías como un diccionario, mezclando mayúsculas y tildes', () => {
+    const lista = [{ nombre: 'Otros' }, { nombre: 'ÁCIDO' }, { nombre: 'Agujas' }, { nombre: 'AGUJA DENTAL' }, { nombre: 'Bolsas' }]
+    expect(ordenarPorNombre(lista).map((c) => c.nombre)).toEqual(['ÁCIDO', 'AGUJA DENTAL', 'Agujas', 'Bolsas', 'Otros'])
+    expect(lista[0].nombre).toBe('Otros')
   })
 })
 

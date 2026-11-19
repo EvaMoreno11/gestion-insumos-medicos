@@ -80,6 +80,23 @@ export function unir(separador: string, ...partes: (string | null | undefined)[]
   return partes.filter((p) => p !== null && p !== undefined && p.trim() !== '').join(separador)
 }
 
+/** Para comparar textos sin mayúsculas, tildes ni espacios de más: "  Algodón " y "ALGODON" → "algodon". */
+export function textoComparable(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+const DICCIONARIO = new Intl.Collator('es', { sensitivity: 'base', numeric: true })
+
+/** Ordena por nombre como un diccionario: sin importar mayúsculas ni tildes ("Agujas" junto a "AGUJA DENTAL"). */
+export function ordenarPorNombre<T extends { nombre: string }>(lista: readonly T[]): T[] {
+  return [...lista].sort((a, b) => DICCIONARIO.compare(a.nombre, b.nombre))
+}
+
 /** 15 → "15 %", 12.5 → "12.5 %". */
 export function porcentaje(valor: number): string {
   return `${Number(valor.toFixed(2))} %`

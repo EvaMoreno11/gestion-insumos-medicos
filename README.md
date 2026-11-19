@@ -10,6 +10,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 
 **Disponibles**
 - Catálogo de productos por categoría, marca y presentación, con uno o más códigos de barras.
+- **Categorías** administrables desde la app: se crean al registrar un producto (botón "+ Nueva") o en Productos → Categorías, donde se renombran y se eliminan las que no tienen productos. Cada una muestra cuántos productos tiene, y no se repiten nombres aunque cambien las mayúsculas o las tildes ("ALGODON" = "Algodón").
 - Código interno automático por categoría (`JER-00001`, `GUA-00002`…) o manual.
 - Detección de duplicados aunque estén escritos distinto ("Gasa estéril 10x10" = "GASA ESTERIL 10 x 10").
 - Buscador "¿tengo esto?" que no distingue mayúsculas ni tildes: `jer 5ml` encuentra "Jeringa 5 ml…" ([cómo funciona](docs/modelo-datos.md#cómo-funciona-el-buscador)).
@@ -79,7 +80,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `GET` | `/api/auth/estado` | ¿Hay sesión? ¿Falta crear la primera cuenta? (público) |
 | `POST` | `/api/auth/login` · `/configurar` · `/salir` | Entrar, crear la primera cuenta, cerrar sesión |
 | `PUT` | `/api/auth/clave` | Cambiar la contraseña |
-| `GET` | `/api/categorias` | Listar categorías |
+| `GET` | `/api/categorias` | Listar categorías, con cuántos productos tiene cada una |
 | `POST` / `PUT` / `DELETE` | `/api/categorias[/{id}]` | Crear, renombrar o eliminar (solo si no tiene productos) |
 | `GET` | `/api/productos?buscar=&categoriaId=&pagina=&tamano=` | Buscar productos (paginado) |
 | `GET` | `/api/productos/{id}` | Detalle de un producto |
