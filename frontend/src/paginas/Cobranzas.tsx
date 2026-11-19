@@ -7,7 +7,7 @@ import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
 import { dinero, fechaDia, textoPlazo, unir } from '../util/formato'
 
-type Pestana = 'vencidos' | 'por-cobrar' | 'sin-plazo'
+type Pestana = 'vencidos' | 'por-cobrar' | 'sin-plazo' | 'a-favor'
 
 /**
  * Lo que se debe de los pedidos despachados. Desde aquí se entra a cada nota para anotar
@@ -44,6 +44,18 @@ export default function Cobranzas() {
       vacio: 'Todas las notas tienen su plazo anotado.',
       ayuda: 'Se despacharon y nadie anotó todavía cómo pagan. Si pagaron al contado, entra y toca “Pagó todo”.',
     },
+    // Solo aparece si algún cliente pagó de más (por ejemplo, tras una devolución)
+    ...(datos && datos.aFavor.length > 0
+      ? [
+          {
+            valor: 'a-favor' as Pestana,
+            titulo: 'A favor',
+            lista: datos.aFavor,
+            vacio: 'Ningún cliente tiene saldo a favor.',
+            ayuda: `Pagaron más que el total corregido (${dinero(datos.totalAFavor)} en total): devuélvanles la diferencia o descuéntenla de su próximo pedido.`,
+          },
+        ]
+      : []),
   ]
   const actual = pestanas.find((p) => p.valor === pestana) ?? pestanas[0]
 
@@ -62,7 +74,10 @@ export default function Cobranzas() {
               </p>
             </Tarjeta>
 
-            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200 p-1 lg:max-w-xl" role="tablist">
+            <div
+              className={`grid gap-1 rounded-xl bg-slate-200 p-1 lg:max-w-xl ${pestanas.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}
+              role="tablist"
+            >
               {pestanas.map((p) => (
                 <button
                   key={p.valor}
@@ -116,7 +131,7 @@ function FilaDeuda({ deuda }: { deuda: Deuda }) {
         </span>
         <span className="shrink-0 text-right">
           <span className={`block text-lg font-bold ${deuda.estado === 'VENCIDO' ? 'text-red-700' : ''}`}>
-            {dinero(deuda.saldo)}
+            {dinero(Math.abs(deuda.saldo))}
           </span>
           {deuda.pagado > 0 && <span className="block text-xs text-slate-500">de {dinero(deuda.total)}</span>}
         </span>
