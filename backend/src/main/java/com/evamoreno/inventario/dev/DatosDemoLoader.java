@@ -175,7 +175,7 @@ class DatosDemoLoader implements ApplicationRunner {
                                     "987654321"),
                             new ClienteDto.LocalRequest(null, "Local 2", "Jr. Las Flores 456, Comas", "Sr. Luis",
                                     "912345678"))));
-            clienteService.crear(new ClienteDto.Request("Clínica Ejemplo", "20987654321", new BigDecimal("10"), null, null,
+            clienteService.crear(new ClienteDto.Request("Clínica Ejemplo", "20987654321", new BigDecimal("12"), null, null,
                     List.of(new ClienteDto.LocalRequest(null, null, "Av. Central 789, Lima", "Srta. Rosa", null))));
             clienteService.crear(new ClienteDto.Request("Consultorio Dr. Pérez", null, null,
                     "Sin porcentaje: la app lo pedirá en su primer pedido", null, null));

@@ -156,7 +156,7 @@ class ImportacionControllerTest extends IntegracionTest {
 
         mockMvc.perform(get("/api/productos/codigo-barras/{codigo}", "2000000000039"))
                 .andExpect(jsonPath("$.costo").value(8.5))
-                .andExpect(jsonPath("$.precios[*].precio", contains(9.35, 9.78, 10.2)));
+                .andExpect(jsonPath("$.precios[*].precio", contains(9.52, 9.78, 10.2)));
 
         // Volver a importar con otro costo lo actualiza
         importar(excel(conCosto(jeringaLote1(), "9,00")), false).andExpect(jsonPath("$.importado").value(true));

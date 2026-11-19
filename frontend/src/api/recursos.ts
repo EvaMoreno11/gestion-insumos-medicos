@@ -130,7 +130,7 @@ export const cobranzas = {
 }
 
 /** Días hacia adelante que cuenta "Por vencer". */
-export const DIAS_POR_VENCER = 60
+export const DIAS_POR_VENCER = 365
 
 export const alertas = {
   stockBajo: () => api<ProductoResumen[]>('/api/alertas/stock-bajo'),
