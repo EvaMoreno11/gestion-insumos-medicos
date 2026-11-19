@@ -229,6 +229,17 @@ stateDiagram-v2
 
 `GET /api/pedidos/{id}/nota.pdf` y `/nota.xlsx` generan el mismo documento (`NotaPedido`) en dos formatos. Cuando un ítem salió de varios lotes hay **una fila por lote**. No incluye costo, porcentaje ni categoría del cliente. Los datos del encabezado (nombre, dirección y teléfono del negocio) se guardan en la tabla `negocio` y se editan por API: no están en el código.
 
+## Corregir un pedido despachado
+
+Un pedido despachado no se edita como un borrador, pero se puede **corregir** (`POST /api/pedidos/{id}/correcciones`), siempre con un motivo:
+
+- **Bajar una cantidad o quitar un ítem** es una devolución: las unidades vuelven **al lote del que salieron**, con un movimiento `DEVOLUCION` vinculado al ítem y con el costo con que habían salido. Si el ítem salió de varios lotes, hay que indicar a cuál vuelve cada unidad.
+- **Subir una cantidad o agregar un ítem** saca las unidades del inventario por FEFO, como un despacho.
+- **Cambiar un precio** solo cambia el total.
+- Todo se aplica junto o nada. La nota conserva su número y sale con lo entregado de verdad (salidas menos devoluciones, por lote). Un ítem quitado queda con cantidad 0, porque sus movimientos siguen vinculados a él, y no sale en la nota.
+- Cada corrección queda en `pedido_correccion` (fecha, motivo, una línea por cambio, total anterior y nuevo).
+- Ventas, ganancia (el costo de lo vendido descuenta lo devuelto) y cobranzas se recalculan. Si el cliente ya había pagado más que el total corregido, el cobro queda **a favor del cliente** (`A_FAVOR`) y aparece en Cobranzas → "A favor".
+
 ## Cobranzas
 
 ```mermaid
