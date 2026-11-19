@@ -215,7 +215,7 @@ export interface EntradaDatos {
 
 export interface Movimiento {
   id: number
-  tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE'
+  tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'DEVOLUCION'
   cantidad: number
   /** Entrada: costo de compra. Salida o ajuste: costo promedio del lote */
   costoUnitario: number | null
@@ -240,6 +240,7 @@ export type DocumentoPedido = 'NOTA' | 'SOLO_TABLA'
 export type Disponibilidad = 'DISPONIBLE' | 'PARCIAL' | 'SIN_STOCK' | 'NO_REGISTRADO' | 'DESPACHADO'
 
 export interface LoteEntregado {
+  loteId: number
   numeroLote: string | null
   fechaVencimiento: string | null
   cantidad: number
@@ -293,6 +294,18 @@ export interface Pedido {
   despachadoEn: string | null
   /** Pagos y plazo; null si el pedido no está despachado */
   cobro: Cobro | null
+  /** Correcciones hechas después de despachar (solo para uso interno) */
+  correcciones: CorreccionPedido[]
+}
+
+export interface CorreccionPedido {
+  id: number
+  fecha: string
+  motivo: string
+  /** Una línea por cambio */
+  detalle: string[]
+  totalAnterior: number
+  totalNuevo: number
 }
 
 // ---------------------------------------------------------------- cobranzas
@@ -300,7 +313,7 @@ export interface Pedido {
 export type MedioPago = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TRANSFERENCIA'
 
 /** SIN_PLAZO: se debe, pero nadie anotó todavía cómo paga el cliente */
-export type EstadoCobro = 'PAGADO' | 'POR_COBRAR' | 'VENCIDO' | 'SIN_PLAZO'
+export type EstadoCobro = 'PAGADO' | 'POR_COBRAR' | 'VENCIDO' | 'SIN_PLAZO' | 'A_FAVOR'
 
 export interface PagoRegistrado {
   id: number
@@ -349,6 +362,10 @@ export interface Cobranzas {
   vencidos: Deuda[]
   porCobrar: Deuda[]
   sinPlazo: Deuda[]
+  /** Lo que los clientes pagaron de más (p. ej. tras una devolución) */
+  totalAFavor: number
+  /** Notas con saldo a favor del cliente (saldo negativo) */
+  aFavor: Deuda[]
 }
 
 export interface GrupoPedido {

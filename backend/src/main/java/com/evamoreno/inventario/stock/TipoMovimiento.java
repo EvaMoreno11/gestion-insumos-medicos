@@ -6,5 +6,7 @@ public enum TipoMovimiento {
     /** Salida de unidades (entrega a un cliente). */
     SALIDA,
     /** Corrección al contar físicamente (o baja por vencimiento). La cantidad lleva signo. */
-    AJUSTE
+    AJUSTE,
+    /** Unidades de un pedido despachado que el cliente devolvió: vuelven al lote del que salieron. */
+    DEVOLUCION
 }

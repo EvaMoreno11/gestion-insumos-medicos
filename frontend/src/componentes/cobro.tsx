@@ -30,6 +30,9 @@ export function EtiquetaCobro({ estado, dias }: { estado: EstadoCobro; dias: num
   if (estado === 'SIN_PLAZO') {
     return <Etiqueta color="gris">Sin plazo</Etiqueta>
   }
+  if (estado === 'A_FAVOR') {
+    return <Etiqueta color="azul">Saldo a favor</Etiqueta>
+  }
   return <Etiqueta color={estado === 'VENCIDO' ? 'rojo' : 'ambar'}>{cuandoVence(dias ?? 0)}</Etiqueta>
 }
 
@@ -94,8 +97,18 @@ export function TarjetaCobro({
         <div className="min-w-0">
           <h2 className="text-xs uppercase tracking-wide text-slate-500">Pago</h2>
           <p className={`text-xl font-bold ${cobro.estado === 'VENCIDO' ? 'text-red-700' : ''}`}>
-            {debe ? `Debe ${dinero(cobro.saldo)}` : 'Pagado'}
+            {debe
+              ? `Debe ${dinero(cobro.saldo)}`
+              : cobro.estado === 'A_FAVOR'
+                ? `Saldo a favor del cliente ${dinero(-cobro.saldo)}`
+                : 'Pagado'}
           </p>
+          {cobro.estado === 'A_FAVOR' && (
+            <p className="text-sm text-slate-600">
+              Pagó {dinero(cobro.pagado)} y el total corregido es {dinero(cobro.total)}: devuélvanle la diferencia o
+              descuéntenla de su próximo pedido.
+            </p>
+          )}
           {cobro.pagado > 0 && debe && (
             <p className="text-sm text-slate-600">
               Pagó {dinero(cobro.pagado)} de {dinero(cobro.total)}

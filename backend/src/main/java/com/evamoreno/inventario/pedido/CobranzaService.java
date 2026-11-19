@@ -33,9 +33,11 @@ public class CobranzaService {
      * @param vencidos         primero los más atrasados
      * @param porCobrar        primero los que vencen antes
      * @param sinPlazo         primero los más antiguos
+     * @param aFavor           notas en que el cliente pagó de más (p. ej. tras una devolución); saldo negativo
      */
     public record Cobranzas(BigDecimal totalPorCobrar, BigDecimal totalVencido, long clientesVencidos,
-            List<Deuda> vencidos, List<Deuda> porCobrar, List<Deuda> sinPlazo) {
+            List<Deuda> vencidos, List<Deuda> porCobrar, List<Deuda> sinPlazo, BigDecimal totalAFavor,
+            List<Deuda> aFavor) {
     }
 
     private final JdbcClient jdbc;
@@ -60,7 +62,7 @@ public class CobranzaService {
                 JOIN LATERAL (SELECT COALESCE(SUM(i.cantidad * i.precio_unitario), 0) AS total
                               FROM pedido_item i WHERE i.pedido_id = p.id) t ON TRUE
                 LEFT JOIN LATERAL (SELECT SUM(g.monto) AS pagado FROM pago g WHERE g.pedido_id = p.id) pg ON TRUE
-                WHERE p.estado = 'DESPACHADO' AND t.total > COALESCE(pg.pagado, 0)
+                WHERE p.estado = 'DESPACHADO' AND t.total <> COALESCE(pg.pagado, 0)
                 ORDER BY p.despachado_en, p.id
                 """)
                 .query((rs, n) -> {
@@ -80,9 +82,11 @@ public class CobranzaService {
                 .sorted(Comparator.comparing(Deuda::vence)).toList();
         List<Deuda> porCobrar = de(deudas, Cobro.Estado.POR_COBRAR).stream()
                 .sorted(Comparator.comparing(Deuda::vence)).toList();
-        return new Cobranzas(suma(deudas), suma(vencidos),
+        List<Deuda> aFavor = de(deudas, Cobro.Estado.A_FAVOR);
+        List<Deuda> debe = deudas.stream().filter(d -> d.estado() != Cobro.Estado.A_FAVOR).toList();
+        return new Cobranzas(suma(debe), suma(vencidos),
                 vencidos.stream().map(Deuda::clienteId).distinct().count(),
-                vencidos, porCobrar, de(deudas, Cobro.Estado.SIN_PLAZO));
+                vencidos, porCobrar, de(deudas, Cobro.Estado.SIN_PLAZO), suma(aFavor).negate(), aFavor);
     }
 
     private static List<Deuda> de(List<Deuda> deudas, Cobro.Estado estado) {

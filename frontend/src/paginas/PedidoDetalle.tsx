@@ -6,6 +6,7 @@ import type { ItemCambio } from '../api/recursos'
 import type { CategoriaPrecio, DocumentoPedido, GrupoPedido, Pedido, PedidoItem } from '../api/tipos'
 import { Aviso, Boton, Campo, Cargando, Etiqueta, Tarjeta } from '../componentes/basicos'
 import { TarjetaCobro } from '../componentes/cobro'
+import { CorregirPedido, HistorialCorrecciones } from '../componentes/correccion'
 import { BuscadorProductos, EtiquetaDisponibilidad, SelectorCategoria, SelectorDocumento } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { compartirODescargar } from '../util/archivos'
@@ -20,6 +21,7 @@ export default function PedidoDetalle() {
   const [ocupado, setOcupado] = useState(false)
   const [panel, setPanel] = useState<'categoria' | 'manual' | 'documento' | null>(null)
   const [confirmarParcial, setConfirmarParcial] = useState(false)
+  const [corrigiendo, setCorrigiendo] = useState(false)
 
   useEffect(() => {
     let vigente = true
@@ -107,12 +109,36 @@ export default function PedidoDetalle() {
     }
   }
 
+  if (corrigiendo) {
+    return (
+      <Pantalla titulo={`Corregir ${titulo.toLowerCase()}`} volver={volver} ancho="amplio">
+        <CorregirPedido
+          pedido={pedido}
+          onCancelar={() => setCorrigiendo(false)}
+          onGuardado={(corregido) => {
+            setPedido(corregido)
+            setCorrigiendo(false)
+          }}
+        />
+      </Pantalla>
+    )
+  }
+
   return (
     <Pantalla
       titulo={titulo}
       volver={volver}
       ancho="amplio"
-      pie={<Pie pedido={pedido} ocupado={ocupado} aplicar={aplicar} nota={nota} onDespachar={despachar} />}
+      pie={
+        <Pie
+          pedido={pedido}
+          ocupado={ocupado}
+          aplicar={aplicar}
+          nota={nota}
+          onDespachar={despachar}
+          onCorregir={() => setCorrigiendo(true)}
+        />
+      }
     >
       <div className="space-y-3">
         {error && <Aviso tipo="error">{error}</Aviso>}
@@ -132,6 +158,7 @@ export default function PedidoDetalle() {
           </Aviso>
         )}
         {pedido.cobro && <TarjetaCobro pedido={pedido} cobro={pedido.cobro} ocupado={ocupado} aplicar={aplicar} />}
+        {pedido.correcciones.length > 0 && <HistorialCorrecciones correcciones={pedido.correcciones} />}
         {pedido.grupo && <EntregaPorPartes grupo={pedido.grupo} actual={pedido.id} />}
         {confirmarParcial && (
           <ConfirmarEntregaParcial
@@ -298,12 +325,14 @@ function Pie({
   aplicar,
   nota,
   onDespachar,
+  onCorregir,
 }: {
   pedido: Pedido
   ocupado: boolean
   aplicar: (accion: () => Promise<Pedido>) => Promise<boolean>
   nota: (formato: 'pdf' | 'xlsx') => void
   onDespachar: () => void
+  onCorregir: () => void
 }) {
   const borrador = pedido.estado === 'BORRADOR'
   const avisos = [
@@ -343,6 +372,11 @@ function Pie({
           <Boton variante="secundario" className={borrador ? '' : 'flex-1'} disabled={ocupado} onClick={() => nota('xlsx')}>
             Excel
           </Boton>
+          {pedido.estado === 'DESPACHADO' && (
+            <Boton variante="secundario" className="flex-1" disabled={ocupado} onClick={onCorregir}>
+              Corregir
+            </Boton>
+          )}
           {borrador && (
             <Boton
               variante="peligro"
@@ -431,8 +465,8 @@ function FilaItem({
         )}
       </div>
 
-      <div className="mt-2 pl-7">
-        <EtiquetaDisponibilidad item={item} />
+      <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
+        {item.cantidad === 0 ? <Etiqueta color="gris">Quitado en una corrección</Etiqueta> : <EtiquetaDisponibilidad item={item} />}
       </div>
 
       {editable ? (

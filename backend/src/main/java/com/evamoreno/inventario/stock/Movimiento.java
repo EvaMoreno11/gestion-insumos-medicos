@@ -89,6 +89,13 @@ public class Movimiento {
         return inicial;
     }
 
+    /** Devolución de un pedido despachado: guarda el costo con que esas unidades habían salido. */
+    static Movimiento devolucion(Lote lote, int cantidad, BigDecimal costo, String nota, Long pedidoItemId) {
+        Movimiento m = new Movimiento(lote, TipoMovimiento.DEVOLUCION, cantidad, nota, pedidoItemId);
+        m.costoUnitario = costo;
+        return m;
+    }
+
     public BigDecimal getCostoUnitario() {
         return costoUnitario;
     }
