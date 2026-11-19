@@ -19,6 +19,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.pedido.PedidoDto.ActualizarRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.CorreccionRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.CrearRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.DespacharRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.Detalle;
@@ -111,6 +112,17 @@ public class PedidoController {
     @Operation(summary = "Anular un borrador (libera el stock que tenía separado)")
     public Detalle anular(@PathVariable Long id) {
         return service.anular(id);
+    }
+
+    // ------------------------------------------------------------------ corrección
+
+    @PostMapping("/{id}/correcciones")
+    @Operation(summary = "Corregir un pedido despachado",
+            description = "Cambiar cantidades (0 = quitar), precios, o agregar ítems, con un motivo. Lo devuelto "
+                    + "vuelve al lote del que salió (si salió de varios, se indica a cuál); lo agregado sale por "
+                    + "FEFO. Todo se aplica junto o nada, y queda en el historial del pedido.")
+    public Detalle corregir(@PathVariable Long id, @Valid @RequestBody CorreccionRequest request) {
+        return service.corregir(id, request);
     }
 
     // ------------------------------------------------------------------ cobro

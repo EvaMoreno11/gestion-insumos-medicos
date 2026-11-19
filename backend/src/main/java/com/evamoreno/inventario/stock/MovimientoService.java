@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.stock;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -121,6 +122,18 @@ public class MovimientoService {
                     asignacion.cantidad(), nota, pedidoItemId)));
         }
         return registrados;
+    }
+
+    /**
+     * Unidades de un pedido despachado que el cliente devolvió: vuelven a ese lote con el costo con que
+     * habían salido, y quedan vinculadas al ítem del pedido.
+     */
+    public Movimiento registrarDevolucionDePedido(Long loteId, int cantidad, BigDecimal costo, Long pedidoItemId,
+            String nota) {
+        Lote lote = lotes.buscarBloqueado(loteId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el lote con id " + loteId));
+        lote.sumar(cantidad, costo);
+        return movimientos.save(Movimiento.devolucion(lote, cantidad, costo, nota, pedidoItemId));
     }
 
     // ------------------------------------------------------------------ ajuste

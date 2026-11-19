@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -99,6 +101,56 @@ public final class PedidoDto {
             String nota) {
     }
 
+    /**
+     * Corrección de un pedido despachado. Todo se aplica junto o nada.
+     *
+     * @param cambios ítems existentes con su nueva cantidad (0 = quitarlo) y, si cambia, su nuevo precio
+     * @param nuevos  ítems que se agregan (salen del inventario como en un despacho)
+     */
+    public record CorreccionRequest(
+            @Schema(example = "Devolvieron 2 cajas: se entregó de más")
+            @NotBlank(message = "Indica el motivo de la corrección")
+            @Size(max = 300, message = "Máximo 300 caracteres")
+            String motivo,
+
+            List<@Valid CambioItem> cambios,
+
+            List<@Valid ItemRequest> nuevos) {
+    }
+
+    /**
+     * @param lotes a qué lotes vuelven las unidades devueltas; obligatorio solo si el ítem salió de varios lotes
+     */
+    public record CambioItem(
+            @NotNull(message = "Falta el ítem")
+            Long itemId,
+
+            @NotNull(message = "La cantidad es obligatoria")
+            @Min(value = 0, message = "Debe ser 0 o más")
+            @Max(value = 1_000_000, message = "Cantidad demasiado grande")
+            Integer cantidad,
+
+            @DecimalMin(value = "0", message = "Debe ser 0 o más")
+            @Digits(integer = 10, fraction = 2, message = "Máximo 2 decimales")
+            BigDecimal precio,
+
+            List<@Valid LoteDevuelto> lotes) {
+    }
+
+    public record LoteDevuelto(
+            @NotNull(message = "Falta el lote")
+            Long loteId,
+
+            @NotNull(message = "Falta la cantidad")
+            @Positive(message = "Debe ser mayor que 0")
+            Integer cantidad) {
+    }
+
+    /** @param detalle una línea por cambio */
+    public record CorreccionResponse(Long id, Instant fecha, String motivo, List<String> detalle,
+            BigDecimal totalAnterior, BigDecimal totalNuevo) {
+    }
+
     /** Convierte un ítem a mano en un producto del catálogo. */
     public record VincularProductoRequest(
             @NotNull(message = "El producto es obligatorio")
@@ -187,7 +239,7 @@ public final class PedidoDto {
     }
 
     /** Lote del que salió (parte de) un ítem al despachar. */
-    public record LoteEntregado(String numeroLote, LocalDate fechaVencimiento, int cantidad) {
+    public record LoteEntregado(Long loteId, String numeroLote, LocalDate fechaVencimiento, int cantidad) {
     }
 
     /**
@@ -217,7 +269,7 @@ public final class PedidoDto {
             BigDecimal porcentaje, String categoria, String nota, List<ItemResponse> items, BigDecimal total,
             int itemsConFaltante, int itemsSinPrecio, boolean listoParaDespachar, boolean puedeEntregarParcial,
             Long origenId, String origenNumero, Grupo grupo, Instant creadoEn, Instant despachadoEn,
-            CobroResponse cobro) {
+            CobroResponse cobro, List<CorreccionResponse> correcciones) {
     }
 
     public record PagoResponse(Long id, LocalDate fecha, BigDecimal monto, Pago.Medio medio, String nota) {

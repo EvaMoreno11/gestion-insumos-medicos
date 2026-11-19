@@ -60,8 +60,10 @@ public class ResumenService {
                    (i.producto_id IS NULL OR EXISTS (
                         SELECT 1 FROM movimiento m
                         WHERE m.pedido_item_id = i.id AND m.costo_unitario IS NULL)) AS sin_costo,
-                   COALESCE((SELECT SUM(m.cantidad * m.costo_unitario) FROM movimiento m
-                             WHERE m.pedido_item_id = i.id AND m.tipo = 'SALIDA'), 0) AS costo
+                   COALESCE((SELECT SUM(CASE WHEN m.tipo = 'DEVOLUCION' THEN -1 ELSE 1 END
+                                        * m.cantidad * m.costo_unitario)
+                             FROM movimiento m
+                             WHERE m.pedido_item_id = i.id AND m.tipo IN ('SALIDA', 'DEVOLUCION')), 0) AS costo
             FROM pedido p
             JOIN pedido_item i ON i.pedido_id = p.id
             WHERE p.estado = 'DESPACHADO' AND p.despachado_en >= :inicio AND p.despachado_en < :fin

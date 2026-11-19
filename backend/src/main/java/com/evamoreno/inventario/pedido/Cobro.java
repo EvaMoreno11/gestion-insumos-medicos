@@ -8,6 +8,7 @@ import java.time.temporal.ChronoUnit;
  * Situación del cobro de un pedido despachado: cuánto falta, cuándo vence y en qué estado está.
  *
  * @param vence null si aún no se anotó el plazo
+ * @param saldo lo que falta cobrar; negativo si el cliente pagó de más (saldo a favor)
  * @param dias  días que faltan para que venza (negativo: días de atraso); null si no hay plazo o ya se pagó
  */
 public record Cobro(BigDecimal total, BigDecimal pagado, BigDecimal saldo, Integer plazoDias, LocalDate vence,
@@ -21,7 +22,9 @@ public record Cobro(BigDecimal total, BigDecimal pagado, BigDecimal saldo, Integ
         /** Pasó el plazo y aún se debe. */
         VENCIDO,
         /** Se debe, pero nadie anotó todavía cómo paga (contado o crédito). */
-        SIN_PLAZO
+        SIN_PLAZO,
+        /** Pagó más que el total (p. ej. tras una devolución): el saldo, negativo, es a favor del cliente. */
+        A_FAVOR
     }
 
     /**
@@ -32,7 +35,10 @@ public record Cobro(BigDecimal total, BigDecimal pagado, BigDecimal saldo, Integ
             LocalDate hoy) {
         BigDecimal saldo = total.subtract(pagado);
         LocalDate vence = plazoDias == null ? null : despachado.plusDays(plazoDias);
-        if (saldo.signum() <= 0) {
+        if (saldo.signum() < 0) {
+            return new Cobro(total, pagado, saldo, plazoDias, vence, Estado.A_FAVOR, null);
+        }
+        if (saldo.signum() == 0) {
             return new Cobro(total, pagado, BigDecimal.ZERO.setScale(2), plazoDias, vence, Estado.PAGADO, null);
         }
         if (vence == null) {

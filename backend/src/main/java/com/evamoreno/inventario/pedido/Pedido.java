@@ -76,6 +76,10 @@ public class Pedido {
     @OrderBy("fecha, id")
     private List<Pago> pagos = new ArrayList<>();
 
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("fecha, id")
+    private List<CorreccionPedido> correcciones = new ArrayList<>();
+
     /** Pedido original del que este es un saldo (lo que faltó entregar); null si no es un saldo. */
     @Column(name = "origen_id")
     private Long origenId;
@@ -167,6 +171,10 @@ public class Pedido {
 
     public List<Pago> getPagos() {
         return pagos;
+    }
+
+    public List<CorreccionPedido> getCorrecciones() {
+        return correcciones;
     }
 
     public void anular() {
