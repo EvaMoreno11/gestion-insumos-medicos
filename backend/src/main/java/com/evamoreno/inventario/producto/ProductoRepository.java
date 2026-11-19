@@ -32,6 +32,10 @@ public interface ProductoRepository extends JpaRepository<Producto, Long>, JpaSp
     @EntityGraph(attributePaths = "categoria")
     List<Producto> findAllByIdIn(Collection<Long> ids);
 
+    /** Todos los productos activos (para exportar el inventario y el catálogo). */
+    @EntityGraph(attributePaths = "categoria")
+    List<Producto> findByActivoTrue();
+
     /**
      * Productos activos con stock mínimo (1 o más) cuyo stock disponible (lotes no vencidos) es menor o igual
      * a ese mínimo. Un producto sin mínimo (0) no avisa: puede estar descontinuado o comprarse solo a pedido.

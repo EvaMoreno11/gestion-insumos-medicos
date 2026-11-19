@@ -87,7 +87,19 @@ export default function Inventario() {
   }
 
   return (
-    <Pantalla titulo="Inventario" volver="/" ancho="amplio">
+    <Pantalla
+      titulo="Inventario"
+      volver="/"
+      ancho="amplio"
+      accion={
+        <Link
+          to="/inventario/descargar"
+          className="flex min-h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold active:bg-white/15"
+        >
+          <span aria-hidden="true">⬇</span> Descargar
+        </Link>
+      }
+    >
       <div className="space-y-3">
         <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-3 lg:space-y-0">
         <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar: jer 5ml, guantes m…" autoFocus />
