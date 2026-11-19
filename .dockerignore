@@ -1,0 +1,11 @@
+# Lo que NUNCA entra a la imagen: datos reales del negocio, secretos y archivos generados
+datos/
+.env
+.env.*
+.git/
+**/node_modules/
+frontend/dist/
+backend/target/
+**/*.log
+.idea/
+.vscode/
