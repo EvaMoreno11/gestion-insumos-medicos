@@ -22,11 +22,11 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Cobranzas:** cada pedido despachado queda por cobrar. Después se anota el plazo (contado o crédito a N días, que queda como el habitual del cliente) y los pagos parciales o totales (efectivo, Yape, Plin o transferencia). La pantalla separa lo vencido, lo que está por cobrar y lo que aún no tiene plazo, y el inicio avisa cuántos clientes tienen cobros vencidos.
 - **Resumen ejecutivo:** ventas, ganancia bruta con margen, lo cobrado y compras del periodo (este mes, el mes pasado, este año o un rango de fechas), comparados con el periodo anterior, y un gráfico de ventas de los últimos 12 meses. En **Más detalles**: productos más vendidos, mejores clientes, clientes que dejaron de comprar, valor del inventario, productos sin movimiento, vencido sin vender y pendiente por entregar.
 - Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo (para saber qué comprar; los que no tienen mínimo no avisan, por ejemplo si están descontinuados), lotes que vencen en el próximo año y lotes vencidos con unidades.
-- Importación del inventario desde la [plantilla de Excel](docs/plantilla_inventario.xlsx): modo de validación, reporte de errores por fila y todo o nada.
+- **Importar desde Excel** (Configuración → Importar desde Excel): el inventario con la [plantilla de inventario](docs/plantilla_inventario.xlsx) y los clientes con la [plantilla de clientes](docs/plantilla_clientes.xlsx). Primero se valida sin guardar nada y se ve el reporte de errores por fila; la importación es todo o nada.
 - Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
 - **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales.
 - **Categorías de precio** internas (A = 12 %, B = 15 %, C = 20 %, ampliables) que nunca se muestran al cliente.
-- **Clientes** con uno o varios locales de entrega, y carga inicial desde la [plantilla de clientes](docs/plantilla_clientes.xlsx). Se buscan por razón social, RUC, nombre del local (p. ej. el de la botica) o contacto.
+- **Clientes** con uno o varios locales de entrega. Se buscan por razón social, RUC, nombre del local (p. ej. el de la botica) o contacto.
 - **Pedidos por cliente:** se arman como borrador, con el precio de cada línea calculado (costo + porcentaje) y editable, y el total siempre actualizado. También admiten ítems escritos a mano que aún no están en el catálogo.
 - **Faltantes con prioridad:** se puede pedir más de lo que hay. El stock se separa para el pedido más antiguo, así dos pedidos nunca aparecen completos contando las mismas unidades.
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes.
@@ -37,10 +37,8 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Ítems escritos a mano → productos:** un ítem que no estaba en el inventario se registra como producto desde el pedido (con el formulario ya lleno) o se cambia por uno existente, y la línea conserva su cantidad y su precio.
 - **Aplicación para el celular** (se instala desde el navegador): consultar inventario, armar pedidos con el total en vivo, registrar entradas, ver lo que falta comprar y administrar clientes y productos.
 - **Inicio de sesión** con Spring Security: contraseñas con BCrypt, opción "Recordarme" por 30 días, bloqueo tras 5 intentos fallidos, protección CSRF y cambio de contraseña ([reglas](docs/modelo-datos.md#fase-5-inicio-de-sesión)).
-- El nombre del negocio que se muestra en la app se configura desde la propia app; no está en el código.
-
-**Planificadas para la primera versión**
-- Publicación en internet.
+- El nombre del negocio y la serie y el número de las notas se configuran desde la propia app; no están en el código.
+- **Lista para publicar en internet:** una sola imagen Docker entrega la aplicación web y la API, con Render y Neon en sus planes gratuitos ([guía paso a paso](docs/despliegue.md)) y un script de copias de seguridad.
 
 **A futuro**
 - Reconocer listas pegadas desde WhatsApp.
@@ -56,14 +54,18 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 | Documentación API | OpenAPI / Swagger UI (springdoc) |
 | Frontend | React 19, React Router, TypeScript, Vite, Tailwind CSS 4; instalable en el celular (manifiesto web) |
 | Tests | JUnit 5, MockMvc y Testcontainers (backend); Vitest (frontend) |
+| Publicación | Docker (con caché AOT de Java para arrancar más rápido), Render y Neon |
 
 ## Estructura
 
 ```
 ├── backend/            API REST (Spring Boot)
 ├── frontend/           Aplicación web para el celular (React)
-├── docs/               Documentación y plantilla de carga de inventario
-└── docker-compose.yml  PostgreSQL para desarrollo local
+├── docs/               Documentación, plantillas de carga y guía de publicación
+├── scripts/            Copia de seguridad de la base de producción
+├── docker-compose.yml  PostgreSQL para desarrollo local
+├── Dockerfile          Imagen de producción (aplicación web + API)
+└── render.yaml         Configuración del servidor en Render
 ```
 
 El backend está organizado **por funcionalidad**: cada paquete (`categoria`, `producto`, …) contiene su entidad, repositorio, servicio, controlador y DTOs. Ver el [modelo de datos](docs/modelo-datos.md).
@@ -151,10 +153,20 @@ La primera vez, la app pide **crear la cuenta** (usuario y contraseña). Con la 
 
 | Variable | Para qué sirve |
 |---|---|
+| `DB_URL`, `DB_USER`, `DB_PASSWORD` | Conexión a PostgreSQL (`jdbc:postgresql://HOST/BASE?sslmode=require`). |
 | `APP_CLAVE_RECORDAR` | Clave secreta larga para firmar la cookie "Recordarme". Si cambia, todos deben volver a entrar. |
 | `APP_CODIGO_CONFIGURACION` | Opcional. Código que se pide para crear la primera cuenta. |
 
-En desarrollo ambas tienen valores por defecto; en producción `APP_CLAVE_RECORDAR` debe definirse siempre.
+En desarrollo todas tienen valores por defecto; en producción `APP_CLAVE_RECORDAR` debe definirse siempre. El perfil **prod** (que activa el `Dockerfile`) agrega lo propio del servidor: cookies solo por HTTPS, encabezados del proxy de Render y conexiones que se cierran solas para que Neon pueda dormir.
+
+### Publicar en internet
+
+Ver la [guía de publicación](docs/despliegue.md): base de datos en Neon, servidor en Render (con `render.yaml`), primera configuración, importación de los datos, instalación en el celular y copias de seguridad. Para probar la imagen en local:
+
+```bash
+docker build -t inventario .
+docker run -p 8080:8080 -e DB_URL=jdbc:postgresql://host.docker.internal:5433/inventario -e APP_CLAVE_RECORDAR=una-clave-larga inventario
+```
 
 ### Tests
 
@@ -181,7 +193,7 @@ En GitHub, la CI ejecuta ambos grupos en cada *pull request*.
 - [x] **Fase 3:** pedidos con precios por cliente, faltantes, lista por comprar y nota de pedido en PDF y Excel
 - [x] **Fase 4:** aplicación para el celular
 - [x] **Fase 5a:** inicio de sesión
-- [ ] **Fase 5b:** publicación en internet
+- [x] **Fase 5b:** preparación para publicar en internet (Docker, Render, Neon e importación desde la app)
 
 ## Autora
 

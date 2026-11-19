@@ -24,6 +24,8 @@ type Params = Record<string, string | number | boolean | null | undefined>
 interface Opciones {
   metodo?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   cuerpo?: unknown
+  /** Para subir archivos (multipart): se envía tal cual, sin pasar a JSON */
+  formulario?: FormData
   params?: Params
 }
 
@@ -69,9 +71,9 @@ export function leerCookie(nombre: string, cookies: string = document.cookie): s
   return null
 }
 
-async function enviar(ruta: string, { metodo = 'GET', cuerpo, params }: Opciones): Promise<Response> {
+async function enviar(ruta: string, { metodo = 'GET', cuerpo, formulario, params }: Opciones): Promise<Response> {
   const cabeceras: Record<string, string> = {}
-  if (cuerpo !== undefined) {
+  if (cuerpo !== undefined && formulario === undefined) {
     cabeceras['Content-Type'] = 'application/json'
   }
   // Protección CSRF: toda operación que cambia datos reenvía el token que el servidor dejó en la cookie
@@ -85,7 +87,7 @@ async function enviar(ruta: string, { metodo = 'GET', cuerpo, params }: Opciones
     respuesta = await fetch(construirUrl(ruta, params), {
       method: metodo,
       headers: cabeceras,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      body: formulario ?? (cuerpo === undefined ? undefined : JSON.stringify(cuerpo)),
       credentials: 'same-origin',
     })
   } catch {

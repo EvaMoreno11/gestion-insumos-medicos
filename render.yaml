@@ -1,0 +1,26 @@
+# Despliegue en Render (plan gratuito). Ver docs/despliegue.md.
+# Render crea el servicio desde este archivo ("Blueprint") y pide los valores marcados con sync: false.
+services:
+  - type: web
+    name: inventario
+    runtime: docker
+    plan: free
+    # Cerca de la base de datos de Neon (AWS us-east-1, Virginia del Norte): cada consulta viaja menos
+    region: virginia
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    # Solo publica una versión nueva cuando pasan las pruebas de GitHub
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Clave para firmar la cookie "Recordarme": Render la genera al azar
+      - key: APP_CLAVE_RECORDAR
+        generateValue: true
+      # Código que se pide para crear la primera cuenta (para que nadie se adelante)
+      - key: APP_CODIGO_CONFIGURACION
+        sync: false

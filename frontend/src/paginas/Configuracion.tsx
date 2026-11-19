@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { negocio, pedidos, sesion as apiSesion } from '../api/recursos'
 import { Aviso, Boton, Campo, Cargando, Tarjeta } from '../componentes/basicos'
@@ -14,6 +15,7 @@ export default function Configuracion() {
   const [direccion, setDireccion] = useState('')
   const [telefono, setTelefono] = useState('')
   const [siguiente, setSiguiente] = useState('')
+  const [serie, setSerie] = useState('')
   const [proximo, setProximo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState<string | null>(null)
@@ -26,6 +28,7 @@ export default function Configuracion() {
         setDireccion(n.direccion ?? '')
         setTelefono(n.telefono ?? '')
         setSiguiente(String(numeracion.siguiente))
+        setSerie(numeracion.serie)
         setProximo(numeracion.proximoNumero)
         setCargado(true)
       })
@@ -47,6 +50,7 @@ export default function Configuracion() {
   }
 
   const numero = leerEntero(siguiente)
+  const serieValida = /^\d{4}$/.test(serie)
 
   return (
     <Pantalla titulo="Configuración" volver="/">
@@ -97,31 +101,60 @@ export default function Configuracion() {
           <Tarjeta>
             <h2 className="font-semibold">Numeración de la nota de pedido</h2>
             <p className="mb-3 text-sm text-slate-500">
-              La próxima nota saldrá con el número <strong className="whitespace-nowrap">{proximo}</strong>. Cada despacho suma 1.
+              La próxima nota saldrá con el número <strong className="whitespace-nowrap">{proximo}</strong> (serie y
+              número). Cada despacho suma 1.
             </p>
             <form
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (numero === null || numero < 1) {
+                if (numero === null || numero < 1 || !serieValida) {
                   return
                 }
                 void ejecutar(async () => {
-                  const n = await pedidos.fijarNumeracion(numero)
+                  const n = await pedidos.fijarNumeracion(numero, serie)
                   setProximo(n.proximoNumero)
                 }, 'Numeración actualizada.')
               }}
             >
-              <Campo
-                etiqueta="Siguiente número"
-                inputMode="numeric"
-                value={siguiente}
-                onChange={(e) => setSiguiente(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              />
-              <Boton type="submit" variante="secundario" ancho disabled={ocupado || numero === null || numero < 1}>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo
+                  etiqueta="Serie"
+                  inputMode="numeric"
+                  value={serie}
+                  onChange={(e) => setSerie(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  ayuda="4 dígitos, p. ej. 0002"
+                  error={serie !== '' && !serieValida ? 'Deben ser 4 dígitos' : undefined}
+                />
+                <Campo
+                  etiqueta="Siguiente número"
+                  inputMode="numeric"
+                  value={siguiente}
+                  onChange={(e) => setSiguiente(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                />
+              </div>
+              <Boton
+                type="submit"
+                variante="secundario"
+                ancho
+                disabled={ocupado || numero === null || numero < 1 || !serieValida}
+              >
                 Cambiar numeración
               </Boton>
             </form>
+          </Tarjeta>
+
+          <Tarjeta>
+            <h2 className="font-semibold">Importar desde Excel</h2>
+            <p className="mb-3 text-sm text-slate-500">
+              Carga inicial del inventario y de los clientes desde las plantillas. Primero se valida y no guarda nada.
+            </p>
+            <Link
+              to="/configuracion/importar"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 font-semibold text-marca active:bg-slate-100"
+            >
+              Importar inventario o clientes
+            </Link>
           </Tarjeta>
 
           <Cuenta

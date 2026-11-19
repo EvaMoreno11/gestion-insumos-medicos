@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { construirUrl, interpretarError, leerCookie } from '../api/http'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { api, construirUrl, interpretarError, leerCookie } from '../api/http'
 import {
   cuandoVence,
   dinero,
@@ -122,6 +122,33 @@ describe('cliente HTTP', () => {
   it('si el servidor no responde con JSON, da un mensaje entendible', () => {
     expect(interpretarError(502, null).message).toBe('El servidor no responde. Intenta de nuevo en un momento.')
     expect(interpretarError(404, null).message).toBe('Error 404')
+  })
+
+  describe('al subir un Excel', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('envía el archivo tal cual, con el token CSRF y sin decir que es JSON', async () => {
+      vi.stubGlobal('document', { cookie: 'XSRF-TOKEN=token-1' })
+      const fetchFalso = vi.fn().mockResolvedValue(new Response('{"importado":false}', { status: 200 }))
+      vi.stubGlobal('fetch', fetchFalso)
+      const formulario = new FormData()
+      formulario.append('archivo', new Blob(['contenido']), 'inventario.xlsx')
+
+      const resultado = await api<{ importado: boolean }>('/api/importacion/inventario', {
+        metodo: 'POST',
+        formulario,
+        params: { soloValidar: true },
+      })
+
+      const [url, opciones] = fetchFalso.mock.calls[0] as [string, RequestInit]
+      expect(url).toBe('/api/importacion/inventario?soloValidar=true')
+      // Sin Content-Type: el navegador lo pone con el separador (boundary) del multipart
+      expect(opciones.headers).toEqual({ 'X-XSRF-TOKEN': 'token-1' })
+      expect(opciones.body).toBe(formulario)
+      expect(resultado).toEqual({ importado: false })
+    })
   })
 })
 
