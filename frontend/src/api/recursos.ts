@@ -23,6 +23,8 @@ import type {
   ProductoDatos,
   ProductoDetalle,
   ProductoResumen,
+  ResultadoImportacion,
+  ResultadoImportacionClientes,
   ResultadoMovimiento,
   Resumen,
   TipoPeriodo,
@@ -122,8 +124,8 @@ export const pedidos = {
   porComprar: () => api<PorComprar>('/api/pedidos/por-comprar'),
   nota: (id: number, formato: 'pdf' | 'xlsx') => descargar(`/api/pedidos/${id}/nota.${formato}`),
   numeracion: () => api<Numeracion>('/api/pedidos/numeracion'),
-  fijarNumeracion: (siguiente: number) =>
-    api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente } }),
+  fijarNumeracion: (siguiente: number, serie?: string) =>
+    api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente, serie } }),
 }
 
 /** Archivos para descargar: inventario completo (interno) y catálogo para clientes. */
@@ -132,6 +134,24 @@ export const exportar = {
   /** Con clienteId: lista de precios de ese cliente; sin él, catálogo sin precios */
   catalogo: (formato: 'pdf' | 'xlsx', clienteId?: number) =>
     descargar(`/api/exportar/catalogo.${formato}${clienteId === undefined ? '' : `?clienteId=${clienteId}`}`),
+}
+
+/** Carga inicial desde las plantillas de Excel. Con soloValidar no se guarda nada. */
+const subirExcel = (ruta: string, archivo: File, soloValidar: boolean) => {
+  const formulario = new FormData()
+  formulario.append('archivo', archivo)
+  return { ruta, opciones: { metodo: 'POST' as const, formulario, params: { soloValidar } } }
+}
+
+export const importacion = {
+  inventario: (archivo: File, soloValidar: boolean) => {
+    const { ruta, opciones } = subirExcel('/api/importacion/inventario', archivo, soloValidar)
+    return api<ResultadoImportacion>(ruta, opciones)
+  },
+  clientes: (archivo: File, soloValidar: boolean) => {
+    const { ruta, opciones } = subirExcel('/api/importacion/clientes', archivo, soloValidar)
+    return api<ResultadoImportacionClientes>(ruta, opciones)
+  },
 }
 
 export const cobranzas = {

@@ -469,3 +469,35 @@ export interface Numeracion {
   siguiente: number
   proximoNumero: string
 }
+
+// ---------------------------------------------------------------- importación desde Excel
+
+/** Un error o aviso de la importación. fila = número de fila en Excel (0 si es del archivo completo). */
+export interface Observacion {
+  fila: number
+  mensaje: string
+}
+
+export interface ResultadoImportacion {
+  importado: boolean
+  soloValidar: boolean
+  filasLeidas: number
+  productosCreados: number
+  productosExistentes: number
+  categoriasCreadas: number
+  entradasRegistradas: number
+  unidadesIngresadas: number
+  errores: Observacion[]
+  advertencias: Observacion[]
+}
+
+export interface ResultadoImportacionClientes {
+  importado: boolean
+  soloValidar: boolean
+  filasLeidas: number
+  clientesCreados: number
+  localesCreados: number
+  clientesExistentes: number
+  errores: Observacion[]
+  advertencias: Observacion[]
+}

@@ -5,6 +5,7 @@ import Cobranzas from './paginas/Cobranzas'
 import Configuracion from './paginas/Configuracion'
 import Descargas from './paginas/Descargas'
 import Entrada from './paginas/Entrada'
+import Importar from './paginas/Importar'
 import Inicio from './paginas/Inicio'
 import Inventario from './paginas/Inventario'
 import MasDetalles from './paginas/MasDetalles'
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/productos/:id" element={<ProductoFormulario />} />
 
         <Route path="/configuracion" element={<Configuracion />} />
+        <Route path="/configuracion/importar" element={<Importar />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </SesionProvider>
