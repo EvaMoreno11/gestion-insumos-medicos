@@ -13,6 +13,8 @@ export interface Pagina<T> {
 export interface Categoria {
   id: number
   nombre: string
+  /** Cuántos productos tiene; solo se puede eliminar con 0 */
+  productos: number
 }
 
 export type EstadoStock = 'AGOTADO' | 'BAJO' | 'NORMAL'

@@ -7,7 +7,7 @@ import { Aviso, Boton, Buscador, Cargando, ESTILO_CAMPO, Vacio } from '../compon
 import { EtiquetaStock, ResumenStock } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
-import { unir } from '../util/formato'
+import { ordenarPorNombre, unir } from '../util/formato'
 
 /** Productos adicionales cargados con "Ver más" para una búsqueda concreta. */
 interface Extra {
@@ -110,7 +110,7 @@ export default function Inventario() {
           onChange={(e) => elegirCategoria(e.target.value)}
         >
           <option value="">Todas las categorías</option>
-          {listaCategorias.datos?.map((c) => (
+          {ordenarPorNombre(listaCategorias.datos ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.nombre}
             </option>

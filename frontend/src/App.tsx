@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import Alertas from './paginas/Alertas'
+import Categorias from './paginas/Categorias'
 import { ClienteFormulario, Clientes } from './paginas/Clientes'
 import Cobranzas from './paginas/Cobranzas'
 import Configuracion from './paginas/Configuracion'
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/clientes/:id" element={<ClienteFormulario />} />
 
         <Route path="/productos" element={<Productos />} />
+        <Route path="/productos/categorias" element={<Categorias />} />
         <Route path="/productos/nuevo" element={<ProductoFormulario />} />
         <Route path="/productos/:id" element={<ProductoFormulario />} />
 

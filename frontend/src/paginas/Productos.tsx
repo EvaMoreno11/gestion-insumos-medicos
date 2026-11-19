@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { categorias, pedidos, productos } from '../api/recursos'
+import type { Categoria } from '../api/tipos'
 import { Aviso, Boton, BotonEnlace, Buscador, Campo, Cargando, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
+import { DialogoCategoria } from '../componentes/categorias'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
-import { dinero, leerDecimal, leerEntero, unir } from '../util/formato'
+import { dinero, leerDecimal, leerEntero, ordenarPorNombre, unir } from '../util/formato'
 
 // ------------------------------------------------------------------ lista
 
@@ -19,6 +21,14 @@ export function Productos() {
       titulo="Productos"
       volver="/"
       ancho="amplio"
+      accion={
+        <Link
+          to="/productos/categorias"
+          className="flex min-h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold active:bg-white/15"
+        >
+          <span aria-hidden="true">🗂️</span> Categorías
+        </Link>
+      }
       pie={
         <BotonEnlace a="/productos/nuevo" ancho>
           + Nuevo producto
@@ -91,6 +101,10 @@ export function ProductoFormulario() {
   const [codigosBarras, setCodigosBarras] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  // Categorías creadas aquí mismo con "+ Nueva" (se suman a la lista sin volver a cargarla)
+  const [creadas, setCreadas] = useState<Categoria[]>([])
+  const [creandoCategoria, setCreandoCategoria] = useState(false)
+  const opcionesCategoria = ordenarPorNombre([...(listaCategorias.datos ?? []), ...creadas])
 
   useEffect(() => {
     if (id === null) {
@@ -179,17 +193,34 @@ export function ProductoFormulario() {
           )}
 
           <Tarjeta className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">Categoría</span>
-              <select className={ESTILO_CAMPO} value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)} required>
+            <div>
+              <div className="mb-1 flex items-end justify-between gap-2">
+                <label htmlFor="categoria-producto" className="text-sm font-medium text-slate-700">
+                  Categoría
+                </label>
+                <button
+                  type="button"
+                  className="-my-2 min-h-11 rounded-lg px-2 text-sm font-semibold text-marca active:bg-marca-claro"
+                  onClick={() => setCreandoCategoria(true)}
+                >
+                  + Nueva
+                </button>
+              </div>
+              <select
+                id="categoria-producto"
+                className={ESTILO_CAMPO}
+                value={categoriaId}
+                onChange={(e) => setCategoriaId(e.target.value)}
+                required
+              >
                 <option value="">Elige una categoría</option>
-                {listaCategorias.datos?.map((c) => (
+                {opcionesCategoria.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre}
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
             <Campo
               etiqueta="Nombre del producto"
               value={nombre}
@@ -250,6 +281,22 @@ export function ProductoFormulario() {
             {ocupado ? 'Guardando…' : 'Guardar producto'}
           </Boton>
         </form>
+      )}
+
+      {creandoCategoria && (
+        <DialogoCategoria
+          existentes={opcionesCategoria}
+          onCerrar={() => setCreandoCategoria(false)}
+          onUsarExistente={(c) => {
+            setCategoriaId(String(c.id))
+            setCreandoCategoria(false)
+          }}
+          onListo={(c) => {
+            setCreadas((anteriores) => [...anteriores, c])
+            setCategoriaId(String(c.id))
+            setCreandoCategoria(false)
+          }}
+        />
       )}
     </Pantalla>
   )

@@ -41,6 +41,11 @@ export const productos = {
 
 export const categorias = {
   listar: () => api<Categoria[]>('/api/categorias'),
+  crear: (nombre: string) => api<Categoria>('/api/categorias', { metodo: 'POST', cuerpo: { nombre } }),
+  renombrar: (id: number, nombre: string) =>
+    api<Categoria>(`/api/categorias/${id}`, { metodo: 'PUT', cuerpo: { nombre } }),
+  /** Solo si no tiene productos */
+  eliminar: (id: number) => api<void>(`/api/categorias/${id}`, { metodo: 'DELETE' }),
 }
 
 export const categoriasPrecio = {
