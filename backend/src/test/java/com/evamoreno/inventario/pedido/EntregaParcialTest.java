@@ -249,7 +249,7 @@ class EntregaParcialTest extends IntegracionTest {
             assertThat(hoja.getRow(1).getCell(1).getStringCellValue()).isEqualTo("Jeringa 5 ml");
             assertThat(hoja.getRow(1).getCell(4).getStringCellValue()).isEqualTo("J1");
             assertThat(hoja.getRow(2).getCell(5).getStringCellValue()).isEqualTo("TOTAL S/");
-            assertThat(hoja.getRow(2).getCell(8).getNumericCellValue()).isEqualTo(33.0);
+            assertThat(hoja.getRow(2).getCell(7).getNumericCellValue()).isEqualTo(33.0); // en Precio + Total
             StringBuilder todo = new StringBuilder();
             hoja.forEach(fila -> fila.forEach(celda -> todo.append(celda).append(' ')));
             assertThat(todo.toString()).doesNotContain("Distribuidora", "Botica", "NOTA", "Fecha");

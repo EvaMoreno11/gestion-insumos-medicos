@@ -299,7 +299,9 @@ class PedidoControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.productos[0].pedido").value(14))
                 .andExpect(jsonPath("$.productos[0].faltante").value(4))
                 .andExpect(jsonPath("$.productos[0].pedidos[*].cliente", contains("Clínica Y")))
-                .andExpect(jsonPath("$.productos[0].pedidos[0].faltante").value(4));
+                .andExpect(jsonPath("$.productos[0].pedidos[0].faltante").value(4))
+                .andExpect(jsonPath("$.costoTotal").value(40.0))   // faltan 4 × costo 10
+                .andExpect(jsonPath("$.productosSinCosto").value(0));
 
         mockMvc.perform(get(URL).param("estado", "BORRADOR"))
                 .andExpect(jsonPath("$.totalElementos").value(2))
@@ -318,6 +320,25 @@ class PedidoControllerTest extends IntegracionTest {
     }
 
     @Test
+    void porComprarSumaCuantoCostariaLoQueFaltaYCuentaLosProductosSinCosto() throws Exception {
+        Long jeringas = producto("Jeringa 10 ml", "2.35");
+        Long tensiometro = producto("Tensiómetro", "null");
+        Long pedido = pedido(cliente("Botica Costos", "10"));
+        agregar(pedido, jeringas, 3).andExpect(jsonPath("$.items", hasSize(1)));
+        agregar(pedido, tensiometro, 1).andExpect(jsonPath("$.items", hasSize(2)));
+        postJson(URL + "/" + pedido + "/items", """
+                {"descripcion": "Termómetro digital", "marca": "Marca Z", "cantidad": 5}""")
+                .andExpect(jsonPath("$.items", hasSize(3)));
+
+        // Sin stock: faltan 3 jeringas × 2.35 = 7.05; el tensiómetro no tiene costo y el ítem a mano tampoco
+        mockMvc.perform(get(URL + "/por-comprar"))
+                .andExpect(jsonPath("$.productos", hasSize(2)))
+                .andExpect(jsonPath("$.costoTotal").value(7.05))
+                .andExpect(jsonPath("$.productosSinCosto").value(1))
+                .andExpect(jsonPath("$.noRegistrados", hasSize(1)));
+    }
+
+    @Test
     void losItemsAManoAparecenEnPorComprarComoNoRegistrados() throws Exception {
         Long pedido = pedido(cliente("Botica Demo", "10"));
         postJson(URL + "/" + pedido + "/items", """
@@ -332,6 +353,45 @@ class PedidoControllerTest extends IntegracionTest {
     }
 
     // ------------------------------------------------------------------ despacho y nota
+
+    @Test
+    void unTotalGrandeSeVeCompletoEnLaNotaSinPartirseEnDosLineas() throws Exception {
+        Long pedido = pedido(cliente("Clínica Grande", "15"));
+        postJson(URL + "/" + pedido + "/items", """
+                {"descripcion": "Equipo de prueba", "presentacion": "Unidad", "cantidad": 50, "precio": 2450}""")
+                .andExpect(jsonPath("$.total").value(122500.0));
+
+        // PDF: el monto aparece entero dos veces (total de la línea y total de la nota); si se partiera en dos
+        // líneas, el texto saldría cortado ("122,500.0" y "0")
+        byte[] pdf = mockMvc.perform(get(URL + "/{id}/nota.pdf", pedido)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (PdfReader lector = new PdfReader(pdf)) {
+            String texto = new PdfTextExtractor(lector).getTextFromPage(1);
+            assertThat(texto.split(java.util.regex.Pattern.quote("122,500.00"), -1)).hasSize(3);
+            assertThat(texto).contains("TOTAL S/", "2,450.00");
+        }
+
+        // Excel: el total va en una celda unida (Precio + Total), con espacio para el número completo
+        byte[] xlsx = mockMvc.perform(get(URL + "/{id}/nota.xlsx", pedido)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            Sheet hoja = libro.getSheetAt(0);
+            Row total = null;
+            for (Row fila : hoja) {
+                if (fila.getCell(5) != null && "TOTAL S/".equals(fila.getCell(5).toString())) {
+                    total = fila;
+                }
+            }
+            assertThat(total).as("fila del total").isNotNull();
+            int filaTotal = total.getRowNum();
+            assertThat(total.getCell(7).getNumericCellValue()).isCloseTo(122500, within(0.001));
+            assertThat(hoja.getMergedRegions()).anySatisfy(region -> {
+                assertThat(region.getFirstRow()).isEqualTo(filaTotal);
+                assertThat(region.getFirstColumn()).isEqualTo(7);
+                assertThat(region.getLastColumn()).isEqualTo(8);
+            });
+        }
+    }
 
     @Test
     void despachaPorLotesAsignaElNumeroYGeneraLaNota() throws Exception {
@@ -410,7 +470,7 @@ class PedidoControllerTest extends IntegracionTest {
 
             Row total = hoja.getRow(12);
             assertThat(total.getCell(5).getStringCellValue()).isEqualTo("TOTAL S/");
-            assertThat(total.getCell(8).getNumericCellValue()).isCloseTo(88.9, within(0.001));
+            assertThat(total.getCell(7).getNumericCellValue()).isCloseTo(88.9, within(0.001)); // en Precio + Total
         }
 
         // ---- PDF
