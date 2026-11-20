@@ -16,7 +16,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Buscador "¿tengo esto?" que no distingue mayúsculas ni tildes: `jer 5ml` encuentra "Jeringa 5 ml…" ([cómo funciona](docs/modelo-datos.md#cómo-funciona-el-buscador)).
 - Búsqueda por código de barras.
 - Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
-- Entradas (compras) con su **costo** y un botón para reutilizar el lote de la última compra, salidas y ajustes con historial (kárdex). El producto toma el último costo de compra y cada lote guarda su costo promedio, así se sabe cuánto costó lo vendido. Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
+- Entradas (compras) con su **costo** y un botón para reutilizar el lote de la última compra, salidas y ajustes con historial (kárdex), y un registro de las **últimas entradas** de todo el inventario. El producto toma el último costo de compra y cada lote guarda su costo promedio, así se sabe cuánto costó lo vendido. Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
 - **Descargar inventario y catálogo** (desde Consultar inventario): el inventario completo en Excel, con todos los productos aunque no tengan stock, sus costos y una hoja de lotes (uso interno); y el catálogo para clientes en PDF o Excel, por categoría, sin precios o con la lista de precios de un cliente (costo + su porcentaje). El catálogo incluye solo los productos con stock mínimo.
 - **Corregir un pedido despachado** (devoluciones, entregas de más o de menos, precios): se cambian cantidades, precios e ítems con un motivo. Lo devuelto vuelve al lote del que salió (si salió de varios, la app pregunta a cuál), lo agregado sale del inventario, la nota mantiene su número y queda un historial de correcciones. Si el cliente ya había pagado más que el nuevo total, se muestra su saldo a favor.
@@ -33,10 +33,10 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes, y cuánto costaría comprarlo todo (lo que falta × el último costo de cada producto).
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
 - **Entregas parciales:** si faltan unidades, se puede entregar lo que hay. Lo que falta pasa a un pedido nuevo (saldo) con los mismos precios y la prioridad del original. La app muestra lo pedido, lo entregado y lo pendiente; el cliente solo recibe la nota de lo que se le entrega.
-- **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. El total tiene espacio para montos de hasta 6 cifras. No incluye costos ni porcentajes.
+- **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. El total tiene espacio para montos de hasta 6 cifras. No incluye costos ni porcentajes. En el celular, el PDF (y el del catálogo) se abre en una **vista previa** dentro de la app, como en WhatsApp, con el botón Compartir (WhatsApp, Imprimir, Archivos); en la PC se abre en otra pestaña del navegador.
 - **Pedidos "Solo tabla":** se entregan con un documento que solo tiene la tabla de productos y el total (sin nombres, fecha ni número). Descuentan el inventario igual que cualquier pedido y no gastan la numeración de las notas.
 - **Ítems escritos a mano → productos:** un ítem que no estaba en el inventario se registra como producto desde el pedido (con el formulario ya lleno) o se cambia por uno existente, y la línea conserva su cantidad y su precio.
-- **Aplicación para el celular** (se instala desde el navegador): consultar inventario, armar pedidos con el total en vivo, registrar entradas, ver lo que falta comprar y administrar clientes y productos.
+- **Aplicación para el celular** (se instala desde el navegador): consultar inventario, armar pedidos con el total en vivo, registrar entradas, ver lo que falta comprar y administrar clientes y productos. Cuando se publica una versión nueva, la app lo avisa y se actualiza con un toque (en el iPhone, la app instalada queda abierta con la versión anterior).
 - **Inicio de sesión** con Spring Security: contraseñas con BCrypt, opción "Recordarme" por 30 días, bloqueo tras 5 intentos fallidos, protección CSRF y cambio de contraseña ([reglas](docs/modelo-datos.md#fase-5-inicio-de-sesión)).
 - El nombre del negocio y la serie y el número de las notas se configuran desde la propia app; no están en el código.
 - **Lista para publicar en internet:** una sola imagen Docker entrega la aplicación web y la API, con Render y Neon en sus planes gratuitos ([guía paso a paso](docs/despliegue.md)) y un script de copias de seguridad.
@@ -53,7 +53,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 | Backend | Java 25, Spring Boot 4, Spring Data JPA, Spring Security, Bean Validation, Apache POI (Excel), OpenPDF |
 | Base de datos | PostgreSQL 17, migraciones con Flyway |
 | Documentación API | OpenAPI / Swagger UI (springdoc) |
-| Frontend | React 19, React Router, TypeScript, Vite, Tailwind CSS 4; instalable en el celular (manifiesto web) |
+| Frontend | React 19, React Router, TypeScript, Vite, Tailwind CSS 4, pdf.js (vista previa de PDF, se carga solo al usarla); instalable en el celular (manifiesto web) |
 | Tests | JUnit 5, MockMvc y Testcontainers (backend); Vitest (frontend) |
 | Publicación | Docker (con caché AOT de Java para arrancar más rápido), Render y Neon |
 
