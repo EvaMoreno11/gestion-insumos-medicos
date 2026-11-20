@@ -163,6 +163,186 @@ class CorreccionPedidoTest extends IntegracionTest {
                 .andExpect(jsonPath("$.correcciones[0].detalle[0]").value("Jeringa 5 ml: 5 → 4, vuelven 1 al lote L-A"));
     }
 
+    // ------------------------------------------------------------------ cambiar de qué lotes salió
+
+    /**
+     * 3 sueltas (vencen antes), una caja abierta y una caja sellada de costo 12 (el producto queda a ese costo:
+     * sale a S/ 13.20). El pedido de 100 sale de A y B. Devuelve pedido, ítem, lote A y lote B.
+     */
+    private Long[] pedidoDeCienDeDosLotes(Long producto) throws Exception {
+        entrada(producto, "L-A", HOY.plusMonths(6), 3, "10");
+        entrada(producto, "L-B", HOY.plusMonths(18), 100, "10");
+        entrada(producto, "L-C", HOY.plusMonths(30), 100, "12");
+        Long pedido = despachado(producto, 100);
+        ResultActions despacho = despachar(pedido)
+                .andExpect(jsonPath("$.items[0].lotes[*].numeroLote", contains("L-A", "L-B")))
+                .andExpect(jsonPath("$.items[0].lotes[*].cantidad", contains(3, 97)));
+        return new Long[] { pedido, numero(despacho, "$.items[0].id"), numero(despacho, "$.items[0].lotes[0].loteId"),
+                numero(despacho, "$.items[0].lotes[1].loteId") };
+    }
+
+    private Long idLote(Long producto, String numeroLote) throws Exception {
+        String json = mockMvc.perform(get("/api/productos/{id}", producto)).andReturn().getResponse()
+                .getContentAsString();
+        java.util.List<Number> ids = JsonPath.read(json, "$.lotes[?(@.numeroLote == '" + numeroLote + "')].id");
+        return ids.getFirst().longValue();
+    }
+
+    @Test
+    void cambiarATodoDeUnLoteSinMotivoDevuelveALosOtrosYLaNotaQuedaConUno() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long[] p = pedidoDeCienDeDosLotes(jeringa);
+        Long loteC = idLote(jeringa, "L-C");
+
+        corregir(p[0], """
+                {"cambios": [{"itemId": %d, "cantidad": 100, "reparto": [{"loteId": %d, "cantidad": 100}]}]}"""
+                .formatted(p[1], loteC))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].cantidad").value(100))
+                .andExpect(jsonPath("$.items[0].lotes[*].numeroLote", contains("L-C")))
+                .andExpect(jsonPath("$.items[0].lotes[0].cantidad").value(100))
+                .andExpect(jsonPath("$.total").value(1320.0)) // el precio no cambia
+                .andExpect(jsonPath("$.correcciones[0].motivo").value("Cambio de lote"))
+                .andExpect(jsonPath("$.correcciones[0].detalle[0]")
+                        .value("Jeringa 5 ml: lotes L-A (3) + L-B (97) → L-C (100)"));
+
+        // Las sueltas y la caja abierta vuelven; la caja sellada salió entera
+        mockMvc.perform(get("/api/productos/{id}", jeringa))
+                .andExpect(jsonPath("$.stockDisponible").value(103))
+                .andExpect(jsonPath("$.lotes[*].numeroLote", contains("L-A", "L-B")))
+                .andExpect(jsonPath("$.lotes[*].cantidad", contains(3, 100)));
+        // La ganancia usa el costo del lote que salió de verdad: 1320 − 100 × 12 (antes era 1320 − 100 × 10)
+        mockMvc.perform(get("/api/resumen"))
+                .andExpect(jsonPath("$.ganancia.costoVendido").value(1200.0))
+                .andExpect(jsonPath("$.ganancia.ganancia").value(120.0));
+        byte[] xlsx = mockMvc.perform(get(URL + "/{id}/nota.xlsx", p[0])).andReturn().getResponse()
+                .getContentAsByteArray();
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            Sheet hoja = libro.getSheetAt(0);
+            assertThat(hoja.getRow(9).getCell(4).getStringCellValue()).isEqualTo("L-C");
+            assertThat(hoja.getRow(10).getCell(5).getStringCellValue()).isEqualTo("TOTAL S/"); // una sola fila
+        }
+    }
+
+    @Test
+    void siNingunLoteAlcanzaSoloSeRepartenEntreVarios() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long[] p = pedidoDeCienDeDosLotes(jeringa);
+        entrada(jeringa, "L-D", HOY.plusMonths(30), 60, "10");
+        Long loteC = idLote(jeringa, "L-C");
+        Long loteD = idLote(jeringa, "L-D");
+
+        corregir(p[0], """
+                {"motivo": "Salieron las cajas nuevas", "cambios": [{"itemId": %d, "cantidad": 100,
+                 "reparto": [{"loteId": %d, "cantidad": 60}, {"loteId": %d, "cantidad": 40}]}]}"""
+                .formatted(p[1], loteD, loteC))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].lotes[*].numeroLote", contains("L-D", "L-C")))
+                .andExpect(jsonPath("$.items[0].lotes[*].cantidad", contains(60, 40)))
+                .andExpect(jsonPath("$.correcciones[0].motivo").value("Salieron las cajas nuevas"))
+                .andExpect(jsonPath("$.correcciones[0].detalle[0]")
+                        .value("Jeringa 5 ml: lotes L-A (3) + L-B (97) → L-D (60) + L-C (40)"));
+    }
+
+    @Test
+    void sePuedeCambiarLaCantidadYElRepartoALaVez() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long[] p = pedidoDeCienDeDosLotes(jeringa);
+        Long loteB = idLote(jeringa, "L-B");
+
+        corregir(p[0], """
+                {"cambios": [{"itemId": %d, "cantidad": 90, "reparto": [{"loteId": %d, "cantidad": 90}]}]}"""
+                .formatted(p[1], loteB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].cantidad").value(90))
+                .andExpect(jsonPath("$.items[0].lotes[*].cantidad", contains(90)))
+                .andExpect(jsonPath("$.total").value(1188.0))
+                .andExpect(jsonPath("$.correcciones[0].motivo").value("Corrección")) // cambió más que el lote
+                .andExpect(jsonPath("$.correcciones[0].detalle[0]")
+                        .value("Jeringa 5 ml: 100 → 90, lotes L-A (3) + L-B (97) → L-B (90)"));
+        mockMvc.perform(get("/api/productos/{id}", jeringa))
+                .andExpect(jsonPath("$.lotes[*].cantidad", contains(3, 10, 100)));
+    }
+
+    @Test
+    void elRepartoDebeSumarLaCantidadYNoRepetirLotes() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long[] p = pedidoDeCienDeDosLotes(jeringa);
+        Long loteC = idLote(jeringa, "L-C");
+        String json = """
+                {"cambios": [{"itemId": %d, "cantidad": 100, "reparto": %s}]}""";
+
+        corregir(p[0], json.formatted(p[1], "[{\"loteId\": %d, \"cantidad\": 90}]".formatted(loteC)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("\"Jeringa 5 ml\": se entregan 100, pero en los lotes suman 90"));
+        corregir(p[0], json.formatted(p[1],
+                "[{\"loteId\": %d, \"cantidad\": 50}, {\"loteId\": %d, \"cantidad\": 50}]".formatted(loteC, loteC)))
+                .andExpect(status().isBadRequest());
+        // El mismo reparto que ya tenía no es un cambio
+        corregir(p[0], json.formatted(p[1],
+                "[{\"loteId\": %d, \"cantidad\": 3}, {\"loteId\": %d, \"cantidad\": 97}]".formatted(p[2], p[3])))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("No hay cambios que guardar"));
+    }
+
+    @Test
+    void noSacaDeUnLoteQueNoAlcanza() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long[] p = pedidoDeCienDeDosLotes(jeringa);
+        entrada(jeringa, "L-D", HOY.plusMonths(30), 60, "10");
+
+        corregir(p[0], """
+                {"cambios": [{"itemId": %d, "cantidad": 100, "reparto": [{"loteId": %d, "cantidad": 100}]}]}"""
+                .formatted(p[1], idLote(jeringa, "L-D")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Del lote L-D de \"Jeringa 5 ml\" solo hay 60: no pueden salir 100 más"));
+    }
+
+    @Test
+    void noSacaDeUnLoteVencidoNiDeOtroProducto() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long[] p = pedidoDeCienDeDosLotes(jeringa);
+        entrada(jeringa, "VENCIDO", HOY.minusMonths(2), 200, "10");
+        Long guantes = producto("Guantes M", "20");
+        entrada(guantes, "G1", HOY.plusMonths(12), 200, "20");
+        String json = """
+                {"cambios": [{"itemId": %d, "cantidad": 100, "reparto": [{"loteId": %d, "cantidad": 100}]}]}""";
+
+        corregir(p[0], json.formatted(p[1], idLote(jeringa, "VENCIDO")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(containsString("venció")));
+        corregir(p[0], json.formatted(p[1], idLote(guantes, "G1")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void unItemEscritoAManoNoTieneLotes() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        entrada(jeringa, "J1", HOY.plusMonths(12), 20, "10");
+        Long pedido = despachado(jeringa, 1);
+        postJson(URL + "/" + pedido + "/items", """
+                {"descripcion": "Termómetro digital", "cantidad": 1, "precio": 30}""").andExpect(status().isOk());
+        Long termometro = numero(despachar(pedido), "$.items[1].id");
+
+        corregir(pedido, """
+                {"cambios": [{"itemId": %d, "cantidad": 1, "reparto": []}]}""".formatted(termometro))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("\"Termómetro digital\" se escribió a mano: no tiene lotes"));
+    }
+
+    @Test
+    void sinMotivoUnaCorreccionDeCantidadSeAnotaComoCorreccion() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        entrada(jeringa, "J1", HOY.plusMonths(12), 20, "10");
+        Long pedido = despachado(jeringa, 5);
+        Long item = numero(despachar(pedido), "$.items[0].id");
+
+        corregir(pedido, """
+                {"motivo": "  ", "cambios": [{"itemId": %d, "cantidad": 4}]}""".formatted(item))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.correcciones[0].motivo").value("Corrección"));
+    }
+
     // ------------------------------------------------------------------ otros cambios
 
     @Test
@@ -178,13 +358,10 @@ class CorreccionPedidoTest extends IntegracionTest {
         Long itemJeringa = numero(despacho, "$.items[0].id");
         Long itemTermometro = numero(despacho, "$.items[1].id");
 
-        // Un borrador no se "corrige"; una corrección sin motivo o sin cambios no se guarda
+        // Un borrador no se "corrige"; una corrección sin cambios no se guarda
         Long borrador = despachado(jeringa, 1);
         corregir(borrador, """
                 {"motivo": "x", "cambios": []}""").andExpect(status().isConflict());
-        corregir(pedido, """
-                {"motivo": " ", "cambios": [{"itemId": %d, "cantidad": 6}]}""".formatted(itemJeringa))
-                .andExpect(status().isBadRequest());
         corregir(pedido, """
                 {"motivo": "Nada", "cambios": [{"itemId": %d, "cantidad": 5}]}""".formatted(itemJeringa))
                 .andExpect(status().isConflict())

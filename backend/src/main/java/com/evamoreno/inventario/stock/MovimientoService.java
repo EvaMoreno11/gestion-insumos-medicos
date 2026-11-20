@@ -125,6 +125,22 @@ public class MovimientoService {
     }
 
     /**
+     * Salida de un ítem de pedido desde un lote elegido (al corregir de qué lotes salió). El lote debe ser del
+     * producto, no estar vencido y tener las unidades.
+     */
+    public Movimiento registrarSalidaDeLoteDePedido(Long loteId, Long productoId, int cantidad, Long pedidoItemId,
+            String nota) {
+        Producto producto = productoActivo(productoId);
+        Lote lote = loteDespachable(loteId, producto, stock.hoy());
+        if (lote.getCantidadActual() < cantidad) {
+            throw new ConflictoException("Del lote %s de \"%s\" solo hay %d: no pueden salir %d más"
+                    .formatted(nombre(lote), producto.getNombre(), lote.getCantidadActual(), cantidad));
+        }
+        lote.restar(cantidad);
+        return movimientos.save(new Movimiento(lote, TipoMovimiento.SALIDA, cantidad, nota, pedidoItemId));
+    }
+
+    /**
      * Unidades de un pedido despachado que el cliente devolvió: vuelven a ese lote con el costo con que
      * habían salido, y quedan vinculadas al ítem del pedido.
      */

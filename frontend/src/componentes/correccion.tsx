@@ -1,8 +1,17 @@
 import { useState } from 'react'
 import { mensajeDe } from '../api/http'
-import { pedidos } from '../api/recursos'
+import { pedidos, productos } from '../api/recursos'
 import type { CorreccionPedido, Pedido, PedidoItem, ProductoResumen } from '../api/tipos'
 import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, unir } from '../util/formato'
+import {
+  hoyLocal,
+  opcionesDeLote,
+  repartoEntregado,
+  revisarReparto,
+  todoDeUnLote,
+  type OpcionLote,
+  type Reparto,
+} from '../util/lotes'
 import { Aviso, Boton, Campo, Etiqueta, Tarjeta } from './basicos'
 import { BuscadorProductos } from './dominio'
 
@@ -11,6 +20,10 @@ interface Linea {
   precio: string
   /** loteId → unidades que vuelven a ese lote (solo si el ítem salió de varios lotes) */
   lotes: Record<number, string>
+  /** De qué lotes salen todas sus unidades; null = no se cambian (lo que se agrega sale por vencimiento) */
+  reparto: Reparto | null
+  /** Lotes entre los que se puede repartir; null mientras se cargan */
+  opciones: OpcionLote[] | null
 }
 
 interface Nuevo {
@@ -43,7 +56,23 @@ function analizar(pedido: Pedido, lineas: Record<number, Linea>, nuevos: Nuevo[]
     total += cantidad * (precio ?? item.precioUnitario ?? 0)
     const devueltas = item.cantidad - cantidad
     let lotes: { loteId: number; cantidad: number }[] | undefined
-    if (devueltas > 0 && item.productoId !== null && item.lotes.length > 1) {
+    let reparto: { loteId: number; cantidad: number }[] | undefined
+    if (linea.reparto !== null) {
+      if (linea.opciones === null) {
+        problemas.push(`Cargando los lotes de "${item.descripcion}"…`)
+        return []
+      }
+      const revision = revisarReparto(linea.opciones, linea.reparto)
+      if (revision.suma !== cantidad) {
+        problemas.push(`"${item.descripcion}": los lotes suman ${revision.suma} y deben sumar ${cantidad}`)
+      }
+      for (const o of revision.excedidos) {
+        problemas.push(`"${item.descripcion}": del lote ${o.numeroLote ?? 'sin número'} pueden salir hasta ${o.maximo}`)
+      }
+      if (!revision.igualAlEntregado || cantidad !== item.cantidad) {
+        reparto = revision.lotes
+      }
+    } else if (devueltas > 0 && item.productoId !== null && item.lotes.length > 1) {
       lotes = item.lotes
         .map((l) => ({ loteId: l.loteId, cantidad: leerEntero(linea.lotes[l.loteId] ?? '') ?? 0 }))
         .filter((l) => l.cantidad > 0)
@@ -53,10 +82,10 @@ function analizar(pedido: Pedido, lineas: Record<number, Linea>, nuevos: Nuevo[]
       }
     }
     const cambioPrecio = precio !== null && precio !== item.precioUnitario
-    if (cantidad === item.cantidad && !cambioPrecio) {
+    if (cantidad === item.cantidad && !cambioPrecio && reparto === undefined) {
       return []
     }
-    return [{ itemId: item.id, cantidad, precio: cambioPrecio ? precio : undefined, lotes }]
+    return [{ itemId: item.id, cantidad, precio: cambioPrecio ? precio : undefined, lotes, reparto }]
   })
   const itemsNuevos = nuevos.flatMap((n) => {
     const cantidad = leerEntero(n.cantidad)
@@ -80,8 +109,9 @@ function analizar(pedido: Pedido, lineas: Record<number, Linea>, nuevos: Nuevo[]
 }
 
 /**
- * Corregir un pedido ya despachado: cambiar cantidades (0 = quitar), precios y agregar ítems, con un motivo.
- * Lo que se devuelve vuelve al lote del que salió; si salió de varios lotes, se elige a cuál.
+ * Corregir un pedido ya despachado: cambiar cantidades (0 = quitar), precios, de qué lotes salió cada producto y
+ * agregar ítems, con un motivo opcional. Lo que se devuelve vuelve al lote del que salió; si salió de varios
+ * lotes, se elige a cuál.
  */
 export function CorregirPedido({
   pedido,
@@ -94,7 +124,10 @@ export function CorregirPedido({
 }) {
   const [lineas, setLineas] = useState<Record<number, Linea>>(() =>
     Object.fromEntries(
-      pedido.items.map((i) => [i.id, { cantidad: String(i.cantidad), precio: precioTexto(i.precioUnitario), lotes: {} }]),
+      pedido.items.map((i) => [
+        i.id,
+        { cantidad: String(i.cantidad), precio: precioTexto(i.precioUnitario), lotes: {}, reparto: null, opciones: null },
+      ]),
     ),
   )
   const [nuevos, setNuevos] = useState<Nuevo[]>([])
@@ -108,19 +141,26 @@ export function CorregirPedido({
 
   const { problemas, total, cambios, itemsNuevos } = analizar(pedido, lineas, nuevos)
   const sinCambios = cambios.length === 0 && itemsNuevos.length === 0
-  const listo = problemas.length === 0 && !sinCambios && motivo.trim() !== ''
+  const listo = problemas.length === 0 && !sinCambios
 
   async function guardar() {
     if (!listo) {
       return
     }
-    if (!window.confirm(`¿Guardar la corrección? El total pasa de ${dinero(pedido.total)} a ${dinero(total)}.`)) {
+    const nuevoTotal = Math.round(total * 100) / 100
+    const textoTotal =
+      nuevoTotal === pedido.total
+        ? `El total no cambia (${dinero(pedido.total)}).`
+        : `El total pasa de ${dinero(pedido.total)} a ${dinero(nuevoTotal)}.`
+    if (!window.confirm(`¿Guardar la corrección? ${textoTotal}`)) {
       return
     }
     setOcupado(true)
     setError(null)
     try {
-      onGuardado(await pedidos.corregir(pedido.id, { motivo, cambios, nuevos: itemsNuevos }))
+      onGuardado(
+        await pedidos.corregir(pedido.id, { motivo: motivo.trim() || undefined, cambios, nuevos: itemsNuevos }),
+      )
     } catch (e) {
       setError(mensajeDe(e))
       setOcupado(false)
@@ -151,9 +191,9 @@ export function CorregirPedido({
   return (
     <div className="space-y-3">
       <Aviso>
-        Cambia lo que haga falta y guarda con un motivo. Lo que bajes o quites <strong>vuelve al inventario</strong>{' '}
-        (al lote del que salió); lo que subas o agregues <strong>sale del inventario</strong>. La nota mantiene su
-        número y sale con las cantidades corregidas.
+        Cambia lo que haga falta y guarda. Lo que bajes o quites <strong>vuelve al inventario</strong> (al lote del que
+        salió); lo que subas o agregues <strong>sale del inventario</strong>. Con <strong>Cambiar lotes</strong> eliges
+        de qué lotes sale cada producto. La nota mantiene su número y sale corregida.
       </Aviso>
       {error && <Aviso tipo="error">{error}</Aviso>}
 
@@ -229,7 +269,7 @@ export function CorregirPedido({
           </span>
         </div>
         <Campo
-          etiqueta="Motivo de la corrección"
+          etiqueta="Motivo (opcional)"
           placeholder="Devolvieron 2 cajas: se entregó de más"
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
@@ -268,8 +308,25 @@ function LineaCorreccion({
 }) {
   const cantidad = leerEntero(linea.cantidad)
   const devueltas = cantidad === null ? 0 : item.cantidad - cantidad
+  const [errorLotes, setErrorLotes] = useState<string | null>(null)
   const campo =
     'h-11 rounded-lg border border-slate-300 bg-white text-center font-semibold focus:border-marca focus:outline-none focus:ring-2 focus:ring-marca/20'
+  const repartiendo = linea.reparto !== null
+
+  async function cambiarLotes() {
+    if (item.productoId === null) {
+      return
+    }
+    setErrorLotes(null)
+    onCambio({ reparto: repartoEntregado(item.lotes), opciones: null })
+    try {
+      const producto = await productos.obtener(item.productoId)
+      onCambio({ opciones: opcionesDeLote(item.lotes, producto.lotes, hoyLocal()) })
+    } catch (e) {
+      setErrorLotes(mensajeDe(e))
+      onCambio({ reparto: null, opciones: null })
+    }
+  }
 
   return (
     <Tarjeta className={cantidad === 0 && item.cantidad > 0 ? 'opacity-80' : ''}>
@@ -326,12 +383,37 @@ function LineaCorreccion({
         />
       </div>
 
-      {item.productoId !== null && devueltas > 0 && item.lotes.length === 1 && (
+      {item.productoId !== null && item.lotes.length > 0 && !repartiendo && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3">
+          <p className="text-sm text-slate-600">
+            Salió de: {item.lotes.map((l) => `${l.numeroLote ?? 'sin número'} (${l.cantidad})`).join(' · ')}
+          </p>
+          <Boton variante="texto" className="-mr-2 min-h-10 px-2 text-sm" onClick={() => void cambiarLotes()}>
+            Cambiar lotes
+          </Boton>
+        </div>
+      )}
+      {errorLotes && (
+        <div className="mt-2">
+          <Aviso tipo="error">{errorLotes}</Aviso>
+        </div>
+      )}
+      {repartiendo && (
+        <RepartoDeLotes
+          item={item}
+          linea={linea}
+          cantidad={cantidad}
+          campo={campo}
+          onCambio={onCambio}
+        />
+      )}
+
+      {!repartiendo && item.productoId !== null && devueltas > 0 && item.lotes.length === 1 && (
         <p className="mt-2 text-sm text-emerald-800">
           Vuelven {devueltas} al lote {item.lotes[0].numeroLote ?? 'sin número'}.
         </p>
       )}
-      {item.productoId !== null && devueltas > 0 && item.lotes.length > 1 && (
+      {!repartiendo && item.productoId !== null && devueltas > 0 && item.lotes.length > 1 && (
         <div className="mt-3 rounded-xl bg-amber-50 p-3">
           <p className="text-sm font-medium text-amber-900">¿A qué lote vuelven las {devueltas} unidades?</p>
           <div className="mt-2 space-y-2">
@@ -353,10 +435,105 @@ function LineaCorreccion({
           </div>
         </div>
       )}
-      {item.productoId !== null && devueltas < 0 && (
+      {!repartiendo && item.productoId !== null && devueltas < 0 && (
         <p className="mt-2 text-sm text-slate-600">Salen {-devueltas} más del inventario (primero lo que vence antes).</p>
       )}
     </Tarjeta>
+  )
+}
+
+/**
+ * De qué lotes salen las unidades de un ítem: empieza con cómo se entregó, se escribe cuánto sale de cada lote y
+ * "Todo de este" pone todo en un lote que alcanza solo. "Hay" ya cuenta lo que vuelve de este pedido.
+ */
+function RepartoDeLotes({
+  item,
+  linea,
+  cantidad,
+  campo,
+  onCambio,
+}: {
+  item: PedidoItem
+  linea: Linea
+  cantidad: number | null
+  campo: string
+  onCambio: (cambio: Partial<Linea>) => void
+}) {
+  const { opciones, reparto } = linea
+  const total = cantidad ?? 0
+  const suma = opciones && reparto ? revisarReparto(opciones, reparto).suma : 0
+
+  return (
+    <div className="mt-3 rounded-xl bg-slate-50 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-slate-800">¿De qué lotes salen las {total}?</p>
+        <Boton
+          variante="texto"
+          className="-mt-2 -mr-2 min-h-10 shrink-0 px-2 text-sm"
+          onClick={() => onCambio({ reparto: null, opciones: null })}
+        >
+          No cambiar
+        </Boton>
+      </div>
+      {opciones === null || reparto === null ? (
+        <p className="mt-1 text-sm text-slate-500">Cargando lotes…</p>
+      ) : (
+        <>
+          <ul className="divide-y divide-slate-200">
+            {opciones.map((o) => {
+              const nombre = o.numeroLote ?? 'sin número'
+              const valor = reparto[o.loteId] ?? ''
+              const excede = Number(valor || 0) > o.maximo
+              const alcanza = !o.vencido && total > 0 && o.maximo >= total
+              return (
+                <li key={o.loteId} className="flex items-center gap-2 py-2">
+                  <span className="min-w-0 flex-1 text-sm">
+                    <span className="block font-medium">Lote {nombre}</span>
+                    <span className={`block ${excede ? 'text-red-700' : 'text-slate-500'}`}>
+                      {unir(
+                        ' · ',
+                        o.fechaVencimiento ? `vence ${mesAnio(o.fechaVencimiento)}` : 'no vence',
+                        o.vencido ? 'vencido' : null,
+                        `hay ${o.maximo}`,
+                      )}
+                    </span>
+                  </span>
+                  {alcanza && (
+                    <Boton
+                      variante="texto"
+                      className="min-h-10 shrink-0 px-2 text-sm"
+                      onClick={() => onCambio({ reparto: todoDeUnLote(opciones, o.loteId, total) })}
+                    >
+                      Todo de este
+                    </Boton>
+                  )}
+                  <input
+                    inputMode="numeric"
+                    placeholder="0"
+                    aria-label={`Unidades de ${item.descripcion} del lote ${nombre}`}
+                    aria-invalid={excede || undefined}
+                    value={valor}
+                    onChange={(e) => onCambio({ reparto: { ...reparto, [o.loteId]: e.target.value.replace(/\D/g, '') } })}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className={`${campo} w-16 shrink-0 ${excede ? 'border-red-400' : ''}`}
+                  />
+                </li>
+              )
+            })}
+          </ul>
+          <p
+            className={`mt-1 text-sm font-medium ${suma === total ? 'text-emerald-800' : 'text-amber-900'}`}
+            role="status"
+          >
+            {suma === total
+              ? `Asignadas ${suma} de ${total} ✓`
+              : suma < total
+                ? `Faltan ${total - suma} por asignar`
+                : `Sobran ${suma - total}`}
+          </p>
+        </>
+      )}
+    </div>
   )
 }
 

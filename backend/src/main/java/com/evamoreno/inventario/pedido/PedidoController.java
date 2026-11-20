@@ -118,9 +118,10 @@ public class PedidoController {
 
     @PostMapping("/{id}/correcciones")
     @Operation(summary = "Corregir un pedido despachado",
-            description = "Cambiar cantidades (0 = quitar), precios, o agregar ítems, con un motivo. Lo devuelto "
-                    + "vuelve al lote del que salió (si salió de varios, se indica a cuál); lo agregado sale por "
-                    + "FEFO. Todo se aplica junto o nada, y queda en el historial del pedido.")
+            description = "Cambiar cantidades (0 = quitar), precios, o agregar ítems, con un motivo opcional. Lo "
+                    + "devuelto vuelve al lote del que salió (si salió de varios, se indica a cuál); lo agregado "
+                    + "sale por FEFO. Con 'reparto' se elige de qué lotes salen las unidades de un ítem. Todo se "
+                    + "aplica junto o nada, y queda en el historial del pedido.")
     public Detalle corregir(@PathVariable Long id, @Valid @RequestBody CorreccionRequest request) {
         return service.corregir(id, request);
     }

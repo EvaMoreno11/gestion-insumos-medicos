@@ -133,12 +133,23 @@ export const pedidos = {
     api<Pedido>(`/api/pedidos/${id}/plazo`, { metodo: 'PUT', cuerpo: { plazoDias } }),
   registrarPago: (id: number, pago: { monto: number; medio: MedioPago; fecha?: string; nota?: string }) =>
     api<Pedido>(`/api/pedidos/${id}/pagos`, { metodo: 'POST', cuerpo: pago }),
-  /** Corregir un pedido despachado: nuevas cantidades (0 = quitar), precios e ítems nuevos, con un motivo */
+  /**
+   * Corregir un pedido despachado: nuevas cantidades (0 = quitar), precios, ítems nuevos y de qué lotes sale cada
+   * ítem (reparto). El motivo es opcional.
+   */
   corregir: (
     id: number,
     datos: {
-      motivo: string
-      cambios: { itemId: number; cantidad: number; precio?: number; lotes?: { loteId: number; cantidad: number }[] }[]
+      motivo?: string
+      cambios: {
+        itemId: number
+        cantidad: number
+        precio?: number
+        /** A qué lotes vuelven las unidades devueltas (si salió de varios) */
+        lotes?: { loteId: number; cantidad: number }[]
+        /** De qué lotes salen todas las unidades del ítem; deben sumar la cantidad */
+        reparto?: { loteId: number; cantidad: number }[]
+      }[]
       nuevos: ItemNuevo[]
     },
   ) => api<Pedido>(`/api/pedidos/${id}/correcciones`, { metodo: 'POST', cuerpo: datos }),

@@ -46,6 +46,7 @@ import com.evamoreno.inventario.pedido.PedidoDto.ItemActualizarRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemNoRegistrado;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.ItemResponse;
+import com.evamoreno.inventario.pedido.PedidoDto.LoteAsignado;
 import com.evamoreno.inventario.pedido.PedidoDto.LoteDevuelto;
 import com.evamoreno.inventario.pedido.PedidoDto.LoteEntregado;
 import com.evamoreno.inventario.pedido.PedidoDto.Numeracion;
@@ -368,9 +369,10 @@ public class PedidoService {
     // ================================================================== corrección
 
     /**
-     * Corrige un pedido despachado: cantidades (0 = quitar), precios y nuevos ítems, con un motivo.
-     * Lo que se devuelve vuelve al lote del que salió; lo que se agrega sale por FEFO. Todo en una
-     * transacción: si algo falla (por ejemplo, no hay stock para agregar), no cambia nada.
+     * Corrige un pedido despachado: cantidades (0 = quitar), precios, nuevos ítems y de qué lotes salió cada
+     * ítem, con un motivo opcional. Lo que se devuelve vuelve al lote del que salió; lo que se agrega sale por
+     * FEFO, salvo que se indique el reparto por lotes. Todo en una transacción: si algo falla (por ejemplo, no
+     * hay stock para agregar), no cambia nada.
      */
     public Detalle corregir(Long id, CorreccionRequest r) {
         Pedido pedido = buscar(id);
@@ -387,11 +389,23 @@ public class PedidoService {
             throw new SolicitudInvalidaException("Un ítem aparece dos veces en la corrección");
         }
         List<PedidoItem> quitadosAMano = new ArrayList<>();
+        boolean soloLotes = true; // para el motivo por omisión
         for (CambioItem c : cambios) {
             PedidoItem item = buscarItem(pedido, c.itemId());
             int antes = item.getCantidad();
             int despues = c.cantidad();
-            if (despues < antes) {
+            soloLotes &= antes == despues;
+            if (c.reparto() != null) {
+                if (item.esManual()) {
+                    throw new SolicitudInvalidaException("\"" + item.getDescripcion()
+                            + "\" se escribió a mano: no tiene lotes");
+                }
+                String cambio = repartir(item, antes, despues, c.reparto(),
+                        entregado.getOrDefault(item.getId(), List.of()), referencia);
+                if (cambio != null) {
+                    detalle.add(cambio);
+                }
+            } else if (despues < antes) {
                 String lotes = item.esManual() ? ""
                         : ", vuelven " + devolver(item, antes - despues, c.lotes(),
                                 entregado.getOrDefault(item.getId(), List.of()), referencia);
@@ -408,6 +422,7 @@ public class PedidoService {
             item.setCantidad(despues);
             if (c.precio() != null
                     && (item.getPrecioUnitario() == null || c.precio().compareTo(item.getPrecioUnitario()) != 0)) {
+                soloLotes = false;
                 detalle.add(item.getDescripcion() + ": precio " + soles(item.getPrecioUnitario()) + " → "
                         + soles(c.precio()));
                 item.fijarPrecio(c.precio(), true);
@@ -419,6 +434,7 @@ public class PedidoService {
         pedido.getItems().removeAll(quitadosAMano);
 
         for (ItemRequest nuevo : r.nuevos() == null ? List.<ItemRequest>of() : r.nuevos()) {
+            soloLotes = false;
             PedidoItem item = nuevoItem(pedido, nuevo);
             if (item.getPrecioUnitario() == null) {
                 throw new ConflictoException("Falta el precio de \"" + item.getDescripcion() + "\"");
@@ -436,9 +452,70 @@ public class PedidoService {
             throw new ConflictoException("No hay cambios que guardar");
         }
         pedidos.flush();
-        pedido.getCorrecciones().add(new CorreccionPedido(pedido, Instant.now(clock), TextoBusqueda.limpiar(r.motivo()),
+        String motivo = TextoBusqueda.limpiar(r.motivo());
+        if (motivo == null || motivo.isEmpty()) {
+            motivo = soloLotes ? "Cambio de lote" : "Corrección";
+        }
+        pedido.getCorrecciones().add(new CorreccionPedido(pedido, Instant.now(clock), motivo,
                 String.join("\n", detalle), totalAntes, total(pedido)));
         return detalle(pedido);
+    }
+
+    /**
+     * Deja las unidades entregadas de un ítem repartidas entre lotes como se indica: a los lotes que dan menos
+     * les vuelven unidades (con el costo con que salieron) y de los que dan más salen. Devuelve la línea del
+     * historial ("Guantes: lotes A (3) + B (97) → C (100)"), o null si el reparto es el mismo.
+     */
+    private String repartir(PedidoItem item, int antes, int despues, List<LoteAsignado> reparto,
+            List<LoteNeto> entregados, String referencia) {
+        if (reparto.stream().map(LoteAsignado::loteId).distinct().count() < reparto.size()) {
+            throw new SolicitudInvalidaException("Un lote aparece dos veces en el reparto");
+        }
+        int suma = reparto.stream().mapToInt(LoteAsignado::cantidad).sum();
+        if (suma != despues) {
+            throw new ConflictoException("\"" + item.getDescripcion() + "\": se entregan " + despues
+                    + ", pero en los lotes suman " + suma);
+        }
+        Map<Long, Integer> nuevo = new LinkedHashMap<>();
+        reparto.stream().filter(a -> a.cantidad() > 0).forEach(a -> nuevo.put(a.loteId(), a.cantidad()));
+        Map<Long, Integer> actual = new LinkedHashMap<>();
+        Map<Long, String> nombres = new HashMap<>();
+        for (LoteNeto l : entregados) {
+            actual.put(l.lote().getId(), l.cantidad());
+            nombres.put(l.lote().getId(), nombreDeLote(l.lote()));
+        }
+        if (nuevo.equals(actual)) {
+            return null;
+        }
+
+        for (LoteNeto l : entregados) { // primero vuelve lo que sobra en cada lote
+            int sobra = l.cantidad() - nuevo.getOrDefault(l.lote().getId(), 0);
+            if (sobra > 0) {
+                movimientoService.registrarDevolucionDePedido(l.lote().getId(), sobra, l.costo(), item.getId(),
+                        "Cambio de lote · " + referencia);
+            }
+        }
+        nuevo.forEach((loteId, cantidad) -> {
+            int falta = cantidad - actual.getOrDefault(loteId, 0);
+            if (falta > 0) {
+                Movimiento salida = movimientoService.registrarSalidaDeLoteDePedido(loteId,
+                        item.getProducto().getId(), falta, item.getId(), "Cambio de lote · " + referencia);
+                nombres.put(loteId, nombreDeLote(salida.getLote()));
+            }
+        });
+        String cantidad = antes == despues ? "" : antes + " → " + despues + ", ";
+        return item.getDescripcion() + ": " + cantidad + "lotes " + textoDeLotes(actual, nombres) + " → "
+                + textoDeLotes(nuevo, nombres);
+    }
+
+    private static String textoDeLotes(Map<Long, Integer> lotes, Map<Long, String> nombres) {
+        return lotes.isEmpty() ? "ninguno" : lotes.entrySet().stream()
+                .map(e -> nombres.get(e.getKey()) + " (" + e.getValue() + ")")
+                .collect(Collectors.joining(" + "));
+    }
+
+    private static String nombreDeLote(Lote lote) {
+        return lote.getNumeroLote() == null ? "sin número" : lote.getNumeroLote();
     }
 
     /**

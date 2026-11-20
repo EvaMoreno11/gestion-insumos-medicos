@@ -233,11 +233,12 @@ stateDiagram-v2
 
 ## Corregir un pedido despachado
 
-Un pedido despachado no se edita como un borrador, pero se puede **corregir** (`POST /api/pedidos/{id}/correcciones`), siempre con un motivo:
+Un pedido despachado no se edita como un borrador, pero se puede **corregir** (`POST /api/pedidos/{id}/correcciones`), con un motivo opcional (si no se escribe, queda "Cambio de lote" cuando solo se cambiaron lotes, o "Corrección"):
 
 - **Bajar una cantidad o quitar un ítem** es una devolución: las unidades vuelven **al lote del que salieron**, con un movimiento `DEVOLUCION` vinculado al ítem y con el costo con que habían salido. Si el ítem salió de varios lotes, hay que indicar a cuál vuelve cada unidad.
 - **Subir una cantidad o agregar un ítem** saca las unidades del inventario por FEFO, como un despacho.
 - **Cambiar un precio** solo cambia el total.
+- **Cambiar de qué lotes salió un ítem** (`reparto`): se indica cuánto sale de cada lote y debe sumar la cantidad del ítem. A los lotes que dan menos les vuelven unidades (`DEVOLUCION`, con el costo con que salieron) y de los que dan más salen (`SALIDA`). El lote elegido debe ser del producto, no estar vencido y tener las unidades. Por ejemplo, si salieron 3 sueltas y 97 de una caja abierta, se puede dejar que salga entera la caja sellada. La ganancia pasa a usar el costo del lote que salió de verdad.
 - Todo se aplica junto o nada. La nota conserva su número y sale con lo entregado de verdad (salidas menos devoluciones, por lote). Un ítem quitado queda con cantidad 0, porque sus movimientos siguen vinculados a él, y no sale en la nota.
 - Cada corrección queda en `pedido_correccion` (fecha, motivo, una línea por cambio, total anterior y nuevo).
 - Ventas, ganancia (el costo de lo vendido descuenta lo devuelto) y cobranzas se recalculan. Si el cliente ya había pagado más que el total corregido, el cobro queda **a favor del cliente** (`A_FAVOR`) y aparece en Cobranzas → "A favor".

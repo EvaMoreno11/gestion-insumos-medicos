@@ -7,7 +7,6 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -104,12 +103,12 @@ public final class PedidoDto {
     /**
      * Corrección de un pedido despachado. Todo se aplica junto o nada.
      *
+     * @param motivo  opcional; si no viene, se anota "Cambio de lote" (si solo se cambiaron lotes) o "Corrección"
      * @param cambios ítems existentes con su nueva cantidad (0 = quitarlo) y, si cambia, su nuevo precio
      * @param nuevos  ítems que se agregan (salen del inventario como en un despacho)
      */
     public record CorreccionRequest(
             @Schema(example = "Devolvieron 2 cajas: se entregó de más")
-            @NotBlank(message = "Indica el motivo de la corrección")
             @Size(max = 300, message = "Máximo 300 caracteres")
             String motivo,
 
@@ -119,7 +118,10 @@ public final class PedidoDto {
     }
 
     /**
-     * @param lotes a qué lotes vuelven las unidades devueltas; obligatorio solo si el ítem salió de varios lotes
+     * @param lotes   a qué lotes vuelven las unidades devueltas; obligatorio solo si el ítem salió de varios lotes
+     * @param reparto de qué lotes salen las unidades entregadas (deben sumar la cantidad). Si viene, reemplaza a
+     *                {@code lotes} y a la elección automática: lo que un lote ya no da vuelve a él y lo que da de
+     *                más sale de él
      */
     public record CambioItem(
             @NotNull(message = "Falta el ítem")
@@ -134,7 +136,20 @@ public final class PedidoDto {
             @Digits(integer = 10, fraction = 2, message = "Máximo 2 decimales")
             BigDecimal precio,
 
-            List<@Valid LoteDevuelto> lotes) {
+            List<@Valid LoteDevuelto> lotes,
+
+            List<@Valid LoteAsignado> reparto) {
+    }
+
+    /** Unidades de un ítem que salen de un lote. */
+    public record LoteAsignado(
+            @NotNull(message = "Falta el lote")
+            Long loteId,
+
+            @NotNull(message = "Falta la cantidad")
+            @Min(value = 0, message = "Debe ser 0 o más")
+            @Max(value = 1_000_000, message = "Cantidad demasiado grande")
+            Integer cantidad) {
     }
 
     public record LoteDevuelto(
