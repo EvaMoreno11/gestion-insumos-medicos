@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { movimientos, productos } from '../api/recursos'
 import type { ProductoDetalle } from '../api/tipos'
@@ -112,7 +112,19 @@ export default function Entrada() {
   }
 
   return (
-    <Pantalla titulo="Registrar entrada" volver="/" ancho="amplio">
+    <Pantalla
+      titulo="Registrar entrada"
+      volver="/"
+      ancho="amplio"
+      accion={
+        <Link
+          to="/entrada/ultimas"
+          className="flex min-h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold active:bg-white/15"
+        >
+          <span aria-hidden="true">🕘</span> Últimas entradas
+        </Link>
+      }
+    >
       <div className="space-y-3">
         {error && <Aviso tipo="error">{error}</Aviso>}
 

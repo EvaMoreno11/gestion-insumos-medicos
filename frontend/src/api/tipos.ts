@@ -226,6 +226,22 @@ export interface Movimiento {
   productoNombre: string
 }
 
+/** Una entrada del registro "Últimas entradas" */
+export interface EntradaReciente {
+  id: number
+  fecha: string
+  cantidad: number
+  costoUnitario: number | null
+  nota: string | null
+  numeroLote: string | null
+  fechaVencimiento: string | null
+  productoId: number
+  productoCodigo: string
+  productoNombre: string
+  productoPresentacion: string
+  productoMarca: string
+}
+
 export interface ResultadoMovimiento {
   productoId: number
   movimientos: Movimiento[]

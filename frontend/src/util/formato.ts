@@ -17,14 +17,36 @@ export function mesAnio(fecha: string | null | undefined): string {
   return `${mes}/${anio}`
 }
 
+const dos = (n: number) => String(n).padStart(2, '0')
+
 /** "2026-11-10T15:30:00Z" → "10/11/2026" (fecha local del dispositivo). */
 export function fechaCorta(instante: string | null | undefined): string {
   if (!instante) {
     return ''
   }
   const d = new Date(instante)
-  const dos = (n: number) => String(n).padStart(2, '0')
   return `${dos(d.getDate())}/${dos(d.getMonth() + 1)}/${d.getFullYear()}`
+}
+
+/** "2026-11-10T15:30:00Z" → "10:30" (hora local del dispositivo, en Lima). */
+export function hora(instante: string): string {
+  const d = new Date(instante)
+  return `${dos(d.getHours())}:${dos(d.getMinutes())}`
+}
+
+/** Título de un día en una lista: "Hoy", "Ayer" o "17/11/2026" (`hoy` se pasa para poder probarlo). */
+export function nombreDelDia(instante: string, hoy: Date = new Date()): string {
+  const d = new Date(instante)
+  const mismoDia = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1)
+  if (mismoDia(d, hoy)) {
+    return 'Hoy'
+  }
+  if (mismoDia(d, ayer)) {
+    return 'Ayer'
+  }
+  return fechaCorta(instante)
 }
 
 /**
