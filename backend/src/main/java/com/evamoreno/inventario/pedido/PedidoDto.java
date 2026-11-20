@@ -323,7 +323,13 @@ public final class PedidoDto {
             String presentacion, String marca, int cantidad) {
     }
 
-    public record PorComprar(List<ProductoPorComprar> productos, List<ItemNoRegistrado> noRegistrados) {
+    /**
+     * @param costoTotal        cuánto costaría comprar lo que falta: faltante × último costo de cada producto
+     * @param productosSinCosto productos que faltan pero no tienen costo, así que no están en {@code costoTotal}
+     *                          (los ítems a mano tampoco están: no tienen costo)
+     */
+    public record PorComprar(List<ProductoPorComprar> productos, List<ItemNoRegistrado> noRegistrados,
+            BigDecimal costoTotal, int productosSinCosto) {
     }
 
     public record Numeracion(String serie, long siguiente, String proximoNumero) {

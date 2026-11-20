@@ -1,9 +1,10 @@
 import { Link } from 'react-router'
 import { pedidos } from '../api/recursos'
+import type { PorComprar as PorComprarDatos } from '../api/tipos'
 import { BotonEnlace, EstadoCarga, Tarjeta, Vacio } from '../componentes/basicos'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
-import { unir } from '../util/formato'
+import { dinero, unir } from '../util/formato'
 
 /** Lista universal de lo que falta comprar para completar los pedidos pendientes. */
 export default function PorComprar() {
@@ -11,7 +12,12 @@ export default function PorComprar() {
   const vacio = datos && datos.productos.length === 0 && datos.noRegistrados.length === 0
 
   return (
-    <Pantalla titulo="Por comprar" volver="/" ancho="amplio">
+    <Pantalla
+      titulo="Por comprar"
+      volver="/"
+      ancho="amplio"
+      pie={datos && !vacio ? <CostoDeLoQueFalta datos={datos} /> : undefined}
+    >
       <EstadoCarga cargando={cargando} error={error} hayDatos={datos !== undefined}>
         {vacio && <Vacio>No falta nada: todos los pedidos pendientes están completos.</Vacio>}
 
@@ -37,7 +43,7 @@ export default function PorComprar() {
                   {p.pedidos.map((e) => (
                     <li key={e.pedidoId}>
                       <Link to={`/pedidos/${e.pedidoId}`} className="flex justify-between gap-3 text-marca">
-                        <span className="truncate underline-offset-2">{unir(' · ', e.cliente, e.local)}</span>
+                        <span className="min-w-0 break-words">{unir(' · ', e.cliente, e.local)}</span>
                         <span className="shrink-0 text-slate-600">le faltan {e.faltante}</span>
                       </Link>
                     </li>
@@ -94,5 +100,25 @@ export default function PorComprar() {
         )}
       </EstadoCarga>
     </Pantalla>
+  )
+}
+
+/** Barra fija de abajo: cuánto costaría comprar todo lo que falta, con el último costo de cada producto. */
+function CostoDeLoQueFalta({ datos }: { datos: PorComprarDatos }) {
+  const sinSumar = unir(
+    ' · ',
+    datos.productosSinCosto > 0
+      ? `${datos.productosSinCosto} ${datos.productosSinCosto === 1 ? 'producto sin costo no se suma' : 'productos sin costo no se suman'}`
+      : null,
+    datos.noRegistrados.length > 0 ? 'los no registrados no se suman' : null,
+  )
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="font-semibold leading-snug">Costo de lo que falta</p>
+        <p className="text-sm text-slate-500">{sinSumar || 'Con el último costo de compra de cada producto'}</p>
+      </div>
+      <p className="shrink-0 text-2xl font-bold tabular-nums">{dinero(datos.costoTotal)}</p>
+    </div>
   )
 }
