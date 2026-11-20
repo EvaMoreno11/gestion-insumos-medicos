@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -442,6 +443,7 @@ class PedidoControllerTest extends IntegracionTest {
         byte[] xlsx = mockMvc.perform(get(URL + "/{id}/nota.xlsx", pedido))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("nota-pedido-0001-007323.xlsx")))
+                .andExpect(header().string("Content-Disposition", startsWith("attachment")))
                 .andReturn().getResponse().getContentAsByteArray();
         try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
             Sheet hoja = libro.getSheetAt(0);
@@ -477,6 +479,9 @@ class PedidoControllerTest extends IntegracionTest {
         byte[] pdf = mockMvc.perform(get(URL + "/{id}/nota.pdf", pedido))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"))
+                // Se abre en el navegador (para verlo e imprimirlo), con su nombre para guardarlo
+                .andExpect(header().string("Content-Disposition", startsWith("inline")))
+                .andExpect(header().string("Content-Disposition", containsString("nota-pedido-0001-007323.pdf")))
                 .andReturn().getResponse().getContentAsByteArray();
         try (PdfReader lector = new PdfReader(pdf)) {
             String texto = new PdfTextExtractor(lector).getTextFromPage(1);

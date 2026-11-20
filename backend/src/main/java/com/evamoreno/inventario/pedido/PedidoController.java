@@ -197,11 +197,14 @@ public class PedidoController {
         return archivo(NotaPedidoExcel.generar(nota), XLSX, nota.nombreArchivo() + ".xlsx");
     }
 
+    /** El PDF se abre en el navegador (para verlo e imprimirlo); el Excel se descarga. */
     private static ResponseEntity<byte[]> archivo(byte[] contenido, MediaType tipo, String nombre) {
+        ContentDisposition.Builder disposicion = MediaType.APPLICATION_PDF.equals(tipo)
+                ? ContentDisposition.inline()
+                : ContentDisposition.attachment();
         return ResponseEntity.ok()
                 .contentType(tipo)
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename(nombre).build().toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposicion.filename(nombre).build().toString())
                 .body(contenido);
     }
 
