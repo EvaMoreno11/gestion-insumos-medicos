@@ -6,6 +6,7 @@ import { ClienteFormulario, Clientes } from './paginas/Clientes'
 import Cobranzas from './paginas/Cobranzas'
 import Configuracion from './paginas/Configuracion'
 import Descargas from './paginas/Descargas'
+import EditarLote from './paginas/EditarLote'
 import Entrada from './paginas/Entrada'
 import Importar from './paginas/Importar'
 import Inicio from './paginas/Inicio'
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/inventario" element={<Inventario />} />
         <Route path="/inventario/descargar" element={<Descargas />} />
         <Route path="/inventario/:id" element={<ProductoDetalle />} />
+        <Route path="/inventario/:id/lotes/:loteId" element={<EditarLote />} />
 
         <Route path="/pedidos" element={<Pedidos />} />
         <Route path="/pedidos/nuevo" element={<PedidoNuevo />} />

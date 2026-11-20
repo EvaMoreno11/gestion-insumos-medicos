@@ -1,4 +1,4 @@
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { productos } from '../api/recursos'
 import type { Lote } from '../api/tipos'
 import { BotonEnlace, EstadoCarga, Etiqueta, Tarjeta } from '../componentes/basicos'
@@ -65,20 +65,32 @@ export default function ProductoDetalle() {
               {p.lotes.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-500">No hay lotes con unidades.</p>
               ) : (
-                <ul className="mt-2 divide-y divide-slate-100">
-                  {p.lotes.map((l) => (
-                    <li key={l.id} className="flex items-center gap-3 py-2">
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium">{l.numeroLote ?? 'Sin número de lote'}</span>
-                        <span className="block text-sm text-slate-500">
-                          {l.fechaVencimiento ? `Vence ${mesAnio(l.fechaVencimiento)}` : 'No vence'}
-                        </span>
-                      </span>
-                      <AvisoDeLote lote={l} />
-                      <span className="w-12 text-right text-lg font-bold">{l.cantidad}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <p className="text-xs text-slate-500">Toca un lote para corregir su número, vencimiento o cantidad.</p>
+                  <ul className="mt-1 divide-y divide-slate-100">
+                    {p.lotes.map((l) => (
+                      <li key={l.id}>
+                        <Link
+                          to={`/inventario/${p.id}/lotes/${l.id}`}
+                          className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2 active:bg-slate-100"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium">{l.numeroLote ?? 'Sin número de lote'}</span>
+                            <span className="block text-sm text-slate-500">
+                              {l.fechaVencimiento ? `Vence ${mesAnio(l.fechaVencimiento)}` : 'No vence'}
+                            </span>
+                          </span>
+                          <AvisoDeLote lote={l} />
+                          <span className="w-12 text-right text-lg font-bold">{l.cantidad}</span>
+                          <span className="text-slate-400" aria-hidden="true">
+                            ✏️
+                          </span>
+                          <span className="sr-only">Editar</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </Tarjeta>
 

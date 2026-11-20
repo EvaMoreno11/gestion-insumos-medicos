@@ -215,6 +215,19 @@ export interface EntradaDatos {
   nota?: string
 }
 
+/** Corrección de un lote mal registrado. El costo no se corrige aquí. */
+export interface CorreccionLote {
+  numeroLote: string | null
+  /** aaaa-mm-dd; null si no vence */
+  fechaVencimiento: string | null
+  /** Unidades que realmente hay; si cambia, queda un ajuste en el historial */
+  cantidad: number
+  /** Motivo (opcional) */
+  nota?: string
+  /** Si ya hay otro lote del producto con ese número, unirlos en uno solo */
+  unir?: boolean
+}
+
 export interface Movimiento {
   id: number
   tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'DEVOLUCION'

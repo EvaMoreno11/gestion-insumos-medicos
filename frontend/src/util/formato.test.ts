@@ -14,6 +14,7 @@ import {
   leerEntero,
   mesAnio,
   mesAnioAFecha,
+  numeroDeLote,
   ordenarPorNombre,
   porcentaje,
   textoComparable,
@@ -89,6 +90,12 @@ describe('textos', () => {
   it('muestra el porcentaje sin ceros de más', () => {
     expect(porcentaje(15)).toBe('15 %')
     expect(porcentaje(12.5)).toBe('12.5 %')
+  })
+
+  it('escribe el número de lote como lo guarda el servidor', () => {
+    expect(numeroDeLote(' l230415 ')).toBe('L230415')
+    expect(numeroDeLote('ab  12')).toBe('AB 12')
+    expect(numeroDeLote('   ')).toBeNull()
   })
 
   it('compara nombres sin mayúsculas, tildes ni espacios de más', () => {
