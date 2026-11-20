@@ -77,6 +77,14 @@ public class Movimiento {
         this.costoUnitario = lote.getCostoPromedio();
     }
 
+    /**
+     * Única excepción a "inmutable": al unir dos lotes que eran el mismo, su historial pasa al que queda.
+     * Así las notas de pedido ya despachadas muestran el lote corregido.
+     */
+    void pasarAlLote(Lote destino) {
+        this.lote = destino;
+    }
+
     /** Entrada: guarda el costo de compra de esas unidades. */
     static Movimiento entrada(Lote lote, int cantidad, BigDecimal costo, String nota, boolean inicial) {
         Movimiento m = new Movimiento(lote, TipoMovimiento.ENTRADA, cantidad, nota);
