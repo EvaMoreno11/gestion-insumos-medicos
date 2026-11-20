@@ -141,20 +141,31 @@ public class PedidoService {
         Map<Producto, List<PedidoItem>> porProducto = registrados.stream()
                 .collect(Collectors.groupingBy(PedidoItem::getProducto, LinkedHashMap::new, Collectors.toList()));
         List<ProductoPorComprar> faltantes = new ArrayList<>();
-        porProducto.forEach((producto, items) -> {
+        BigDecimal costoTotal = BigDecimal.ZERO;
+        int sinCosto = 0;
+        for (Map.Entry<Producto, List<PedidoItem>> grupo : porProducto.entrySet()) {
+            Producto producto = grupo.getKey();
+            List<PedidoItem> items = grupo.getValue();
             int pedido = items.stream().mapToInt(PedidoItem::getCantidad).sum();
             int faltante = items.stream().mapToInt(i -> faltante(i, asignado)).sum();
-            if (faltante > 0) {
-                faltantes.add(new ProductoPorComprar(producto.getId(), producto.getCodigo(), producto.getNombre(),
-                        producto.getMarca(), producto.getPresentacion(),
-                        disponibles.getOrDefault(producto.getId(), 0), pedido, faltante,
-                        items.stream().filter(i -> faltante(i, asignado) > 0)
-                                .map(i -> new PedidoQueEspera(i.getPedido().getId(),
-                                        i.getPedido().getCliente().getNombre(), i.getPedido().getLocal().getNombre(),
-                                        i.getCantidad(), faltante(i, asignado)))
-                                .toList()));
+            if (faltante == 0) {
+                continue;
             }
-        });
+            // Cuánto costaría comprar lo que falta, con el último costo de compra del producto
+            if (producto.getCosto() == null) {
+                sinCosto++;
+            } else {
+                costoTotal = costoTotal.add(producto.getCosto().multiply(BigDecimal.valueOf(faltante)));
+            }
+            faltantes.add(new ProductoPorComprar(producto.getId(), producto.getCodigo(), producto.getNombre(),
+                    producto.getMarca(), producto.getPresentacion(),
+                    disponibles.getOrDefault(producto.getId(), 0), pedido, faltante,
+                    items.stream().filter(i -> faltante(i, asignado) > 0)
+                            .map(i -> new PedidoQueEspera(i.getPedido().getId(),
+                                    i.getPedido().getCliente().getNombre(), i.getPedido().getLocal().getNombre(),
+                                    i.getCantidad(), faltante(i, asignado)))
+                            .toList()));
+        }
         faltantes.sort((a, b) -> a.nombre().compareToIgnoreCase(b.nombre()));
 
         List<ItemNoRegistrado> noRegistrados = pendientes.stream().filter(PedidoItem::esManual)
@@ -162,7 +173,7 @@ public class PedidoService {
                         i.getPedido().getLocal().getNombre(), i.getDescripcion(), i.getPresentacion(), i.getMarca(),
                         i.getCantidad()))
                 .toList();
-        return new PorComprar(faltantes, noRegistrados);
+        return new PorComprar(faltantes, noRegistrados, costoTotal.setScale(2, RoundingMode.HALF_UP), sinCosto);
     }
 
     // ================================================================== cabecera

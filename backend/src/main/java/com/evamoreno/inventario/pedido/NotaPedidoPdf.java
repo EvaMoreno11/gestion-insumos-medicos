@@ -33,7 +33,8 @@ final class NotaPedidoPdf {
     private static final Color GRIS_TEXTO = new Color(0x59, 0x59, 0x59);
 
     // N° | Descripción | Presentación | Laboratorio | Lote | F.V. | Cant. | Precio | Total
-    private static final float[] ANCHOS = { 22f, 160f, 68f, 68f, 62f, 46f, 34f, 46f, 50f };
+    // Total con espacio para montos de hasta 6 cifras ("123,456.78") sin partirse en dos líneas
+    private static final float[] ANCHOS = { 22f, 152f, 68f, 68f, 62f, 46f, 34f, 46f, 58f };
     private static final String[] TITULOS = { "N°", "DESCRIPCIÓN", "PRESENTACIÓN", "LABORATORIO", "LOTE", "F.V.",
             "CANT.", "PRECIO\n(inc. IGV)", "TOTAL\n(inc. IGV)" };
     private static final float ALTO_FILA = 26f;
@@ -142,11 +143,14 @@ final class NotaPedidoPdf {
         PdfPCell vacio = sinBorde();
         vacio.setColspan(5);
         tabla.addCell(vacio);
+        // "TOTAL S/" en F.V. + Cant. y el monto en Precio + Total: así un total grande cabe en una línea
         PdfPCell etiqueta = celda("TOTAL S/", TOTAL, Element.ALIGN_RIGHT);
-        etiqueta.setColspan(3);
+        etiqueta.setColspan(2);
         etiqueta.setBackgroundColor(GRIS_CLARO);
         tabla.addCell(etiqueta);
         PdfPCell total = celda(dinero(nota.total()), TOTAL, Element.ALIGN_RIGHT);
+        total.setColspan(2);
+        total.setNoWrap(true);
         total.setBackgroundColor(GRIS_CLARO);
         tabla.addCell(total);
         return tabla;

@@ -351,7 +351,7 @@ function Pie({
         </div>
         <div className="text-right">
           <div className="text-xs uppercase tracking-wide text-slate-500">Total</div>
-          <div className="text-2xl font-bold leading-none">{dinero(pedido.total)}</div>
+          <div className="text-2xl font-bold leading-none whitespace-nowrap">{dinero(pedido.total)}</div>
         </div>
       </div>
 

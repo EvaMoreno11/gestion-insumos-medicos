@@ -119,8 +119,8 @@ function FilaDeuda({ deuda }: { deuda: Deuda }) {
     >
       <div className="flex items-start justify-between gap-3">
         <span className="min-w-0">
-          <span className="block truncate font-semibold">{deuda.cliente}</span>
-          <span className="block truncate text-sm text-slate-500">
+          <span className="block font-semibold leading-snug break-words">{deuda.cliente}</span>
+          <span className="block text-sm break-words text-slate-500">
             {unir(
               ' · ',
               deuda.local,

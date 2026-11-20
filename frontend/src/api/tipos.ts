@@ -444,6 +444,10 @@ export interface ItemNoRegistrado {
 export interface PorComprar {
   productos: ProductoPorComprar[]
   noRegistrados: ItemNoRegistrado[]
+  /** Cuánto costaría comprar lo que falta: faltante × último costo de cada producto */
+  costoTotal: number
+  /** Productos que faltan pero no tienen costo: no están en costoTotal */
+  productosSinCosto: number
 }
 
 // ---------------------------------------------------------------- sesión

@@ -37,7 +37,8 @@ final class NotaPedidoExcel {
     private static final byte[] BLANCO = { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
 
     // N° | Descripción | Presentación | Laboratorio | Lote | F.V. | Cant. | Precio | Total
-    private static final double[] ANCHOS = { 4.5, 33, 13, 13.5, 11, 8.5, 6.5, 9, 10 };
+    // Total con espacio para montos de hasta 6 cifras: en Excel un número que no cabe se ve como "#####"
+    private static final double[] ANCHOS = { 4.5, 31, 13, 13.5, 11, 8.5, 6.5, 9, 12 };
     private static final String[] TITULOS = { "N°", "DESCRIPCIÓN", "PRESENTACIÓN", "LABORATORIO", "LOTE", "F.V.",
             "CANT.", "PRECIO\n(inc. IGV)", "TOTAL\n(inc. IGV)" };
     private static final int FILA_TITULOS_NOTA = 8; // fila 9 de Excel, debajo del encabezado
@@ -178,14 +179,17 @@ final class NotaPedidoExcel {
         int primera = filaTitulos + 2; // en numeración de Excel
         int ultimaDeDatos = r + 1;
         XSSFRow filaTotal = fila(++r, ALTO_FILA);
-        hoja.addMergedRegion(new CellRangeAddress(r, r, 5, 7));
+        // "TOTAL S/" en F.V. + Cant. y el monto en Precio + Total: así un total grande se ve completo
+        hoja.addMergedRegion(new CellRangeAddress(r, r, 5, 6));
+        hoja.addMergedRegion(new CellRangeAddress(r, r, 7, 8));
         XSSFCellStyle etiqueta = estilo(fuente(12, true, null), HorizontalAlignment.RIGHT, GRIS_CLARO, true);
         XSSFCellStyle valor = estilo(fuente(12, true, null), HorizontalAlignment.RIGHT, GRIS_CLARO, true);
         valor.setDataFormat(libro.createDataFormat().getFormat("#,##0.00"));
-        for (int c = 5; c <= 7; c++) {
+        for (int c = 5; c <= 6; c++) {
             celda(filaTotal, c, c == 5 ? "TOTAL S/" : null, etiqueta);
         }
-        XSSFCell total = filaTotal.createCell(8);
+        celda(filaTotal, 8, null, valor); // parte de la celda unida: lleva el mismo fondo y borde
+        XSSFCell total = filaTotal.createCell(7);
         total.setCellStyle(valor);
         if (nota.filas().isEmpty()) {
             total.setCellValue(0);
