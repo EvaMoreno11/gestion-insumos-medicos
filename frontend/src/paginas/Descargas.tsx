@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { mensajeDe } from '../api/http'
-import { clientes, exportar } from '../api/recursos'
+import { clientes, exportar, rutas } from '../api/recursos'
 import type { ClienteResumen } from '../api/tipos'
 import { Aviso, Boton, Buscador, EstadoCarga, Tarjeta, Vacio } from '../componentes/basicos'
 import { DatosCliente } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
+import { useVisorPdf } from '../componentes/useVisorPdf'
 import { useCarga, useRetardo } from '../hooks'
 import { compartirODescargar } from '../util/archivos'
 import { hoyLocal } from '../util/formato'
@@ -18,12 +19,13 @@ export default function Descargas() {
   const [error, setError] = useState<string | null>(null)
   const [conPrecios, setConPrecios] = useState(false)
   const [cliente, setCliente] = useState<ClienteResumen | null>(null)
+  const visorPdf = useVisorPdf()
 
-  async function bajar(clave: string, archivo: () => Promise<Blob>, nombre: string) {
+  async function bajar(clave: string, entregar: () => Promise<void>) {
     setOcupado(clave)
     setError(null)
     try {
-      await compartirODescargar(await archivo(), nombre)
+      await entregar()
     } catch (e) {
       setError(mensajeDe(e))
     } finally {
@@ -51,7 +53,9 @@ export default function Descargas() {
             ancho
             className="mt-3"
             disabled={ocupado !== null}
-            onClick={() => bajar('inventario', exportar.inventario, `inventario-${hoy}.xlsx`)}
+            onClick={() =>
+              bajar('inventario', async () => compartirODescargar(await exportar.inventario(), `inventario-${hoy}.xlsx`))
+            }
           >
             {ocupado === 'inventario' ? 'Preparando…' : 'Descargar inventario (Excel)'}
           </Boton>
@@ -104,20 +108,33 @@ export default function Descargas() {
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Boton
               disabled={ocupado !== null || !listo}
-              onClick={() => bajar('pdf', () => exportar.catalogo('pdf', cliente?.id), `${nombreCatalogo}.pdf`)}
+              onClick={() =>
+                bajar('pdf', () =>
+                  visorPdf.abrir(
+                    rutas.catalogo('pdf', cliente?.id),
+                    `${nombreCatalogo}.pdf`,
+                    cliente ? `Lista de precios · ${cliente.nombre}` : 'Catálogo',
+                  ),
+                )
+              }
             >
               {ocupado === 'pdf' ? 'Preparando…' : 'PDF'}
             </Boton>
             <Boton
               variante="secundario"
               disabled={ocupado !== null || !listo}
-              onClick={() => bajar('xlsx', () => exportar.catalogo('xlsx', cliente?.id), `${nombreCatalogo}.xlsx`)}
+              onClick={() =>
+                bajar('xlsx', async () =>
+                  compartirODescargar(await exportar.catalogo('xlsx', cliente?.id), `${nombreCatalogo}.xlsx`),
+                )
+              }
             >
               {ocupado === 'xlsx' ? 'Preparando…' : 'Excel'}
             </Boton>
           </div>
         </Tarjeta>
       </div>
+      {visorPdf.visor}
     </Pantalla>
   )
 }

@@ -1,6 +1,8 @@
 package com.evamoreno.inventario.stock;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,7 +15,10 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import jakarta.persistence.EntityManager;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.evamoreno.inventario.IntegracionTest;
@@ -24,6 +29,12 @@ class MovimientoControllerTest extends IntegracionTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
+    private JdbcClient jdbc;
 
     private LocalDate hoy;
     private Long productoId;
@@ -63,6 +74,41 @@ class MovimientoControllerTest extends IntegracionTest {
         return postJson("/api/movimientos/entrada", """
                 {"productoId": %d, "numeroLote": "%s", "cantidad": %d, "costo": %s}"""
                 .formatted(productoId, lote, cantidad, costo));
+    }
+
+    // ------------------------------------------------------------------ últimas entradas
+
+    @Test
+    void listaLasUltimasEntradasDeTodoElInventarioSinSalidasNiCargaInicial() throws Exception {
+        Long guantes = crear("/api/productos", """
+                {"nombre": "Guantes de látex", "marca": "Marca G", "categoriaId": %d,
+                 "presentacion": "Caja x 100", "unidadMedida": "Caja"}""".formatted(idCategoria("Guantes")));
+        Long lote = idLote(entrada("L-1", hoy.plusYears(1), 10));
+        postJson("/api/movimientos/entrada", """
+                {"productoId": %d, "numeroLote": "G-7", "cantidad": 4, "costo": 12.5}""".formatted(guantes))
+                .andExpect(status().isCreated());
+        salida(3, lote).andExpect(status().isCreated());
+        // Una entrada de la carga inicial (importación desde Excel) no es una compra: no se lista
+        Long importado = idLote(entrada("IMPORTADO", hoy.plusYears(2), 50));
+        entityManager.flush();
+        jdbc.sql("UPDATE movimiento SET inicial = true WHERE lote_id = ?").param(importado).update();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/movimientos/entradas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(2))
+                .andExpect(jsonPath("$.contenido[*].tipo", everyItem(is("ENTRADA"))))
+                .andExpect(jsonPath("$.contenido[0].productoNombre").value("Guantes de látex"))
+                .andExpect(jsonPath("$.contenido[0].productoPresentacion").value("Caja x 100"))
+                .andExpect(jsonPath("$.contenido[0].productoMarca").value("Marca G"))
+                .andExpect(jsonPath("$.contenido[0].numeroLote").value("G-7"))
+                .andExpect(jsonPath("$.contenido[0].cantidad").value(4))
+                .andExpect(jsonPath("$.contenido[0].costoUnitario").value(12.5))
+                .andExpect(jsonPath("$.contenido[1].productoNombre").value("Jeringa descartable 5 ml"))
+                .andExpect(jsonPath("$.contenido[1].numeroLote").value("L-1"));
+
+        mockMvc.perform(get("/api/movimientos/entradas").param("pagina", "1").param("tamano", "1"))
+                .andExpect(jsonPath("$.contenido[0].numeroLote").value("L-1"));
     }
 
     // ------------------------------------------------------------------ costos

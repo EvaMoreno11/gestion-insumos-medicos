@@ -58,4 +58,12 @@ public class MovimientoController {
             @RequestParam(defaultValue = "20") int tamano) {
         return service.historial(productoId, pagina, tamano);
     }
+
+    @GetMapping("/entradas")
+    @Operation(summary = "Últimas entradas registradas en todo el inventario (más recientes primero)",
+            description = "No incluye la carga inicial desde Excel.")
+    public Pagina<MovimientoResponse> ultimasEntradas(@RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "30") int tamano) {
+        return service.ultimasEntradas(pagina, tamano);
+    }
 }

@@ -2,6 +2,7 @@ package com.evamoreno.inventario.catalogo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -134,6 +135,7 @@ class ExportacionControllerTest extends IntegracionTest {
 
         byte[] contenido = mockMvc.perform(get(URL + "/catalogo.pdf").param("clienteId", botica.toString()))
                 .andExpect(header().string("Content-Disposition", containsString("lista-de-precios-2026-06-15.pdf")))
+                .andExpect(header().string("Content-Disposition", startsWith("inline")))
                 .andReturn().getResponse().getContentAsByteArray();
         String texto = pdf(contenido);
         assertThat(texto).contains("LISTA DE PRECIOS", "Cliente: Botica Santa Rosa", "Precios incluyen IGV",
