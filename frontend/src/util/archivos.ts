@@ -3,11 +3,15 @@
  * - En el celular abre el menú de compartir (WhatsApp, Archivos, Imprimir...).
  * - En la PC lo descarga a la carpeta de Descargas.
  */
+/** Celular o tablet (se usa con el dedo): ahí se comparte; en la PC se descarga o se abre en otra pestaña. */
+export function esPantallaTactil(): boolean {
+  return window.matchMedia('(pointer: coarse)').matches
+}
+
 export async function compartirODescargar(contenido: Blob, nombre: string): Promise<void> {
   const archivo = new File([contenido], nombre, { type: contenido.type })
-  const esTactil = window.matchMedia('(pointer: coarse)').matches
 
-  if (esTactil && navigator.canShare?.({ files: [archivo] })) {
+  if (esPantallaTactil() && navigator.canShare?.({ files: [archivo] })) {
     try {
       await navigator.share({ files: [archivo], title: nombre })
       return

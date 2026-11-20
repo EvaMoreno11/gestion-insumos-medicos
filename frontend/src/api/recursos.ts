@@ -10,6 +10,7 @@ import type {
   DetallesResumen,
   DocumentoPedido,
   EntradaDatos,
+  EntradaReciente,
   EstadoSesion,
   EstadoPedido,
   LoteAlerta,
@@ -60,9 +61,19 @@ export const clientes = {
     api<ClienteDetalle>(`/api/clientes/${id}`, { metodo: 'PUT', cuerpo: datos }),
 }
 
+/** Direcciones de los documentos: en la PC, el PDF se abre directo en otra pestaña del navegador. */
+export const rutas = {
+  nota: (id: number, formato: 'pdf' | 'xlsx') => `/api/pedidos/${id}/nota.${formato}`,
+  catalogo: (formato: 'pdf' | 'xlsx', clienteId?: number) =>
+    `/api/exportar/catalogo.${formato}${clienteId === undefined ? '' : `?clienteId=${clienteId}`}`,
+}
+
 export const movimientos = {
   entrada: (datos: EntradaDatos) =>
     api<ResultadoMovimiento>('/api/movimientos/entrada', { metodo: 'POST', cuerpo: datos }),
+  /** Las últimas entradas registradas (sin la carga inicial desde Excel), las más recientes primero */
+  ultimasEntradas: (pagina: number, tamano = 30) =>
+    api<Pagina<EntradaReciente>>('/api/movimientos/entradas', { params: { pagina, tamano } }),
 }
 
 export interface ItemNuevo {
@@ -127,7 +138,7 @@ export const pedidos = {
   eliminarPago: (id: number, pagoId: number) =>
     api<Pedido>(`/api/pedidos/${id}/pagos/${pagoId}`, { metodo: 'DELETE' }),
   porComprar: () => api<PorComprar>('/api/pedidos/por-comprar'),
-  nota: (id: number, formato: 'pdf' | 'xlsx') => descargar(`/api/pedidos/${id}/nota.${formato}`),
+  nota: (id: number, formato: 'pdf' | 'xlsx') => descargar(rutas.nota(id, formato)),
   numeracion: () => api<Numeracion>('/api/pedidos/numeracion'),
   fijarNumeracion: (siguiente: number, serie?: string) =>
     api<Numeracion>('/api/pedidos/numeracion', { metodo: 'PUT', cuerpo: { siguiente, serie } }),
@@ -137,8 +148,7 @@ export const pedidos = {
 export const exportar = {
   inventario: () => descargar('/api/exportar/inventario.xlsx'),
   /** Con clienteId: lista de precios de ese cliente; sin él, catálogo sin precios */
-  catalogo: (formato: 'pdf' | 'xlsx', clienteId?: number) =>
-    descargar(`/api/exportar/catalogo.${formato}${clienteId === undefined ? '' : `?clienteId=${clienteId}`}`),
+  catalogo: (formato: 'pdf' | 'xlsx', clienteId?: number) => descargar(rutas.catalogo(formato, clienteId)),
 }
 
 /** Carga inicial desde las plantillas de Excel. Con soloValidar no se guarda nada. */

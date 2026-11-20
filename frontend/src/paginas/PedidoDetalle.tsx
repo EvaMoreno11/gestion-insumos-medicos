@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
-import { categoriasPrecio, pedidos } from '../api/recursos'
+import { categoriasPrecio, pedidos, rutas } from '../api/recursos'
 import type { ItemCambio } from '../api/recursos'
 import type { CategoriaPrecio, DocumentoPedido, GrupoPedido, Pedido, PedidoItem } from '../api/tipos'
 import { Aviso, Boton, Campo, Cargando, Etiqueta, Tarjeta } from '../componentes/basicos'
@@ -9,6 +9,7 @@ import { TarjetaCobro } from '../componentes/cobro'
 import { CorregirPedido, HistorialCorrecciones } from '../componentes/correccion'
 import { BuscadorProductos, EtiquetaDisponibilidad, SelectorCategoria, SelectorDocumento } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
+import { useVisorPdf } from '../componentes/useVisorPdf'
 import { compartirODescargar } from '../util/archivos'
 import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as textoPorcentaje, unir } from '../util/formato'
 
@@ -22,6 +23,7 @@ export default function PedidoDetalle() {
   const [panel, setPanel] = useState<'categoria' | 'manual' | 'documento' | null>(null)
   const [confirmarParcial, setConfirmarParcial] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState(false)
+  const visorPdf = useVisorPdf()
 
   useEffect(() => {
     let vigente = true
@@ -66,7 +68,17 @@ export default function PedidoDetalle() {
           : pedido.numero
             ? `nota-pedido-${pedido.numero}`
             : `pedido-borrador-${pedido.id}`
-      await compartirODescargar(await pedidos.nota(pedido.id, formato), `${nombre}.${formato}`)
+      if (formato === 'pdf') {
+        const titulo =
+          pedido.documento === 'SOLO_TABLA'
+            ? 'Pedido (solo tabla)'
+            : pedido.numero
+              ? `Nota ${pedido.numero}`
+              : 'Pedido en borrador'
+        await visorPdf.abrir(rutas.nota(pedido.id, 'pdf'), `${nombre}.pdf`, titulo)
+      } else {
+        await compartirODescargar(await pedidos.nota(pedido.id, 'xlsx'), `${nombre}.xlsx`)
+      }
     } catch (e) {
       setError(mensajeDe(e))
     } finally {
@@ -313,6 +325,7 @@ export default function PedidoDetalle() {
         </div>
         </div>
       </div>
+      {visorPdf.visor}
     </Pantalla>
   )
 }

@@ -16,6 +16,10 @@ export default defineConfig({
       '/v3/api-docs': 'http://localhost:8080',
     },
   },
+  build: {
+    // pdf.js (el visor de PDF) pesa ~500 kB, pero se descarga aparte y solo al abrir un PDF
+    chunkSizeWarningLimit: 600,
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
