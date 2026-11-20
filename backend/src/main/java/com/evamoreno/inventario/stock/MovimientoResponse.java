@@ -20,13 +20,15 @@ public record MovimientoResponse(
         LocalDate fechaVencimiento,
         Long productoId,
         String productoCodigo,
-        String productoNombre) {
+        String productoNombre,
+        String productoPresentacion,
+        String productoMarca) {
 
     static MovimientoResponse de(Movimiento m) {
         Lote lote = m.getLote();
         Producto p = lote.getProducto();
         return new MovimientoResponse(m.getId(), m.getFecha(), m.getTipo(), m.getCantidad(), m.getStockResultante(),
                 m.getCostoUnitario(), m.getNota(), lote.getId(), lote.getNumeroLote(), lote.getFechaVencimiento(), p.getId(), p.getCodigo(),
-                p.getNombre());
+                p.getNombre(), p.getPresentacion(), p.getMarca());
     }
 }
