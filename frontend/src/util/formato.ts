@@ -102,6 +102,12 @@ export function unir(separador: string, ...partes: (string | null | undefined)[]
   return partes.filter((p) => p !== null && p !== undefined && p.trim() !== '').join(separador)
 }
 
+/** Número de lote como lo guarda el servidor: sin espacios de más y en mayúsculas; vacío = sin número (null). */
+export function numeroDeLote(texto: string): string | null {
+  const limpio = texto.trim().replace(/\s+/g, ' ').toUpperCase()
+  return limpio === '' ? null : limpio
+}
+
 /** Para comparar textos sin mayúsculas, tildes ni espacios de más: "  Algodón " y "ALGODON" → "algodon". */
 export function textoComparable(texto: string): string {
   return texto

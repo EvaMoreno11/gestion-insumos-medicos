@@ -2,6 +2,7 @@ package com.evamoreno.inventario.stock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Algoritmo FEFO (First Expired, First Out): decide de qué lotes sacar las unidades,
@@ -12,7 +13,17 @@ import java.util.List;
  * Plan:  4 del L1 + 2 del L2   (faltante = 0)
  * </pre>
  *
- * Lo usan las salidas y, en la Fase 3, la verificación de disponibilidad de pedidos.
+ * Entre lotes que vencen el MISMO mes da igual cuál sale primero, así que se busca partir lo menos
+ * posible: si un lote alcanza solo, sale todo de ese (el más chico que alcance, para no abrir una caja
+ * cuando bastan las sueltas); si ninguno alcanza, se empieza por el más grande.
+ *
+ * <pre>
+ * Mismo vencimiento: 3 sueltas (L1) y una caja de 100 (L2)
+ * Pedido 100 → la caja entera (L2)          Pedido 2   → 2 de las sueltas (L1)
+ * Pedido 10  → 10 de la caja (L2)           Pedido 102 → la caja (L2) + 2 sueltas (L1)
+ * </pre>
+ *
+ * Lo usan las salidas, el despacho de pedidos y las correcciones de un pedido despachado.
  *
  * @param asignaciones cuántas unidades se toman de cada lote
  * @param faltante     unidades que no se pudieron cubrir (0 si alcanza)
@@ -32,17 +43,45 @@ public record PlanFefo(List<Asignacion> asignaciones, int faltante) {
         }
         List<Asignacion> asignaciones = new ArrayList<>();
         int pendiente = cantidad;
-        for (Lote lote : lotesEnOrdenFefo) {
-            if (pendiente == 0) {
-                break;
+        int inicio = 0;
+        while (inicio < lotesEnOrdenFefo.size() && pendiente > 0) {
+            // Los lotes que vencen el mismo mes que el primero que queda (el orden FEFO los deja juntos)
+            int fin = inicio;
+            while (fin < lotesEnOrdenFefo.size() && Objects.equals(lotesEnOrdenFefo.get(fin).getFechaVencimiento(),
+                    lotesEnOrdenFefo.get(inicio).getFechaVencimiento())) {
+                fin++;
             }
-            int tomar = Math.min(pendiente, lote.getCantidadActual());
-            if (tomar > 0) {
+            List<Lote> mismoVencimiento = new ArrayList<>(lotesEnOrdenFefo.subList(inicio, fin));
+            mismoVencimiento.removeIf(l -> l.getCantidadActual() <= 0);
+            while (pendiente > 0 && !mismoVencimiento.isEmpty()) {
+                Lote lote = elegir(mismoVencimiento, pendiente);
+                int tomar = Math.min(pendiente, lote.getCantidadActual());
                 asignaciones.add(new Asignacion(lote, tomar));
                 pendiente -= tomar;
+                mismoVencimiento.remove(lote);
             }
+            inicio = fin;
         }
         return new PlanFefo(List.copyOf(asignaciones), pendiente);
+    }
+
+    /**
+     * Entre lotes del mismo vencimiento: el más chico que alcanza solo; si ninguno alcanza, el más grande.
+     * Si empatan, el primero de la lista (el que se registró antes).
+     */
+    private static Lote elegir(List<Lote> mismoVencimiento, int pendiente) {
+        Lote masChicoQueAlcanza = null;
+        Lote masGrande = null;
+        for (Lote lote : mismoVencimiento) {
+            int hay = lote.getCantidadActual();
+            if (hay >= pendiente && (masChicoQueAlcanza == null || hay < masChicoQueAlcanza.getCantidadActual())) {
+                masChicoQueAlcanza = lote;
+            }
+            if (masGrande == null || hay > masGrande.getCantidadActual()) {
+                masGrande = lote;
+            }
+        }
+        return masChicoQueAlcanza != null ? masChicoQueAlcanza : masGrande;
     }
 
     public boolean alcanza() {

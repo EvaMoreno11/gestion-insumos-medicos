@@ -7,12 +7,14 @@ import type {
   ClienteDetalle,
   ClienteResumen,
   Cobranzas,
+  CorreccionLote,
   DetallesResumen,
   DocumentoPedido,
   EntradaDatos,
   EntradaReciente,
   EstadoSesion,
   EstadoPedido,
+  Lote,
   LoteAlerta,
   MedioPago,
   Negocio,
@@ -74,6 +76,11 @@ export const movimientos = {
   /** Las últimas entradas registradas (sin la carga inicial desde Excel), las más recientes primero */
   ultimasEntradas: (pagina: number, tamano = 30) =>
     api<Pagina<EntradaReciente>>('/api/movimientos/entradas', { params: { pagina, tamano } }),
+}
+
+export const lotes = {
+  /** Corrige número, vencimiento y cantidad. Devuelve el lote como quedó (el otro, si se unieron). */
+  corregir: (id: number, datos: CorreccionLote) => api<Lote>(`/api/lotes/${id}`, { metodo: 'PUT', cuerpo: datos }),
 }
 
 export interface ItemNuevo {

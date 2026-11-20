@@ -15,7 +15,8 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Detección de duplicados aunque estén escritos distinto ("Gasa estéril 10x10" = "GASA ESTERIL 10 x 10").
 - Buscador "¿tengo esto?" que no distingue mayúsculas ni tildes: `jer 5ml` encuentra "Jeringa 5 ml…" ([cómo funciona](docs/modelo-datos.md#cómo-funciona-el-buscador)).
 - Búsqueda por código de barras.
-- Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan.
+- Stock **por lote** con fecha de vencimiento. Las salidas usan **FEFO** (*First Expired, First Out*): primero sale el lote que vence antes. Los lotes vencidos nunca se despachan. Entre lotes que vencen el mismo mes se parte lo menos posible: si uno alcanza solo, sale todo de ese (el más chico que alcance), así no se abre una caja cerrada cuando bastan las sueltas, y un pedido de una caja entera se lleva la caja.
+- **Corregir un lote** mal registrado, en la app o en el Excel importado: número, vencimiento y cantidad. El cambio de cantidad queda como ajuste en el historial, con su motivo. Si el número nuevo ya es de otro lote del producto, la app avisa y los une en uno solo, sumando las unidades. Las notas ya despachadas muestran el lote corregido.
 - Entradas (compras) con su **costo** y un botón para reutilizar el lote de la última compra, salidas y ajustes con historial (kárdex), y un registro de las **últimas entradas** de todo el inventario. El producto toma el último costo de compra y cada lote guarda su costo promedio, así se sabe cuánto costó lo vendido. Las salidas simultáneas no pueden usar las mismas unidades, porque los lotes se bloquean con `SELECT … FOR UPDATE`.
 - Semáforo de stock (agotado, bajo, normal) en el buscador.
 - **Descargar inventario y catálogo** (desde Consultar inventario): el inventario completo en Excel, con todos los productos aunque no tengan stock, sus costos y una hoja de lotes (uso interno); y el catálogo para clientes en PDF o Excel, por categoría, sin precios o con la lista de precios de un cliente (costo + su porcentaje). El catálogo incluye solo los productos con stock mínimo.
@@ -33,7 +34,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes, y cuánto costaría comprarlo todo (lo que falta × el último costo de cada producto).
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
 - **Entregas parciales:** si faltan unidades, se puede entregar lo que hay. Lo que falta pasa a un pedido nuevo (saldo) con los mismos precios y la prioridad del original. La app muestra lo pedido, lo entregado y lo pendiente; el cliente solo recibe la nota de lo que se le entrega.
-- **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. El total tiene espacio para montos de hasta 6 cifras. No incluye costos ni porcentajes. En el celular, el PDF (y el del catálogo) se abre en una **vista previa** dentro de la app, como en WhatsApp, con el botón Compartir (WhatsApp, Imprimir, Archivos); en la PC se abre en otra pestaña del navegador.
+- **Nota de pedido en PDF y Excel**, con una fila por lote y lista para imprimir en A4. El total tiene espacio para montos de hasta 6 cifras. El lote cabe en una sola línea hasta unos 11 caracteres. No incluye costos ni porcentajes. En el celular, el PDF (y el del catálogo) se abre en una **vista previa** dentro de la app, como en WhatsApp, con el botón Compartir (WhatsApp, Imprimir, Archivos); en la PC se abre en otra pestaña del navegador.
 - **Pedidos "Solo tabla":** se entregan con un documento que solo tiene la tabla de productos y el total (sin nombres, fecha ni número). Descuentan el inventario igual que cualquier pedido y no gastan la numeración de las notas.
 - **Ítems escritos a mano → productos:** un ítem que no estaba en el inventario se registra como producto desde el pedido (con el formulario ya lleno) o se cambia por uno existente, y la línea conserva su cantidad y su precio.
 - **Aplicación para el celular** (se instala desde el navegador): consultar inventario, armar pedidos con el total en vivo, registrar entradas, ver lo que falta comprar y administrar clientes y productos. Cuando se publica una versión nueva, la app lo avisa y se actualiza con un toque (en el iPhone, la app instalada queda abierta con la versión anterior).
@@ -90,6 +91,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `POST` | `/api/movimientos/entrada` | Ingresar unidades a un lote (lo crea si no existe) |
 | `POST` | `/api/movimientos/salida` | Sacar unidades por FEFO, o de un lote específico |
 | `POST` | `/api/movimientos/ajuste` | Corregir un lote a la cantidad real |
+| `PUT` | `/api/lotes/{id}` | Corregir número, vencimiento y cantidad de un lote; con `"unir": true` lo une con otro del mismo número |
 | `GET` | `/api/movimientos?productoId=` | Historial de un producto |
 | `GET` | `/api/alertas/stock-bajo` · `/por-vencer?dias=` · `/vencidos` | Alertas |
 | `POST` | `/api/pedidos/{id}/correcciones` | Corregir un pedido despachado (cantidades, precios e ítems, con un motivo) |

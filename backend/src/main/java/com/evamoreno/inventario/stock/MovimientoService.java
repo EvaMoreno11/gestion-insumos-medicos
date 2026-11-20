@@ -141,15 +141,61 @@ public class MovimientoService {
     public ResultadoMovimiento registrarAjuste(AjusteRequest r) {
         Lote lote = lotes.buscarBloqueado(r.loteId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe el lote con id " + r.loteId()));
-        int diferencia = r.cantidadReal() - lote.getCantidadActual();
-        if (diferencia == 0) {
+        if (r.cantidadReal() == lote.getCantidadActual()) {
             throw new ConflictoException("El lote ya tiene " + lote.getCantidadActual()
                     + " unidades: no hay nada que ajustar");
         }
-        lote.fijarCantidad(r.cantidadReal());
-        Movimiento movimiento = movimientos.save(
-                new Movimiento(lote, TipoMovimiento.AJUSTE, diferencia, TextoBusqueda.limpiar(r.nota())));
+        Movimiento movimiento = ajustar(lote, r.cantidadReal(), TextoBusqueda.limpiar(r.nota()));
         return resultado(lote.getProducto().getId(), List.of(movimiento));
+    }
+
+    private Movimiento ajustar(Lote lote, int cantidadReal, String nota) {
+        int diferencia = cantidadReal - lote.getCantidadActual();
+        lote.fijarCantidad(cantidadReal);
+        return movimientos.save(new Movimiento(lote, TipoMovimiento.AJUSTE, diferencia, nota));
+    }
+
+    // ------------------------------------------------------------------ corrección de un lote
+
+    /**
+     * Corrige un lote mal registrado. Si la cantidad cambia, queda un AJUSTE en el historial; el número y
+     * el vencimiento se corrigen sin movimiento (también en las notas ya despachadas, que leen el lote).
+     * Si el número nuevo ya es de otro lote del producto, los dos se unen en ese otro (con 409 si tiene
+     * unidades y no se confirmó con {@code unir}).
+     *
+     * @return el lote como quedó (el otro, si se unieron)
+     */
+    public LoteResponse corregirLote(Long loteId, EdicionLoteRequest r) {
+        Lote lote = lotes.buscarBloqueado(loteId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el lote con id " + loteId));
+        String numeroLote = normalizarNumeroLote(r.numeroLote());
+        LocalDate vencimiento = Vencimientos.finDeMes(r.fechaVencimiento());
+
+        Lote otro = Objects.equals(numeroLote, lote.getNumeroLote()) ? null
+                : lotes.buscarPorNumeroBloqueado(lote.getProducto().getId(), numeroLote).orElse(null);
+        if (otro != null && otro.getCantidadActual() > 0 && !Boolean.TRUE.equals(r.unir())) {
+            int hay = otro.getCantidadActual();
+            throw new ConflictoException("Ya existe el lote %s en este producto, con %d %s (%s). "
+                    .formatted(nombre(otro), hay, hay == 1 ? "unidad" : "unidades",
+                            otro.getFechaVencimiento() == null ? "sin vencimiento"
+                                    : "vence " + formatear(otro.getFechaVencimiento()))
+                    + "Confirma para unir los dos en uno solo.");
+        }
+
+        if (r.cantidad() != lote.getCantidadActual()) {
+            String nota = TextoBusqueda.limpiar(r.nota());
+            ajustar(lote, r.cantidad(), nota == null || nota.isEmpty() ? "Corrección del lote" : nota);
+        }
+        if (otro == null) {
+            lote.corregir(numeroLote, vencimiento);
+            return LoteResponse.de(lote, stock.hoy());
+        }
+        // Eran el mismo lote: queda uno solo, con las unidades y el historial de los dos
+        otro.absorber(lote);
+        otro.corregir(numeroLote, vencimiento);
+        movimientos.findByLoteId(lote.getId()).forEach(m -> m.pasarAlLote(otro));
+        lotes.delete(lote);
+        return LoteResponse.de(otro, stock.hoy());
     }
 
     // ------------------------------------------------------------------ historial
@@ -214,6 +260,10 @@ public class MovimientoService {
         return new ResultadoMovimiento(productoId,
                 registrados.stream().map(MovimientoResponse::de).toList(),
                 stock.disponible(productoId));
+    }
+
+    private static String nombre(Lote lote) {
+        return lote.getNumeroLote() == null ? "(sin número)" : lote.getNumeroLote();
     }
 
     private static String formatear(LocalDate fecha) {

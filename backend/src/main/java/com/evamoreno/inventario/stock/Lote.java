@@ -98,6 +98,23 @@ public class Lote {
         cantidadActual = cantidadReal;
     }
 
+    /** Corrige el número o el vencimiento (un error al registrarlo). Las unidades no cambian. */
+    void corregir(String numeroLote, LocalDate fechaVencimiento) {
+        this.numeroLote = numeroLote;
+        this.fechaVencimiento = fechaVencimiento;
+    }
+
+    /**
+     * Une a este lote otro del mismo producto que en realidad es el mismo (p. ej. se escribió dos veces):
+     * suma sus unidades, pondera el costo, y el otro queda vacío.
+     */
+    void absorber(Lote otro) {
+        if (otro.cantidadActual > 0) {
+            sumar(otro.cantidadActual, otro.costoPromedio);
+        }
+        otro.cantidadActual = 0;
+    }
+
     public Long getId() {
         return id;
     }

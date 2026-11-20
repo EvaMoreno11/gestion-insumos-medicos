@@ -33,8 +33,9 @@ final class NotaPedidoPdf {
     private static final Color GRIS_TEXTO = new Color(0x59, 0x59, 0x59);
 
     // N° | Descripción | Presentación | Laboratorio | Lote | F.V. | Cant. | Precio | Total
-    // Total con espacio para montos de hasta 6 cifras ("123,456.78") sin partirse en dos líneas
-    private static final float[] ANCHOS = { 22f, 152f, 68f, 68f, 62f, 46f, 34f, 46f, 58f };
+    // Total con espacio para montos de hasta 6 cifras ("123,456.78") sin partirse en dos líneas.
+    // Lote con espacio para números de hasta ~11 caracteres ("A12345678BX") en una línea, con la misma letra.
+    private static final float[] ANCHOS = { 22f, 146f, 68f, 68f, 70f, 44f, 34f, 46f, 58f };
     private static final String[] TITULOS = { "N°", "DESCRIPCIÓN", "PRESENTACIÓN", "LABORATORIO", "LOTE", "F.V.",
             "CANT.", "PRECIO\n(inc. IGV)", "TOTAL\n(inc. IGV)" };
     private static final float ALTO_FILA = 26f;
