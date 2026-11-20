@@ -58,10 +58,10 @@ export function SelectorDocumento({
 export function DatosCliente({ cliente }: { cliente: ClienteResumen }) {
   return (
     <span className="min-w-0 flex-1">
-      <span className="block truncate font-semibold">{cliente.nombre}</span>
+      <span className="block font-semibold leading-snug break-words">{cliente.nombre}</span>
       {cliente.rucDni && <span className="block text-sm text-slate-500">{cliente.rucDni}</span>}
       {cliente.localesEncontrados?.map((l, i) => (
-        <span key={i} className="block truncate text-sm text-marca">
+        <span key={i} className="block text-sm break-words text-marca">
           {unir(' · ', l.nombre && `Local: ${l.nombre}`, l.contacto && `Contacto: ${l.contacto}`)}
         </span>
       ))}
@@ -225,14 +225,14 @@ export function BuscadorProductos({
                   setTexto('')
                   onElegir(p)
                 }}
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-slate-100"
+                className="flex w-full items-start gap-3 px-3 py-2.5 text-left active:bg-slate-100"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{p.nombre}</span>
-                  <span className="block truncate text-sm text-slate-500">{unir(' · ', p.presentacion, p.marca)}</span>
+                  <span className="block font-medium leading-snug break-words">{p.nombre}</span>
+                  <span className="block text-sm break-words text-slate-500">{unir(' · ', p.presentacion, p.marca)}</span>
                 </span>
                 <span
-                  className={`shrink-0 text-sm font-semibold ${p.stockLibre > 0 ? 'text-emerald-700' : 'text-red-700'}`}
+                  className={`shrink-0 pt-0.5 text-sm font-semibold ${p.stockLibre > 0 ? 'text-emerald-700' : 'text-red-700'}`}
                 >
                   {p.stockLibre > 0 ? `${p.stockLibre} libres` : 'Sin stock'}
                 </span>

@@ -60,8 +60,8 @@ export default function Pedidos() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <span className="min-w-0">
-                    <span className="block truncate font-semibold">{p.cliente}</span>
-                    <span className="block truncate text-sm text-slate-500">
+                    <span className="block font-semibold leading-snug break-words">{p.cliente}</span>
+                    <span className="block text-sm break-words text-slate-500">
                       {unir(' · ', p.local, p.numero ? `N° ${p.numero}` : null, fechaCorta(p.despachadoEn ?? p.creadoEn))}
                     </span>
                     {p.nota && <span className="block truncate text-sm text-slate-600">{p.nota}</span>}
