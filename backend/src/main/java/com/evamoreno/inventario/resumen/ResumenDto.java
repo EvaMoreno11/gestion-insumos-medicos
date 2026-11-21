@@ -73,7 +73,24 @@ public final class ResumenDto {
             BigDecimal ventas) {
     }
 
-    public record ClienteTop(Long clienteId, String nombre, long pedidos, BigDecimal ventas) {
+    /**
+     * Lo que compró un cliente en el periodo y lo que dejó de ganancia.
+     *
+     * @param ganancia ventas con costo conocido menos su costo real (como la ganancia del Resumen)
+     * @param margen   % de ganancia sobre esas ventas, con 1 decimal; null si no hay ventas con costo
+     */
+    public record ClienteTop(Long clienteId, String nombre, long pedidos, BigDecimal ventas, BigDecimal ganancia,
+            BigDecimal margen) {
+    }
+
+    /**
+     * Compras de un cliente en lo que va del año (para su ficha) y su último pedido despachado.
+     *
+     * @param ventasSinCosto lo vendido que no entra en la ganancia (ítems a mano o de lotes sin costo)
+     * @param ultimoPedido   día de su último despacho (de cualquier año); null si nunca compró
+     */
+    public record ResumenCliente(LocalDate desde, LocalDate hasta, BigDecimal ventas, long pedidos,
+            BigDecimal ganancia, BigDecimal margen, BigDecimal ventasSinCosto, LocalDate ultimoPedido) {
     }
 
     /** Cliente que compraba y no tiene pedidos recientes. */

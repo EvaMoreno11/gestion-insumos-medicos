@@ -201,6 +201,57 @@ class ResumenControllerTest extends IntegracionTest {
         mockMvcSinSesion.perform(get(URL)).andExpect(status().isUnauthorized());
     }
 
+    // ------------------------------------------------------------------ ganancia por cliente
+
+    @Test
+    void mejoresClientesTraeATodosLosQueCompraronConSuGanancia() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        compra(jeringa, "J1", null, 100, "10");
+        for (int i = 1; i <= 12; i++) {
+            despachar(pedido(cliente("Botica " + i), jeringa, i)); // más de 10: salen todos
+        }
+        mockMvc.perform(get(URL + "/detalles"))
+                .andExpect(jsonPath("$.mejoresClientes.length()").value(12))
+                .andExpect(jsonPath("$.mejoresClientes[0].nombre").value("Botica 12"))
+                .andExpect(jsonPath("$.mejoresClientes[0].ventas").value(132.0))
+                .andExpect(jsonPath("$.mejoresClientes[0].ganancia").value(12.0));
+    }
+
+    @Test
+    void laFichaDelClienteMuestraLoQueComproEsteAnoYSuGanancia() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        compra(jeringa, "J1", null, 50, "10");
+        Long botica = cliente("Botica Grande");
+        despachar(pedido(botica, jeringa, 5));                         // 55, costó 50
+        Long otro = pedido(botica, jeringa, 2);
+        despachar(otro);
+        despachadoEl(otro, "2026-02-10");                              // 22, costó 20
+        Long delAnoPasado = pedido(botica, jeringa, 3);
+        despachar(delAnoPasado);
+        despachadoEl(delAnoPasado, "2025-12-20");                      // no cuenta este año
+        postJson("/api/pedidos/" + pedido(botica, jeringa, 1) + "/items", """
+                {"descripcion": "Tensiómetro", "cantidad": 1, "precio": 40}""");  // borrador: no cuenta
+
+        mockMvc.perform(get(URL + "/clientes/{id}", botica))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.desde").value("2026-01-01"))
+                .andExpect(jsonPath("$.hasta").value("2026-06-15"))
+                .andExpect(jsonPath("$.ventas").value(77.0))
+                .andExpect(jsonPath("$.pedidos").value(2))
+                .andExpect(jsonPath("$.ganancia").value(7.0))
+                .andExpect(jsonPath("$.margen").value(9.1))
+                .andExpect(jsonPath("$.ventasSinCosto").value(0.0))
+                .andExpect(jsonPath("$.ultimoPedido").value("2026-06-15"));
+
+        Long nuevo = cliente("Clínica Nueva");
+        mockMvc.perform(get(URL + "/clientes/{id}", nuevo))
+                .andExpect(jsonPath("$.ventas").value(0.0))
+                .andExpect(jsonPath("$.pedidos").value(0))
+                .andExpect(jsonPath("$.margen").doesNotExist())
+                .andExpect(jsonPath("$.ultimoPedido").doesNotExist());
+        mockMvc.perform(get(URL + "/clientes/{id}", 999_999)).andExpect(status().isNotFound());
+    }
+
     // ------------------------------------------------------------------ más detalles
 
     @Test
@@ -240,6 +291,10 @@ class ResumenControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.mejoresClientes[*].nombre", contains("Botica Grande", "Clínica Chica")))
                 .andExpect(jsonPath("$.mejoresClientes[0].ventas").value(77.0))
                 .andExpect(jsonPath("$.mejoresClientes[0].pedidos").value(1))
+                // 77 vendidos que costaron 70 (5 × 10 + 20): ganancia 7, margen 9.1 %
+                .andExpect(jsonPath("$.mejoresClientes[0].ganancia").value(7.0))
+                .andExpect(jsonPath("$.mejoresClientes[0].margen").value(9.1))
+                .andExpect(jsonPath("$.mejoresClientes[1].ganancia").value(1.0))
                 .andExpect(jsonPath("$.diasInactivo").value(60))
                 .andExpect(jsonPath("$.clientesInactivos[*].nombre", contains("Farmacia Antigua")))
                 .andExpect(jsonPath("$.clientesInactivos[0].ultimoPedido").value("2026-03-01"))

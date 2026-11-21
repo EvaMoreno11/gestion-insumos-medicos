@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.resumen.ResumenDto.ClienteInactivo;
 import com.evamoreno.inventario.resumen.ResumenDto.ClienteTop;
 import com.evamoreno.inventario.resumen.ResumenDto.Cobrado;
@@ -31,6 +32,7 @@ import com.evamoreno.inventario.resumen.ResumenDto.Pendiente;
 import com.evamoreno.inventario.resumen.ResumenDto.ProductoSinMovimiento;
 import com.evamoreno.inventario.resumen.ResumenDto.ProductoVendido;
 import com.evamoreno.inventario.resumen.ResumenDto.Resumen;
+import com.evamoreno.inventario.resumen.ResumenDto.ResumenCliente;
 import com.evamoreno.inventario.resumen.ResumenDto.Ventas;
 
 import jakarta.persistence.EntityManager;
@@ -221,18 +223,59 @@ public class ResumenService {
                 .list();
     }
 
+    /**
+     * Todos los clientes que compraron en el periodo, del que más compró al que menos, con su ganancia y margen
+     * (la pantalla muestra los primeros y puede ordenarlos por ganancia).
+     */
     private List<ClienteTop> mejoresClientes(Periodo periodo) {
         return consulta("""
-                SELECT c.id, c.nombre, COUNT(DISTINCT lineas.pedido_id) AS pedidos, SUM(lineas.venta) AS ventas
+                SELECT c.id, c.nombre, COUNT(DISTINCT lineas.pedido_id) AS pedidos, SUM(lineas.venta) AS ventas,
+                       COALESCE(SUM(lineas.venta) FILTER (WHERE NOT lineas.sin_costo), 0) AS ventas_con_costo,
+                       COALESCE(SUM(lineas.costo) FILTER (WHERE NOT lineas.sin_costo), 0) AS costo
                 FROM (%s) lineas
                 JOIN cliente c ON c.id = lineas.cliente_id
                 GROUP BY c.id, c.nombre
-                ORDER BY ventas DESC
-                LIMIT %d
-                """.formatted(LINEAS_VENDIDAS, TOP), periodo.desde(), periodo.hasta())
-                .query((rs, n) -> new ClienteTop(rs.getLong("id"), rs.getString("nombre"), rs.getLong("pedidos"),
-                        dinero(rs, "ventas")))
+                ORDER BY ventas DESC, c.nombre
+                """.formatted(LINEAS_VENDIDAS), periodo.desde(), periodo.hasta())
+                .query((rs, n) -> {
+                    Totales t = new Totales(dinero(rs, "ventas"),
+                            dinero(rs, "ventas").subtract(dinero(rs, "ventas_con_costo")), dinero(rs, "costo"),
+                            rs.getLong("pedidos"));
+                    return new ClienteTop(rs.getLong("id"), rs.getString("nombre"), t.pedidos(), t.ventas(),
+                            t.ganancia(), t.margen());
+                })
                 .list();
+    }
+
+    /** Lo que compró un cliente en lo que va del año, con su ganancia, y su último pedido despachado. */
+    public ResumenCliente deCliente(Long clienteId) {
+        entityManager.flush();
+        boolean existe = jdbc.sql("SELECT EXISTS (SELECT 1 FROM cliente WHERE id = :id)").param("id", clienteId)
+                .query(Boolean.class).single();
+        if (!existe) {
+            throw new RecursoNoEncontradoException("No existe el cliente con id " + clienteId);
+        }
+        Periodo periodo = Periodo.de(Periodo.Tipo.ANIO, null, null, hoy());
+        Totales t = consulta("""
+                SELECT COALESCE(SUM(venta), 0) AS ventas,
+                       COALESCE(SUM(venta) FILTER (WHERE sin_costo), 0) AS ventas_sin_costo,
+                       COALESCE(SUM(costo) FILTER (WHERE NOT sin_costo), 0) AS costo,
+                       COUNT(DISTINCT pedido_id) AS pedidos
+                FROM (%s) lineas
+                WHERE lineas.cliente_id = :cliente
+                """.formatted(LINEAS_VENDIDAS), periodo.desde(), periodo.hasta())
+                .param("cliente", clienteId)
+                .query((rs, n) -> new Totales(dinero(rs, "ventas"), dinero(rs, "ventas_sin_costo"),
+                        dinero(rs, "costo"), rs.getLong("pedidos")))
+                .single();
+        List<LocalDate> ultimo = jdbc.sql("""
+                SELECT MAX(despachado_en) AS ultimo FROM pedido WHERE cliente_id = :cliente AND estado = 'DESPACHADO'
+                """)
+                .param("cliente", clienteId)
+                .query((rs, n) -> fecha(rs, "ultimo")) // null si nunca compró
+                .list();
+        return new ResumenCliente(periodo.desde(), periodo.hasta(), t.ventas(), t.pedidos(), t.ganancia(),
+                t.margen(), t.ventasSinCosto(), ultimo.isEmpty() ? null : ultimo.getFirst());
     }
 
     /** Clientes activos que ya compraron, cuyo último despacho fue hace más de 60 días y no tienen pedidos nuevos. */
