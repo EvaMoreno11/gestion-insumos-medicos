@@ -27,11 +27,12 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo, filtrables por categoría (para saber qué comprar; los que no tienen mínimo no avisan, por ejemplo si están descontinuados), lotes que vencen en el próximo año y lotes vencidos con unidades.
 - **Importar desde Excel** (Configuración → Importar desde Excel): el inventario con la [plantilla de inventario](docs/plantilla_inventario.xlsx) y los clientes con la [plantilla de clientes](docs/plantilla_clientes.xlsx). Primero se valida sin guardar nada y se ve el reporte de errores por fila; la importación es todo o nada.
 - Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
-- **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales. Si a un cliente se le puso a mano un precio especial para un producto, sus pedidos siguientes proponen ese precio (el más reciente) en vez del calculado.
+- **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales. Si a un cliente se le puso a mano un precio especial para un producto, sus pedidos siguientes, sus correcciones y su lista de precios usan ese precio (el más reciente) en vez del calculado.
 - **Categorías de precio** internas (A = 12 %, B = 15 %, C = 20 %, ampliables) que nunca se muestran al cliente.
 - **Clientes** con uno o varios locales de entrega. Se buscan por razón social, RUC, nombre del local (p. ej. el de la botica) o contacto.
 - **Pedidos por cliente:** se arman como borrador, con el precio de cada línea calculado (costo + porcentaje) y editable, y el total siempre actualizado. También admiten ítems escritos a mano que aún no están en el catálogo.
 - **Faltantes con prioridad:** se puede pedir más de lo que hay. El stock se separa para el pedido más antiguo, así dos pedidos nunca aparecen completos contando las mismas unidades.
+- **Costo y ganancia de cada pedido** (uso interno, nunca en la nota): en el pedido, junto al total, y en las listas de Pendientes y Despachados. En un despachado es el costo real de los lotes que salieron; en un borrador, un estimado con el costo actual. Si se vende por debajo del costo dice "pierde", en rojo.
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes, y cuánto costaría comprarlo todo (lo que falta × el último costo de cada producto).
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
 - **Despachados por día:** al entrar se ven los de los últimos 7 días, separados por día con cuántos pedidos y cuánto suma cada uno. Se busca por cliente, local o N° de nota en todo el historial, y con **Elegir fechas** (desde y hasta, con el calendario del celular) se ve cualquier día, mes o año. La lista carga de 50 en 50.
@@ -102,6 +103,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `GET` | `/api/exportar/inventario.xlsx` · `/catalogo.pdf` · `/catalogo.xlsx?clienteId=` | Inventario completo (interno) y catálogo para clientes |
 | `GET` | `/api/cobranzas` | Notas con saldo pendiente: vencidas, por cobrar y sin plazo |
 | `GET` | `/api/pedidos/despachados?buscar=&desde=&hasta=` | Despachados por fecha de despacho, con lo que suma cada día |
+| `GET` | `/api/pedidos/{id}/precio-sugerido?productoId=` | Precio que se propone: el especial del cliente o costo + porcentaje |
 | `GET` | `/api/proveedores` · `/api/proveedores/resumen` | Proveedores y cuánto falta pagarles |
 | `GET` / `POST` / `PUT` / `DELETE` | `/api/proveedores/deudas[/{id}]` | Deudas con proveedores (por pagar o `?pagadas=true`) |
 | `POST` / `DELETE` | `/api/proveedores/deudas/{id}/pagos[/{pagoId}]` | Pagos a proveedores |
