@@ -921,7 +921,7 @@ public class PedidoService {
                         l.lote().getFechaVencimiento(), l.cantidad())).toList());
     }
 
-    private static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero) {
+    static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero) {
         int conFaltante = pedido.getEstado() != EstadoPedido.BORRADOR ? 0
                 : (int) pedido.getItems().stream().filter(i -> faltante(i, asignado) > 0).count();
         return new Resumen(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getDocumento(),

@@ -1,6 +1,7 @@
 package com.evamoreno.inventario.pedido;
 
 import java.net.URI;
+import java.time.LocalDate;
 
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -47,9 +48,11 @@ public class PedidoController {
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     private final PedidoService service;
+    private final DespachadosService despachados;
 
-    public PedidoController(PedidoService service) {
+    public PedidoController(PedidoService service, DespachadosService despachados) {
         this.service = service;
+        this.despachados = despachados;
     }
 
     // ------------------------------------------------------------------ consultas
@@ -62,6 +65,18 @@ public class PedidoController {
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamano) {
         return service.listar(estado, clienteId, pagina, tamano);
+    }
+
+    @GetMapping("/despachados")
+    @Operation(summary = "Pedidos despachados, del más reciente al más antiguo según la fecha de despacho",
+            description = "Busca por nombre del cliente o de su local, o por N° de nota, en un rango de fechas "
+                    + "opcional (sin fechas: todo el historial). Trae cuántos pedidos y cuánto suma cada día.")
+    public PedidoDto.Despachados despachados(@RequestParam(required = false) String buscar,
+            @Parameter(description = "Primer día, inclusive (aaaa-mm-dd)") @RequestParam(required = false) LocalDate desde,
+            @Parameter(description = "Último día, inclusive (aaaa-mm-dd)") @RequestParam(required = false) LocalDate hasta,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "50") int tamano) {
+        return despachados.buscar(buscar, desde, hasta, pagina, tamano);
     }
 
     @GetMapping("/{id}")
