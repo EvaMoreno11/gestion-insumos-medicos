@@ -32,6 +32,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Clientes** con uno o varios locales de entrega. Se buscan por razón social, RUC, nombre del local (p. ej. el de la botica) o contacto.
 - **Pedidos por cliente:** se arman como borrador, con el precio de cada línea calculado (costo + porcentaje) y editable, y el total siempre actualizado. También admiten ítems escritos a mano que aún no están en el catálogo.
 - **Faltantes con prioridad:** se puede pedir más de lo que hay. El stock se separa para el pedido más antiguo, así dos pedidos nunca aparecen completos contando las mismas unidades.
+- **Ganancia por cliente:** en Resumen → Más detalles, "Mejores clientes" muestra a todos los que compraron en el periodo con su ganancia y margen, y se puede ordenar por ganancia (para saber a quién recompensar). La ficha de cada cliente muestra lo que compró en el año, su ganancia y su último pedido.
 - **Costo y ganancia de cada pedido** (uso interno, nunca en la nota): en el pedido, junto al total, y en las listas de Pendientes y Despachados. En un despachado es el costo real de los lotes que salieron; en un borrador, un estimado con el costo actual. Si se vende por debajo del costo dice "pierde", en rojo.
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes, y cuánto costaría comprarlo todo (lo que falta × el último costo de cada producto).
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
@@ -108,6 +109,7 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `GET` / `POST` / `PUT` / `DELETE` | `/api/proveedores/deudas[/{id}]` | Deudas con proveedores (por pagar o `?pagadas=true`) |
 | `POST` / `DELETE` | `/api/proveedores/deudas/{id}/pagos[/{pagoId}]` | Pagos a proveedores |
 | `GET` | `/api/resumen?periodo=` · `/api/resumen/detalles?periodo=` | Resumen ejecutivo (`MES`, `MES_ANTERIOR`, `ANIO` o `RANGO` con `desde` y `hasta`) |
+| `GET` | `/api/resumen/clientes/{id}` | Lo que compró un cliente en el año, con su ganancia y su último pedido |
 | `POST` | `/api/importacion/inventario?soloValidar=` | Importar la plantilla de inventario (por defecto solo valida) |
 | `POST` | `/api/importacion/clientes?soloValidar=` | Importar la plantilla de clientes (por defecto solo valida) |
 | `GET` / `POST` / `PUT` | `/api/clientes[/{id}]` | Buscar (por nombre, RUC, local o contacto), registrar y actualizar clientes y sus locales |
