@@ -110,6 +110,9 @@ export const pedidos = {
   despachados: (filtro: { buscar?: string; desde?: string | null; hasta?: string | null; pagina?: number }) =>
     api<Despachados>('/api/pedidos/despachados', { params: { ...filtro, tamano: 50 } }),
   obtener: (id: number) => api<Pedido>(`/api/pedidos/${id}`),
+  /** Precio que se propone para un producto: el especial que ya se le dio al cliente o costo + porcentaje */
+  precioSugerido: (id: number, productoId: number) =>
+    api<{ precio: number | null; especial: boolean }>(`/api/pedidos/${id}/precio-sugerido`, { params: { productoId } }),
   crear: (datos: {
     clienteId: number
     localId?: number

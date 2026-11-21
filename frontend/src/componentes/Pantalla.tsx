@@ -34,6 +34,7 @@ const SECCIONES = [
   { a: '/entrada', icono: '📦', titulo: 'Registrar entrada' },
   { a: '/por-comprar', icono: '🛒', titulo: 'Por comprar' },
   { a: '/cobranzas', icono: '💰', titulo: 'Cobranzas' },
+  { a: '/proveedores', icono: '🏭', titulo: 'Proveedores' },
   { a: '/alertas', icono: '🔔', titulo: 'Alertas' },
   { a: '/resumen', icono: '📊', titulo: 'Resumen' },
   { a: '/clientes', icono: '👥', titulo: 'Clientes' },
@@ -50,19 +51,19 @@ function MenuLateral() {
         <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg ring-1 ring-white/30" />
         <span className="min-w-0 truncate text-lg font-semibold">{negocio}</span>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {SECCIONES.map((s) => (
           <NavLink
             key={s.a}
             to={s.a}
             end={s.exacta}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3 py-3 font-medium ${
+              `flex items-center gap-3 rounded-xl px-3 py-2 font-medium leading-6 ${
                 isActive ? 'bg-marca text-white' : 'text-slate-700 hover:bg-slate-100'
               }`
             }
           >
-            <span className="w-7 text-center text-xl" aria-hidden="true">
+            <span className="w-7 text-center text-xl leading-none" aria-hidden="true">
               {s.icono}
             </span>
             {s.titulo}
@@ -70,7 +71,7 @@ function MenuLateral() {
         ))}
       </nav>
       <div className="border-t border-slate-200 p-3">
-        <p className="truncate px-3 pb-2 text-sm text-slate-500">Sesión: {usuario}</p>
+        <p className="truncate px-3 pb-1 text-sm text-slate-500">Sesión: {usuario}</p>
         <button
           type="button"
           onClick={() => {
@@ -78,9 +79,9 @@ function MenuLateral() {
               void salir()
             }
           }}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-medium text-slate-700 hover:bg-slate-100"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 font-medium leading-6 text-slate-700 hover:bg-slate-100"
         >
-          <span className="w-7 text-center text-xl" aria-hidden="true">
+          <span className="w-7 text-center text-xl leading-none" aria-hidden="true">
             🚪
           </span>
           Cerrar sesión

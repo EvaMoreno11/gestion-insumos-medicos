@@ -327,6 +327,20 @@ export interface Pedido {
   cobro: Cobro | null
   /** Correcciones hechas después de despachar (solo para uso interno) */
   correcciones: CorreccionPedido[]
+  /** Costo y ganancia (uso interno); null si está anulado */
+  costo: CostoPedido | null
+}
+
+/**
+ * Cuánto costó un pedido y cuánto se gana (uso interno, nunca va en la nota). Despachado: costo real de los
+ * lotes; borrador: estimado con el costo actual de cada producto.
+ */
+export interface CostoPedido {
+  costo: number
+  /** Negativa si se vende por debajo del costo */
+  ganancia: number
+  /** Ítems que no entran en la cuenta (sin costo conocido o sin precio) */
+  itemsSinCosto: number
 }
 
 export interface CorreccionPedido {
@@ -453,6 +467,8 @@ export interface PedidoResumen {
   origenNumero: string | null
   creadoEn: string
   despachadoEn: string | null
+  /** Costo y ganancia (uso interno); null si está anulado */
+  costo: CostoPedido | null
 }
 
 export interface PedidoQueEspera {

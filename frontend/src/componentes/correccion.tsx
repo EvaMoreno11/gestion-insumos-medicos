@@ -32,6 +32,8 @@ interface Nuevo {
   detalle: string
   cantidad: string
   precio: string
+  /** El precio propuesto es el especial que ya se le dio a este cliente */
+  especial?: boolean
 }
 
 const precioTexto = (valor: number | null) => (valor === null ? '' : valor.toFixed(2))
@@ -166,25 +168,38 @@ export function CorregirPedido({
     }
   }
 
-  function agregarProducto(p: ProductoResumen) {
+  async function agregarProducto(p: ProductoResumen) {
     if (pedido.items.some((i) => i.productoId === p.id) || nuevos.some((n) => n.productoId === p.id)) {
       setError(`"${p.nombre}" ya está en el pedido: cambia su cantidad arriba`)
       return
     }
     setError(null)
-    // Precio sugerido: costo + porcentaje del pedido (el servidor hace el mismo cálculo)
-    const sugerido = p.costo === null ? '' : (Math.round(p.costo * (1 + pedido.porcentaje / 100) * 100) / 100).toFixed(2)
-    setNuevos((actual) => [
-      ...actual,
-      {
-        clave: `p${p.id}`,
-        productoId: p.id,
-        descripcion: p.nombre,
-        detalle: unir(' · ', p.presentacion, p.marca),
-        cantidad: '1',
-        precio: sugerido,
-      },
-    ])
+    // Precio sugerido: el especial que ya se le dio a este cliente o, si no tiene, costo + porcentaje del pedido
+    let sugerido = p.costo === null ? '' : (Math.round(p.costo * (1 + pedido.porcentaje / 100) * 100) / 100).toFixed(2)
+    let especial = false
+    try {
+      const r = await pedidos.precioSugerido(pedido.id, p.id)
+      sugerido = r.precio === null ? '' : r.precio.toFixed(2)
+      especial = r.especial
+    } catch {
+      // sin conexión: se queda con el cálculo de aquí
+    }
+    setNuevos((actual) =>
+      actual.some((n) => n.productoId === p.id)
+        ? actual
+        : [
+            ...actual,
+            {
+              clave: `p${p.id}`,
+              productoId: p.id,
+              descripcion: p.nombre,
+              detalle: unir(' · ', p.presentacion, p.marca),
+              cantidad: '1',
+              precio: sugerido,
+              especial,
+            },
+          ],
+    )
   }
 
   return (
@@ -236,13 +251,18 @@ export function CorregirPedido({
                 }
               />
             </div>
-            {n.productoId !== null && <p className="mt-2 text-sm text-slate-600">Sale del inventario al guardar.</p>}
+            {n.productoId !== null && (
+              <p className="mt-2 text-sm text-slate-600">
+                Sale del inventario al guardar.
+                {n.especial && ' El precio es el especial que ya se le dio a este cliente.'}
+              </p>
+            )}
           </Tarjeta>
         ))}
       </div>
 
       <Tarjeta>
-        <BuscadorProductos placeholder="Agregar un producto al pedido…" onElegir={agregarProducto} />
+        <BuscadorProductos placeholder="Agregar un producto al pedido…" onElegir={(p) => void agregarProducto(p)} />
         <Boton variante="texto" className="mt-1 min-h-10 px-1 text-sm" onClick={() => setManual(!manual)}>
           {manual ? 'Cancelar ítem a mano' : '+ Agregar un ítem que no está en la lista'}
         </Boton>
