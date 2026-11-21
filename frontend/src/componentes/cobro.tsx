@@ -2,14 +2,9 @@ import { useState } from 'react'
 import { pedidos } from '../api/recursos'
 import type { Cobro, EstadoCobro, MedioPago, Pedido } from '../api/tipos'
 import { cuandoVence, dinero, fechaDia, hoyLocal, leerDecimal, leerEntero, textoPlazo } from '../util/formato'
+import { MEDIOS, nombreMedio } from '../util/pagos'
 import { Boton, Campo, Etiqueta, Tarjeta } from './basicos'
 
-const MEDIOS: { valor: MedioPago; titulo: string }[] = [
-  { valor: 'EFECTIVO', titulo: 'Efectivo' },
-  { valor: 'YAPE', titulo: 'Yape' },
-  { valor: 'PLIN', titulo: 'Plin' },
-  { valor: 'TRANSFERENCIA', titulo: 'Transferencia' },
-]
 
 const PLAZOS = [
   { dias: 0, titulo: 'Contado' },
@@ -17,10 +12,6 @@ const PLAZOS = [
   { dias: 15, titulo: '15 días' },
   { dias: 30, titulo: '30 días' },
 ]
-
-function nombreMedio(medio: MedioPago): string {
-  return MEDIOS.find((m) => m.valor === medio)?.titulo ?? medio
-}
 
 /** Etiqueta del estado del cobro: el texto dice el estado (no solo el color). */
 export function EtiquetaCobro({ estado, dias }: { estado: EstadoCobro; dias: number | null }) {
@@ -232,14 +223,18 @@ function PanelPlazo({
   )
 }
 
-function PanelPago({
+/** Un pago (total o parcial) con su fecha, medio y nota. También lo usan los pagos a proveedores. */
+export function PanelPago({
   saldo,
   ocupado,
   onGuardar,
+  falta = 'Falta cobrar',
 }: {
   saldo: number
   ocupado: boolean
   onGuardar: (pago: { monto: number; medio: MedioPago; fecha: string; nota?: string }) => void
+  /** Texto del aviso cuando el monto pasa del saldo */
+  falta?: string
 }) {
   const hoy = hoyLocal()
   const [monto, setMonto] = useState(saldo.toFixed(2))
@@ -267,7 +262,7 @@ function PanelPago({
           value={monto}
           onChange={(e) => setMonto(e.target.value.replace(/[^\d.,]/g, ''))}
           onFocus={(e) => e.currentTarget.select()}
-          error={pasado ? `Falta cobrar ${dinero(saldo)}` : undefined}
+          error={pasado ? `${falta} ${dinero(saldo)}` : undefined}
         />
         <Campo etiqueta="Fecha" type="date" max={hoy} value={fecha} onChange={(e) => setFecha(e.target.value)} />
       </div>
@@ -280,19 +275,23 @@ function PanelPago({
   )
 }
 
-function PanelPagoTotal({
+/** "Pagó todo": lo que falta, hoy, eligiendo solo el medio. */
+export function PanelPagoTotal({
   saldo,
   ocupado,
   onGuardar,
+  texto,
 }: {
   saldo: number
   ocupado: boolean
   onGuardar: (medio: MedioPago) => void
+  /** Lo que se pregunta; por omisión, el de un cliente que pagó */
+  texto?: string
 }) {
   const [medio, setMedio] = useState<MedioPago | null>(null)
   return (
     <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
-      <p className="text-sm text-slate-600">Hoy pagó los {dinero(saldo)} que faltaban. ¿Cómo pagó?</p>
+      <p className="text-sm text-slate-600">{texto ?? `Hoy pagó los ${dinero(saldo)} que faltaban. ¿Cómo pagó?`}</p>
       <Opciones nombre="Medio de pago" opciones={MEDIOS} valor={medio} onCambio={setMedio} />
       <Boton ancho disabled={ocupado || medio === null} onClick={() => medio !== null && onGuardar(medio)}>
         Registrar {dinero(saldo)} como pagado

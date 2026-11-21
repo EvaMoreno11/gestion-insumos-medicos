@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Lote, LoteEntregado } from '../api/tipos'
-import { hoyLocal, opcionesDeLote, repartoEntregado, revisarReparto, todoDeUnLote } from './lotes'
+import { opcionesDeLote, repartoEntregado, revisarReparto, todoDeUnLote } from './lotes'
 
 const HOY = '2026-11-20'
 
@@ -61,9 +61,5 @@ describe('cambiar de qué lotes sale un ítem', () => {
     const revision = revisarReparto(opciones, { 1: '', 2: '120', 3: '' })
     expect(revision.suma).toBe(120)
     expect(revision.excedidos.map((o) => o.numeroLote)).toEqual(['B'])
-  })
-
-  it('arma la fecha de hoy en la zona del celular', () => {
-    expect(hoyLocal(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05')
   })
 })

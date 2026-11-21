@@ -14,7 +14,11 @@ import {
   leerEntero,
   mesAnio,
   mesAnioAFecha,
+  diaLocal,
+  haceDias,
+  nombreDeFecha,
   numeroDeLote,
+  sumarDias,
   ordenarPorNombre,
   porcentaje,
   textoComparable,
@@ -170,6 +174,23 @@ describe('cliente HTTP', () => {
       expect(opciones.body).toBe(formulario)
       expect(resultado).toEqual({ importado: false })
     })
+  })
+})
+
+describe('días de la lista de despachados', () => {
+  it('arma la fecha local, resta días y nombra Hoy y Ayer', () => {
+    const hoy = new Date(2026, 0, 2, 23, 30)
+    expect(diaLocal(hoy)).toBe('2026-01-02')
+    expect(sumarDias('2026-01-02', -6)).toBe('2025-12-27')
+    expect(nombreDeFecha('2026-01-02', hoy)).toBe('Hoy')
+    expect(nombreDeFecha('2026-01-01', hoy)).toBe('Ayer')
+    expect(nombreDeFecha('2025-12-27', hoy)).toBe('27/12/2025')
+  })
+
+  it('dice hace cuántos días fue', () => {
+    expect(haceDias('2026-01-02', '2026-01-02')).toBe('hoy')
+    expect(haceDias('2026-01-01', '2026-01-02')).toBe('ayer')
+    expect(haceDias('2025-12-27', '2026-01-02')).toBe('hace 6 días')
   })
 })
 

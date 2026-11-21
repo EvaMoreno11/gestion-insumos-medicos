@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { alertas, cobranzas, pedidos } from '../api/recursos'
+import { alertas, cobranzas, pedidos, proveedores } from '../api/recursos'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
 import { useSesion } from '../sesion-contexto'
@@ -12,6 +12,8 @@ interface Opcion {
   aviso?: number
   /** El aviso va en rojo: algo ya se pasó de fecha */
   urgente?: boolean
+  /** Qué cuenta el aviso, para los lectores de pantalla */
+  textoAviso?: (cantidad: number) => string
 }
 
 export default function Inicio() {
@@ -23,6 +25,7 @@ export default function Inicio() {
   const porVencer = useCarga(() => alertas.porVencer())
   const vencidos = useCarga(() => alertas.vencidos())
   const cobros = useCarga(() => cobranzas.obtener())
+  const deudas = useCarga(() => proveedores.resumen())
   const totalAlertas =
     stockBajo.datos && porVencer.datos && vencidos.datos
       ? stockBajo.datos.length + porVencer.datos.length + vencidos.datos.length
@@ -52,6 +55,15 @@ export default function Inicio() {
       detalle: 'Pagos y créditos',
       aviso: cobros.datos?.clientesVencidos,
       urgente: true,
+      textoAviso: (n) => `${n} ${n === 1 ? 'cliente' : 'clientes'} con cobros vencidos`,
+    },
+    {
+      a: '/proveedores',
+      icono: '🏭',
+      titulo: 'Proveedores',
+      detalle: 'Lo que falta pagarles',
+      aviso: deudas.datos?.deudasPorPagar,
+      textoAviso: (n) => `${n} ${n === 1 ? 'deuda' : 'deudas'} por pagar`,
     },
     {
       a: '/alertas',
@@ -98,7 +110,7 @@ export default function Inicio() {
                 className={`absolute right-3 top-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white ${
                   o.urgente ? 'bg-red-600' : 'bg-amber-500'
                 }`}
-                aria-label={o.urgente ? `${o.aviso} con cobros vencidos` : undefined}
+                aria-label={o.textoAviso?.(o.aviso)}
               >
                 {o.aviso}
               </span>
