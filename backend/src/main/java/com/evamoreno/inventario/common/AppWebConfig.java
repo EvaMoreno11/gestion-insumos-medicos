@@ -18,7 +18,7 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
  * <li>Las rutas de la app ({@code /pedidos/15}, {@code /inventario}…) devuelven {@code index.html}: así se
  * puede recargar la página o abrir un enlace directo.</li>
  * <li>Los archivos de {@code /assets} llevan un código en el nombre que cambia con cada versión: se guardan en
- * el navegador por un año. Lo demás (index.html) se revalida siempre, para que se vea la versión nueva.</li>
+ * el navegador por un año. Lo demás (index.html) se pide de nuevo siempre, para que se vea la versión nueva.</li>
  * </ul>
  * En desarrollo no hay {@code index.html} (la app la sirve Vite) y todo sigue igual.
  */
@@ -34,6 +34,10 @@ public class AppWebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
                 .setCacheControl(CacheControl.noCache())
+                // Dentro del .jar todos los archivos tienen la misma fecha (1980): con "Last-Modified" el navegador
+                // preguntaba "¿cambió desde 1980?", recibía 304 y seguía con la versión vieja aunque se publicara
+                // otra. Sin esa fecha, cada vez descarga el index.html actual (es pequeño).
+                .setUseLastModified(false)
                 .resourceChain(true)
                 .addResolver(new PathResourceResolver() {
                     @Override
