@@ -18,6 +18,7 @@ import Pedidos from './paginas/Pedidos'
 import PorComprar from './paginas/PorComprar'
 import ProductoDetalle from './paginas/ProductoDetalle'
 import { ProductoFormulario, Productos } from './paginas/Productos'
+import Proveedores from './paginas/Proveedores'
 import Resumen from './paginas/Resumen'
 import UltimasEntradas from './paginas/UltimasEntradas'
 import { SesionProvider } from './sesion'
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/por-comprar" element={<PorComprar />} />
         <Route path="/alertas" element={<Alertas />} />
         <Route path="/cobranzas" element={<Cobranzas />} />
+        <Route path="/proveedores" element={<Proveedores />} />
         <Route path="/resumen" element={<Resumen />} />
         <Route path="/resumen/detalles" element={<MasDetalles />} />
 

@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { mensajeDe } from '../api/http'
 import { pedidos, productos } from '../api/recursos'
 import type { CorreccionPedido, Pedido, PedidoItem, ProductoResumen } from '../api/tipos'
-import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, unir } from '../util/formato'
+import { diaLocal, dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, unir } from '../util/formato'
 import {
-  hoyLocal,
   opcionesDeLote,
   repartoEntregado,
   revisarReparto,
@@ -321,7 +320,7 @@ function LineaCorreccion({
     onCambio({ reparto: repartoEntregado(item.lotes), opciones: null })
     try {
       const producto = await productos.obtener(item.productoId)
-      onCambio({ opciones: opcionesDeLote(item.lotes, producto.lotes, hoyLocal()) })
+      onCambio({ opciones: opcionesDeLote(item.lotes, producto.lotes, diaLocal()) })
     } catch (e) {
       setErrorLotes(mensajeDe(e))
       onCambio({ reparto: null, opciones: null })

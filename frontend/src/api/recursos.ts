@@ -8,7 +8,10 @@ import type {
   ClienteResumen,
   Cobranzas,
   CorreccionLote,
+  Despachados,
   DetallesResumen,
+  DeudaProveedor,
+  DeudaProveedorDatos,
   DocumentoPedido,
   EntradaDatos,
   EntradaReciente,
@@ -26,9 +29,11 @@ import type {
   ProductoDatos,
   ProductoDetalle,
   ProductoResumen,
+  Proveedor,
   ResultadoImportacion,
   ResultadoImportacionClientes,
   ResultadoMovimiento,
+  ResumenProveedores,
   Resumen,
   TipoPeriodo,
 } from './tipos'
@@ -101,6 +106,9 @@ export interface ItemCambio {
 export const pedidos = {
   listar: (estado: EstadoPedido, tamano = 50) =>
     api<Pagina<PedidoResumen>>('/api/pedidos', { params: { estado, tamano } }),
+  /** Despachados por fecha de despacho; sin fechas busca en todo el historial. Fechas en aaaa-mm-dd, inclusive */
+  despachados: (filtro: { buscar?: string; desde?: string | null; hasta?: string | null; pagina?: number }) =>
+    api<Despachados>('/api/pedidos/despachados', { params: { ...filtro, tamano: 50 } }),
   obtener: (id: number) => api<Pedido>(`/api/pedidos/${id}`),
   crear: (datos: {
     clienteId: number
@@ -226,4 +234,22 @@ export const sesion = {
 export const negocio = {
   obtener: () => api<Negocio>('/api/negocio'),
   guardar: (datos: Negocio) => api<Negocio>('/api/negocio', { metodo: 'PUT', cuerpo: datos }),
+}
+
+export const proveedores = {
+  listar: () => api<Proveedor[]>('/api/proveedores'),
+  resumen: () => api<ResumenProveedores>('/api/proveedores/resumen'),
+  /** Por pagar (primero la más antigua) o pagadas (primero la última que se terminó de pagar) */
+  deudas: (pagadas: boolean, pagina = 0) =>
+    api<Pagina<DeudaProveedor>>('/api/proveedores/deudas', { params: { pagadas, pagina, tamano: 50 } }),
+  crear: (datos: DeudaProveedorDatos) =>
+    api<DeudaProveedor>('/api/proveedores/deudas', { metodo: 'POST', cuerpo: datos }),
+  corregir: (id: number, datos: DeudaProveedorDatos) =>
+    api<DeudaProveedor>(`/api/proveedores/deudas/${id}`, { metodo: 'PUT', cuerpo: datos }),
+  /** Solo si no tiene pagos */
+  eliminar: (id: number) => api<void>(`/api/proveedores/deudas/${id}`, { metodo: 'DELETE' }),
+  registrarPago: (id: number, pago: { monto: number; medio: MedioPago; fecha?: string; nota?: string }) =>
+    api<DeudaProveedor>(`/api/proveedores/deudas/${id}/pagos`, { metodo: 'POST', cuerpo: pago }),
+  eliminarPago: (id: number, pagoId: number) =>
+    api<DeudaProveedor>(`/api/proveedores/deudas/${id}/pagos/${pagoId}`, { metodo: 'DELETE' }),
 }

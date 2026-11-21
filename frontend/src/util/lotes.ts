@@ -78,9 +78,3 @@ export function revisarReparto(opciones: OpcionLote[], reparto: Reparto) {
     lotes: opciones.filter((o) => asignado(o) > 0).map((o) => ({ loteId: o.loteId, cantidad: asignado(o) })),
   }
 }
-
-/** Fecha local de hoy en aaaa-mm-dd. */
-export function hoyLocal(ahora: Date = new Date()): string {
-  const dos = (n: number) => String(n).padStart(2, '0')
-  return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`
-}

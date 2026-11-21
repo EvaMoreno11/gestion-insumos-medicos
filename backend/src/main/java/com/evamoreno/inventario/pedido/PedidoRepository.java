@@ -18,6 +18,10 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     @EntityGraph(attributePaths = { "cliente", "local", "items", "items.producto" })
     Optional<Pedido> findConTodoById(Long id);
 
+    /** Pedidos con su cliente, local e ítems (para listar los despachados de una página). */
+    @EntityGraph(attributePaths = { "cliente", "local", "items" })
+    List<Pedido> findByIdIn(Collection<Long> ids);
+
     /** Saldos de un pedido (lo que faltó entregar), del más antiguo al más nuevo. */
     @EntityGraph(attributePaths = "items")
     List<Pedido> findByOrigenIdOrderById(Long origenId);

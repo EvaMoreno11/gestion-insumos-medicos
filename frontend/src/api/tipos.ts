@@ -420,6 +420,22 @@ export interface PedidoDelGrupo {
   despachadoEn: string | null
 }
 
+/** Lo que suma un día en la lista de despachados */
+export interface DiaDespacho {
+  /** aaaa-mm-dd (día de Lima) */
+  fecha: string
+  pedidos: number
+  total: number
+}
+
+/** Pedidos despachados de una búsqueda, con los totales de todo el resultado (no solo de la página) */
+export interface Despachados {
+  pedidos: number
+  total: number
+  dias: DiaDespacho[]
+  lista: Pagina<PedidoResumen>
+}
+
 export interface PedidoResumen {
   id: number
   numero: string | null
@@ -535,4 +551,41 @@ export interface ResultadoImportacionClientes {
   clientesExistentes: number
   errores: Observacion[]
   advertencias: Observacion[]
+}
+
+// ------------------------------------------------------------------ proveedores
+
+export interface Proveedor {
+  id: number
+  nombre: string
+}
+
+/** Lo que se le debe a un proveedor por una compra, y los pagos que se le van haciendo */
+export interface DeudaProveedor {
+  id: number
+  proveedorId: number
+  proveedor: string
+  /** Día de la compra (aaaa-mm-dd) */
+  fecha: string
+  monto: number
+  nota: string | null
+  pagado: number
+  /** Lo que falta pagar (0 si ya está pagada) */
+  saldo: number
+  /** Día del último pago, si ya está pagada del todo */
+  pagadaEl: string | null
+  pagos: PagoRegistrado[]
+}
+
+export interface DeudaProveedorDatos {
+  /** Nombre del proveedor: si no existe (sin importar tildes ni mayúsculas), se crea */
+  proveedor: string
+  fecha: string
+  monto: number
+  nota?: string
+}
+
+export interface ResumenProveedores {
+  porPagar: number
+  deudasPorPagar: number
 }

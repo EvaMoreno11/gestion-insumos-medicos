@@ -34,6 +34,40 @@ export function hora(instante: string): string {
   return `${dos(d.getHours())}:${dos(d.getMinutes())}`
 }
 
+/** Fecha local del dispositivo (en Lima) en aaaa-mm-dd. */
+export function diaLocal(fecha: Date = new Date()): string {
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`
+}
+
+/** "2026-11-21" y −6 → "2026-11-15". */
+export function sumarDias(dia: string, dias: number): string {
+  const [anio, mes, d] = dia.split('-').map(Number)
+  return diaLocal(new Date(anio, mes - 1, d + dias))
+}
+
+/** Cuánto pasó desde un día (aaaa-mm-dd): "hoy", "ayer" o "hace 6 días". */
+export function haceDias(dia: string, hoy: string = diaLocal()): string {
+  const [a1, m1, d1] = dia.split('-').map(Number)
+  const [a2, m2, d2] = hoy.split('-').map(Number)
+  const dias = Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86_400_000)
+  if (dias <= 0) {
+    return 'hoy'
+  }
+  return dias === 1 ? 'ayer' : `hace ${dias} días`
+}
+
+/** Título de un día (aaaa-mm-dd) en una lista: "Hoy", "Ayer" o "17/11/2026". */
+export function nombreDeFecha(dia: string, hoy: Date = new Date()): string {
+  const deHoy = diaLocal(hoy)
+  if (dia === deHoy) {
+    return 'Hoy'
+  }
+  if (dia === sumarDias(deHoy, -1)) {
+    return 'Ayer'
+  }
+  return fechaDia(dia)
+}
+
 /** Título de un día en una lista: "Hoy", "Ayer" o "17/11/2026" (`hoy` se pasa para poder probarlo). */
 export function nombreDelDia(instante: string, hoy: Date = new Date()): string {
   const d = new Date(instante)
@@ -184,8 +218,7 @@ export function variacion(actual: number, anterior: number): number | null {
 
 /** Hoy en la hora del dispositivo, como aaaa-mm-dd. */
 export function hoyLocal(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return diaLocal()
 }
 
 /** Plazo de pago: null → "Sin plazo", 0 → "Contado", 15 → "Crédito a 15 días". */

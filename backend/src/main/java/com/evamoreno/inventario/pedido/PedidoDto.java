@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.evamoreno.inventario.common.Pagina;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -319,6 +321,19 @@ public final class PedidoDto {
     public record Resumen(Long id, String numero, EstadoPedido estado, DocumentoPedido documento, Long clienteId,
             String cliente, String local, String nota, BigDecimal total, int cantidadItems, int itemsConFaltante,
             Long origenId, String origenNumero, Instant creadoEn, Instant despachadoEn) {
+    }
+
+    /**
+     * Pedidos despachados que cumplen la búsqueda, del más reciente al más antiguo.
+     *
+     * @param pedidos cuántos hay en total (no solo en esta página)
+     * @param total   cuánto suman todos
+     * @param dias    cuántos pedidos y cuánto suma cada día, del más reciente al más antiguo
+     */
+    public record Despachados(int pedidos, BigDecimal total, List<DiaDespacho> dias, Pagina<Resumen> lista) {
+    }
+
+    public record DiaDespacho(LocalDate fecha, int pedidos, BigDecimal total) {
     }
 
     /** Pedido pendiente que espera unidades de un producto. */

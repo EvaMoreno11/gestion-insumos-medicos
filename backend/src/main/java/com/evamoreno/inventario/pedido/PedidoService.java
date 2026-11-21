@@ -696,7 +696,7 @@ public class PedidoService {
         String archivo = pedido.getNumero() != null ? "nota-pedido-" + pedido.getNumero()
                 : "pedido-borrador-" + pedido.getId();
         return new NotaPedido(datos.nombre(), datos.direccion(), datos.telefono(), pedido.getNumero(),
-                pedido.getCliente().getNombre(), local.getNombre(), local.getDireccion(),
+                pedido.getCliente().getNombre(), pedido.getCliente().getRucDni(), local.getNombre(), local.getDireccion(),
                 NotaPedido.unir(local.getContacto(), local.getTelefono()),
                 LocalDate.ofInstant(momento, clock.getZone()), filas, total(pedido), archivo, borrador, false);
     }
@@ -921,7 +921,7 @@ public class PedidoService {
                         l.lote().getFechaVencimiento(), l.cantidad())).toList());
     }
 
-    private static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero) {
+    static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero) {
         int conFaltante = pedido.getEstado() != EstadoPedido.BORRADOR ? 0
                 : (int) pedido.getItems().stream().filter(i -> faltante(i, asignado) > 0).count();
         return new Resumen(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getDocumento(),

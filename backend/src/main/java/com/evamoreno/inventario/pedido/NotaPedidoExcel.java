@@ -4,6 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -110,28 +112,30 @@ final class NotaPedidoExcel {
         };
         String[][] derecha = {
                 { "Fecha:", nota.fecha().format(FECHA) },
+                { nota.etiquetaDocumento(), nota.clienteDocumento() },
                 { "Contacto:", nota.contacto() },
         };
+        // No se muestran renglones vacíos (p. ej. "Local" si el cliente tiene uno solo). Son 4 renglones como
+        // máximo (filas 4 a 7 de Excel), así la tabla siempre empieza en la misma fila.
+        List<String[]> deLaIzquierda = conValor(izquierda);
+        List<String[]> deLaDerecha = conValor(derecha);
         XSSFCellStyle estilo = estilo(fuente(10.5, false, null), HorizontalAlignment.LEFT, null, false);
-        int r = 3;
-        int d = 0;
-        for (String[] par : izquierda) {
-            if (par[1] == null || par[1].isBlank()) {
-                continue; // no se muestran renglones vacíos (p. ej. "Local" si el cliente tiene uno solo)
-            }
+        for (int i = 0; i < Math.max(deLaIzquierda.size(), deLaDerecha.size()); i++) {
+            int r = 3 + i;
             XSSFRow fila = fila(r, 19);
-            hoja.addMergedRegion(new CellRangeAddress(r, r, 0, 3));
-            etiquetaYValor(fila, 0, par[0], par[1], estilo);
-            while (d < derecha.length && (derecha[d][1] == null || derecha[d][1].isBlank())) {
-                d++;
+            if (i < deLaIzquierda.size()) {
+                hoja.addMergedRegion(new CellRangeAddress(r, r, 0, 3));
+                etiquetaYValor(fila, 0, deLaIzquierda.get(i)[0], deLaIzquierda.get(i)[1], estilo);
             }
-            if (d < derecha.length) {
+            if (i < deLaDerecha.size()) {
                 hoja.addMergedRegion(new CellRangeAddress(r, r, 4, 8));
-                etiquetaYValor(fila, 4, derecha[d][0], derecha[d][1], estilo);
-                d++;
+                etiquetaYValor(fila, 4, deLaDerecha.get(i)[0], deLaDerecha.get(i)[1], estilo);
             }
-            r++;
         }
+    }
+
+    private static List<String[]> conValor(String[][] pares) {
+        return Arrays.stream(pares).filter(par -> par[1] != null && !par[1].isBlank()).toList();
     }
 
     /** @return índice de la última fila usada */
