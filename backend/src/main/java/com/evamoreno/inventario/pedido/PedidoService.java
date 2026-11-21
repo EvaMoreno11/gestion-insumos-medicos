@@ -248,7 +248,14 @@ public class PedidoService {
                         + "\" ya está en el pedido: cambia su cantidad");
             }
             item = PedidoItem.deProducto(pedido, producto, r.cantidad());
-            item.fijarPrecio(r.precio() != null ? r.precio() : precioAutomatico(pedido, producto), r.precio() != null);
+            BigDecimal anterior = r.precio() != null ? null : precioAnteriorDelCliente(pedido, producto);
+            if (r.precio() != null) {
+                item.fijarPrecio(r.precio(), true);
+            } else if (anterior != null) {
+                item.fijarPrecio(anterior, true); // el precio que se le puso a mano a este cliente la última vez
+            } else {
+                item.fijarPrecio(precioAutomatico(pedido, producto), false);
+            }
         } else {
             if (r.descripcion() == null || r.descripcion().isBlank()) {
                 throw new SolicitudInvalidaException("Indica el producto del catálogo o la descripción del ítem a mano");
@@ -759,6 +766,16 @@ public class PedidoService {
         if (cliente.getPorcentaje() == null || Boolean.TRUE.equals(guardar)) {
             cliente.definirPorcentaje(porcentaje);
         }
+    }
+
+    /**
+     * El último precio escrito a mano para este producto en un pedido del mismo cliente (no anulado), o null si
+     * nunca se le puso uno. Así se respetan los precios especiales que ya se le dieron.
+     */
+    private BigDecimal precioAnteriorDelCliente(Pedido pedido, Producto producto) {
+        return pedidos.preciosManualesDelCliente(pedido.getCliente().getId(), producto.getId(),
+                pedido.getId() == null ? -1L : pedido.getId(), EstadoPedido.ANULADO, PageRequest.of(0, 1))
+                .stream().findFirst().orElse(null);
     }
 
     /** Precio = costo + porcentaje del pedido. Null si el producto no tiene costo (habrá que escribirlo). */

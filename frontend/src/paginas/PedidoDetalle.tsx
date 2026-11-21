@@ -544,7 +544,7 @@ function FilaItem({
           onClick={() => onCambiar({ cantidad: item.cantidad, precioAutomatico: true })}
           className="ml-7 mt-2 text-sm font-medium text-marca"
         >
-          Precio escrito a mano · volver al calculado
+          Precio especial para este cliente · volver al calculado
         </button>
       )}
 

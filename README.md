@@ -27,7 +27,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - Pantalla de **Alertas** con tres pestañas: productos con stock igual o menor a su mínimo, filtrables por categoría (para saber qué comprar; los que no tienen mínimo no avisan, por ejemplo si están descontinuados), lotes que vencen en el próximo año y lotes vencidos con unidades.
 - **Importar desde Excel** (Configuración → Importar desde Excel): el inventario con la [plantilla de inventario](docs/plantilla_inventario.xlsx) y los clientes con la [plantilla de clientes](docs/plantilla_clientes.xlsx). Primero se valida sin guardar nada y se ve el reporte de errores por fila; la importación es todo o nada.
 - Vencimientos por mes y año: un lote que vence en 03/2027 se puede usar durante todo marzo.
-- **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales.
+- **Precios por cliente:** cada producto guarda su costo y cada cliente un porcentaje. Precio = costo + porcentaje, redondeado a 2 decimales. Si a un cliente se le puso a mano un precio especial para un producto, sus pedidos siguientes proponen ese precio (el más reciente) en vez del calculado.
 - **Categorías de precio** internas (A = 12 %, B = 15 %, C = 20 %, ampliables) que nunca se muestran al cliente.
 - **Clientes** con uno o varios locales de entrega. Se buscan por razón social, RUC, nombre del local (p. ej. el de la botica) o contacto.
 - **Pedidos por cliente:** se arman como borrador, con el precio de cada línea calculado (costo + porcentaje) y editable, y el total siempre actualizado. También admiten ítems escritos a mano que aún no están en el catálogo.
