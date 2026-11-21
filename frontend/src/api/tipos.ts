@@ -75,7 +75,8 @@ export interface Resumen {
 export interface DetallesResumen {
   periodo: Periodo
   productosMasVendidos: { productoId: number; nombre: string; presentacion: string; marca: string; unidades: number; ventas: number }[]
-  mejoresClientes: { clienteId: number; nombre: string; pedidos: number; ventas: number }[]
+  /** Todos los que compraron en el periodo, del que más compró al que menos */
+  mejoresClientes: ClienteTop[]
   clientesInactivos: { clienteId: number; nombre: string; ultimoPedido: string; diasSinComprar: number; totalHistorico: number }[]
   diasInactivo: number
   inventario: { valor: number; unidades: number; productosSinCosto: number; valorVencido: number; lotesVencidos: number }
@@ -604,4 +605,31 @@ export interface DeudaProveedorDatos {
 export interface ResumenProveedores {
   porPagar: number
   deudasPorPagar: number
+}
+
+// ------------------------------------------------------------------ ganancia por cliente
+
+export interface ClienteTop {
+  clienteId: number
+  nombre: string
+  pedidos: number
+  ventas: number
+  /** Ventas con costo conocido menos su costo real */
+  ganancia: number
+  /** % de ganancia sobre esas ventas; null si ninguna tiene costo */
+  margen: number | null
+}
+
+/** Lo que compró un cliente en lo que va del año (para su ficha) */
+export interface ResumenCliente {
+  desde: string
+  hasta: string
+  ventas: number
+  pedidos: number
+  ganancia: number
+  margen: number | null
+  /** Lo vendido que no entra en la ganancia (ítems a mano o de lotes sin costo) */
+  ventasSinCosto: number
+  /** Día de su último despacho; null si nunca compró */
+  ultimoPedido: string | null
 }

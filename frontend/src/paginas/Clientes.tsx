@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { mensajeDe } from '../api/http'
-import { categoriasPrecio, clientes } from '../api/recursos'
+import { categoriasPrecio, clientes, resumen } from '../api/recursos'
 import type { LocalDatos } from '../api/tipos'
 import { Aviso, Boton, BotonEnlace, Buscador, Campo, Cargando, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { DatosCliente, SelectorCategoria } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
+import { TextoGanancia } from '../componentes/resumen'
 import { useCarga, useRetardo } from '../hooks'
-import { porcentaje as textoPorcentaje } from '../util/formato'
+import { dinero, fechaDia, haceDias, porcentaje as textoPorcentaje } from '../util/formato'
 
 // ------------------------------------------------------------------ lista
 
@@ -142,6 +143,7 @@ export function ClienteFormulario() {
           }}
         >
           {error && <Aviso tipo="error">{error}</Aviso>}
+          {id !== null && <ComprasDelCliente id={id} />}
 
           <Tarjeta className="space-y-3">
             <Campo etiqueta="Nombre o razón social" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
@@ -220,5 +222,42 @@ export function ClienteFormulario() {
         </form>
       )}
     </Pantalla>
+  )
+}
+
+/** Lo que compró el cliente en lo que va del año, con la ganancia que dejó (uso interno). */
+function ComprasDelCliente({ id }: { id: number }) {
+  const { datos } = useCarga(() => resumen.cliente(id), id)
+  if (!datos) {
+    return null
+  }
+  if (datos.pedidos === 0) {
+    return (
+      <Tarjeta>
+        <p className="text-sm text-slate-600">
+          Este año todavía no tiene pedidos despachados
+          {datos.ultimoPedido ? ` · último pedido el ${fechaDia(datos.ultimoPedido)}` : ''}.
+        </p>
+      </Tarjeta>
+    )
+  }
+  return (
+    <Tarjeta>
+      <p className="text-xs uppercase tracking-wide text-slate-500">Este año</p>
+      <p className="mt-1">
+        Compró <strong>{dinero(datos.ventas)}</strong> · {datos.pedidos} {datos.pedidos === 1 ? 'pedido' : 'pedidos'}
+      </p>
+      <TextoGanancia ganancia={datos.ganancia} margen={datos.margen} />
+      {datos.ultimoPedido && (
+        <p className="mt-1 text-sm text-slate-500">
+          Último pedido {haceDias(datos.ultimoPedido)} ({fechaDia(datos.ultimoPedido)})
+        </p>
+      )}
+      {datos.ventasSinCosto > 0 && (
+        <p className="mt-1 text-xs text-amber-700">
+          {dinero(datos.ventasSinCosto)} de lo vendido no tiene costo y no entra en la ganancia.
+        </p>
+      )}
+    </Tarjeta>
   )
 }

@@ -317,7 +317,7 @@ erDiagram
 - **Cobrado:** vender no es cobrar. La tarjeta "Cobrado" suma los pagos recibidos en el periodo (de ventas de ese periodo o de anteriores) y muestra lo que se debe hoy y lo vencido. "Ventas" indica además cuánto de lo vendido en el periodo ya se cobró. La ganancia sigue calculándose sobre lo vendido.
 - **Compras:** entradas registradas en la app (cantidad × costo). Las entradas del **inventario inicial** (`movimiento.inicial`, las que vienen de importar el Excel) no cuentan: son el stock con el que se empezó, no compras de ese mes.
 - **Comparación:** "este mes" (del 1 a hoy) se compara con los mismos días del mes pasado; "el mes pasado", con el mes anterior completo; "este año", con los mismos días del año pasado; un rango, con uno de igual largo justo antes.
-- **Más detalles:** top 10 de productos y clientes del periodo; clientes con compras que no tienen pedidos hace más de 60 días; valor del inventario vigente (stock × costo promedio de cada lote) y de lo vencido; productos con stock desde hace más de 90 días y sin ventas en ese tiempo; y lo pendiente por entregar (borradores y saldos).
+- **Más detalles:** top 10 de productos del periodo; todos los clientes que compraron, con su ganancia y margen (la pantalla muestra 10 y ordena por ventas o por ganancia); clientes con compras que no tienen pedidos hace más de 60 días; valor del inventario vigente (stock × costo promedio de cada lote) y de lo vencido; productos con stock desde hace más de 90 días y sin ventas en ese tiempo; y lo pendiente por entregar (borradores y saldos).
 - **La ganancia empieza con los costos.** Solo se conoce para lo vendido desde que cada entrada guarda su costo, o sea, desde la importación del inventario.
 
 ## Fase 5: Inicio de sesión
