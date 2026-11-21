@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { resumen } from '../api/recursos'
+import type { ClienteTop } from '../api/tipos'
 import { EstadoCarga, Tarjeta, Vacio } from '../componentes/basicos'
 import { Pantalla } from '../componentes/Pantalla'
-import { SelectorPeriodo } from '../componentes/resumen'
+import { SelectorPeriodo, TextoGanancia } from '../componentes/resumen'
 import { useCarga, usePeriodo } from '../hooks'
 import { dinero, fechaDia, rangoFechas, unir } from '../util/formato'
 
@@ -45,29 +46,7 @@ export default function MasDetalles() {
                   )}
                 </Tarjeta>
 
-                <Tarjeta>
-                  <h3 className="font-semibold">Mejores clientes</h3>
-                  {datos.mejoresClientes.length === 0 ? (
-                    <Vacio>No hubo ventas en este periodo.</Vacio>
-                  ) : (
-                    <ol className="mt-2 divide-y divide-slate-100">
-                      {datos.mejoresClientes.map((c, i) => (
-                        <li key={c.clienteId}>
-                          <Link to={`/clientes/${c.clienteId}`} className="flex items-start gap-3 py-2">
-                            <span className="w-5 shrink-0 text-slate-400">{i + 1}</span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block font-medium leading-snug">{c.nombre}</span>
-                              <span className="block text-sm text-slate-500">
-                                {c.pedidos} {c.pedidos === 1 ? 'pedido' : 'pedidos'}
-                              </span>
-                            </span>
-                            <span className="shrink-0 font-semibold tabular-nums">{dinero(c.ventas)}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </Tarjeta>
+                <MejoresClientes clientes={datos.mejoresClientes} />
 
                 <Tarjeta>
                   <h3 className="font-semibold">Clientes que dejaron de comprar</h3>
@@ -187,5 +166,77 @@ function Seccion({ titulo, detalle, children }: { titulo: string; detalle: strin
       </h2>
       <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">{children}</div>
     </section>
+  )
+}
+
+const PRIMEROS = 10
+
+/**
+ * Los clientes que compraron en el periodo, por ventas o por ganancia (para saber a quién recompensar).
+ * Se ven los 10 primeros y "Ver todos" muestra el resto.
+ */
+function MejoresClientes({ clientes }: { clientes: ClienteTop[] }) {
+  const [orden, setOrden] = useState<'ventas' | 'ganancia'>('ventas')
+  const [todos, setTodos] = useState(false)
+  const ordenados =
+    orden === 'ventas' ? clientes : [...clientes].sort((a, b) => b.ganancia - a.ganancia || b.ventas - a.ventas)
+  const visibles = todos ? ordenados : ordenados.slice(0, PRIMEROS)
+
+  return (
+    <Tarjeta>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">Mejores clientes</h3>
+        {clientes.length > 1 && (
+          <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm" role="radiogroup" aria-label="Ordenar por">
+            {(['ventas', 'ganancia'] as const).map((o) => (
+              <button
+                key={o}
+                type="button"
+                role="radio"
+                aria-checked={orden === o}
+                onClick={() => setOrden(o)}
+                className={`min-h-9 rounded-md px-3 font-semibold ${orden === o ? 'bg-white text-marca shadow-sm' : 'text-slate-600'}`}
+              >
+                {o === 'ventas' ? 'Ventas' : 'Ganancia'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {clientes.length === 0 ? (
+        <Vacio>No hubo ventas en este periodo.</Vacio>
+      ) : (
+        <>
+          <ol className="mt-2 divide-y divide-slate-100">
+            {visibles.map((c, i) => (
+              <li key={c.clienteId}>
+                <Link to={`/clientes/${c.clienteId}`} className="flex items-start gap-3 py-2">
+                  <span className="w-5 shrink-0 text-slate-400">{i + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium leading-snug">{c.nombre}</span>
+                    <span className="block text-sm text-slate-500">
+                      {c.pedidos} {c.pedidos === 1 ? 'pedido' : 'pedidos'}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block font-semibold tabular-nums">{dinero(c.ventas)}</span>
+                    <TextoGanancia ganancia={c.ganancia} margen={c.margen} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+          {clientes.length > PRIMEROS && (
+            <button
+              type="button"
+              onClick={() => setTodos(!todos)}
+              className="mt-1 min-h-10 px-1 text-sm font-semibold text-marca"
+            >
+              {todos ? 'Ver solo los primeros 10' : `Ver todos los clientes (${clientes.length})`}
+            </button>
+          )}
+        </>
+      )}
+    </Tarjeta>
   )
 }

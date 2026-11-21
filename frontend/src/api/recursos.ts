@@ -33,6 +33,7 @@ import type {
   ResultadoImportacion,
   ResultadoImportacionClientes,
   ResultadoMovimiento,
+  ResumenCliente,
   ResumenProveedores,
   Resumen,
   TipoPeriodo,
@@ -221,6 +222,8 @@ export interface ConsultaPeriodo {
 export const resumen = {
   obtener: (consulta: ConsultaPeriodo) => api<Resumen>('/api/resumen', { params: { ...consulta } }),
   detalles: (consulta: ConsultaPeriodo) => api<DetallesResumen>('/api/resumen/detalles', { params: { ...consulta } }),
+  /** Lo que compró un cliente en lo que va del año, con su ganancia */
+  cliente: (id: number) => api<ResumenCliente>(`/api/resumen/clientes/${id}`),
 }
 
 export const sesion = {

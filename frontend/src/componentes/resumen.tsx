@@ -231,3 +231,16 @@ export function GraficoVentasMes({ meses }: { meses: Resumen['ventasPorMes'] }) 
     </Tarjeta>
   )
 }
+
+/** "gana S/ 512.40 · 21 %" en verde, o "pierde S/ 5.00" en rojo; "sin costo" si no se puede calcular. */
+export function TextoGanancia({ ganancia, margen }: { ganancia: number; margen: number | null }) {
+  if (margen === null) {
+    return <span className="block text-sm text-slate-400">sin costo</span>
+  }
+  const pierde = ganancia < 0
+  return (
+    <span className={`block whitespace-nowrap text-sm font-medium ${pierde ? 'text-red-700' : 'text-emerald-700'}`}>
+      {pierde ? 'pierde' : 'gana'} {dinero(Math.abs(ganancia))} · {Number(margen)} %
+    </span>
+  )
+}
