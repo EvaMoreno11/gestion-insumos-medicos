@@ -9,18 +9,20 @@ import java.util.List;
  * No incluye costo, porcentaje ni categoría del cliente: son datos internos.
  *
  * @param numero    número de la nota (0001-007323); null si el pedido aún es un borrador o es "Solo tabla"
+ * @param clienteDocumento RUC o DNI del cliente (sirve para facturar); null si no lo tiene
  * @param contacto  persona y teléfono de contacto del local, ya unidos
  * @param soloTabla true: se dibuja solo la tabla con el total (sin negocio, cliente, fecha ni número);
  *                  en ese caso los datos del encabezado van vacíos
  */
 public record NotaPedido(String negocio, String negocioDireccion, String negocioTelefono, String numero,
-        String cliente, String local, String puntoLlegada, String contacto, LocalDate fecha, List<Fila> filas,
+        String cliente, String clienteDocumento, String local, String puntoLlegada, String contacto, LocalDate fecha,
+        List<Fila> filas,
         BigDecimal total, String nombreArchivo, boolean borrador, boolean soloTabla) {
 
     /** Documento sin encabezado: solo la tabla de productos con el total. */
     static NotaPedido soloTabla(List<Fila> filas, BigDecimal total, String nombreArchivo, boolean borrador) {
-        return new NotaPedido(null, null, null, null, null, null, null, null, null, filas, total, nombreArchivo,
-                borrador, true);
+        return new NotaPedido(null, null, null, null, null, null, null, null, null, null, filas, total,
+                nombreArchivo, borrador, true);
     }
 
     /**
@@ -31,6 +33,12 @@ public record NotaPedido(String negocio, String negocioDireccion, String negocio
      */
     public record Fila(Integer numero, String descripcion, String presentacion, String laboratorio, String lote,
             String vencimiento, int cantidad, BigDecimal precio, BigDecimal total) {
+    }
+
+    /** "RUC:" si tiene 11 dígitos, "DNI:" si tiene 8; si no, "RUC/DNI:". */
+    public String etiquetaDocumento() {
+        String digitos = clienteDocumento == null ? "" : clienteDocumento.replaceAll("\\D", "");
+        return digitos.length() == 11 ? "RUC:" : digitos.length() == 8 ? "DNI:" : "RUC/DNI:";
     }
 
     public boolean esBorrador() {

@@ -696,7 +696,7 @@ public class PedidoService {
         String archivo = pedido.getNumero() != null ? "nota-pedido-" + pedido.getNumero()
                 : "pedido-borrador-" + pedido.getId();
         return new NotaPedido(datos.nombre(), datos.direccion(), datos.telefono(), pedido.getNumero(),
-                pedido.getCliente().getNombre(), local.getNombre(), local.getDireccion(),
+                pedido.getCliente().getNombre(), pedido.getCliente().getRucDni(), local.getNombre(), local.getDireccion(),
                 NotaPedido.unir(local.getContacto(), local.getTelefono()),
                 LocalDate.ofInstant(momento, clock.getZone()), filas, total(pedido), archivo, borrador, false);
     }

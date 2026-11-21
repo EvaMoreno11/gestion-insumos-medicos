@@ -493,6 +493,50 @@ class PedidoControllerTest extends IntegracionTest {
     }
 
     @Test
+    void laNotaMuestraElRucODniDelClienteDebajoDeLaFechaSinMoverLaTabla() throws Exception {
+        Long jeringas = producto("Jeringa 5 ml", "8.50");
+        entrada(jeringas, "J1", HOY.plusMonths(12), 10);
+        Long empresa = crear("/api/clientes", """
+                {"nombre": "Botica Empresa", "rucDni": "20601234567", "porcentaje": 15,
+                 "locales": [{"direccion": "Av. Uno 1", "contacto": "Dra. Ana", "telefono": "987654321"}]}""");
+        Long persona = crear("/api/clientes", """
+                {"nombre": "Clínica Persona", "rucDni": "45678912", "porcentaje": 15}""");
+        Long conRuc = pedido(empresa);
+        agregar(conRuc, jeringas, 2);
+        Long conDni = pedido(persona);
+        agregar(conDni, jeringas, 1);
+
+        byte[] xlsx = mockMvc.perform(get(URL + "/{id}/nota.xlsx", conRuc)).andReturn().getResponse()
+                .getContentAsByteArray();
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            Sheet hoja = libro.getSheetAt(0);
+            assertThat(hoja.getRow(3).getCell(4).getStringCellValue()).startsWith("Fecha:");
+            assertThat(hoja.getRow(4).getCell(4).getStringCellValue()).isEqualTo("RUC:  20601234567");
+            assertThat(hoja.getRow(5).getCell(4).getStringCellValue()).isEqualTo("Contacto:  Dra. Ana · 987654321");
+            assertThat(hoja.getRow(9).getCell(1).getStringCellValue()).isEqualTo("Jeringa 5 ml"); // la tabla no se mueve
+        }
+        byte[] pdf = mockMvc.perform(get(URL + "/{id}/nota.pdf", conRuc)).andReturn().getResponse()
+                .getContentAsByteArray();
+        try (PdfReader lector = new PdfReader(pdf)) {
+            assertThat(new PdfTextExtractor(lector).getTextFromPage(1)).contains("RUC:", "20601234567");
+        }
+
+        // Con 8 dígitos es un DNI; sin documento, no sale nada
+        byte[] conDniPdf = mockMvc.perform(get(URL + "/{id}/nota.pdf", conDni)).andReturn().getResponse()
+                .getContentAsByteArray();
+        try (PdfReader lector = new PdfReader(conDniPdf)) {
+            assertThat(new PdfTextExtractor(lector).getTextFromPage(1)).contains("DNI:", "45678912").doesNotContain("RUC");
+        }
+        Long sinDocumento = pedido(cliente("Botica Tres Hermanos", "15"));
+        agregar(sinDocumento, jeringas, 1);
+        byte[] sinDocumentoPdf = mockMvc.perform(get(URL + "/{id}/nota.pdf", sinDocumento)).andReturn().getResponse()
+                .getContentAsByteArray();
+        try (PdfReader lector = new PdfReader(sinDocumentoPdf)) {
+            assertThat(new PdfTextExtractor(lector).getTextFromPage(1)).doesNotContain("RUC", "DNI");
+        }
+    }
+
+    @Test
     void unPedidoVacioNoSeDespachaYUnoAnuladoNoTieneNota() throws Exception {
         Long pedido = pedido(cliente("Botica Demo", "10"));
 

@@ -112,6 +112,7 @@ final class NotaPedidoPdf {
 
         PdfPCell derecha = sinBorde();
         renglon(derecha, "Fecha:", nota.fecha().format(FECHA));
+        renglon(derecha, nota.etiquetaDocumento(), nota.clienteDocumento());
         renglon(derecha, "Contacto:", nota.contacto());
         tabla.addCell(derecha);
 
