@@ -79,6 +79,14 @@ public class PedidoController {
         return despachados.buscar(buscar, desde, hasta, pagina, tamano);
     }
 
+    @GetMapping("/{id}/precio-sugerido")
+    @Operation(summary = "Precio que se propone para un producto en este pedido",
+            description = "El precio especial que ya se le dio a ese cliente (el último escrito a mano), o costo + "
+                    + "porcentaje si no tiene.")
+    public PedidoDto.PrecioSugerido precioSugerido(@PathVariable Long id, @RequestParam Long productoId) {
+        return service.precioSugerido(id, productoId);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Ver un pedido con sus ítems, su total y lo que falta")
     public Detalle obtener(@PathVariable Long id) {

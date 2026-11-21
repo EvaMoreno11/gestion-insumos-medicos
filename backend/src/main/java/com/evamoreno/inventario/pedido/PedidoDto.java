@@ -286,7 +286,7 @@ public final class PedidoDto {
             BigDecimal porcentaje, String categoria, String nota, List<ItemResponse> items, BigDecimal total,
             int itemsConFaltante, int itemsSinPrecio, boolean listoParaDespachar, boolean puedeEntregarParcial,
             Long origenId, String origenNumero, Grupo grupo, Instant creadoEn, Instant despachadoEn,
-            CobroResponse cobro, List<CorreccionResponse> correcciones) {
+            CobroResponse cobro, List<CorreccionResponse> correcciones, CostoPedido costo) {
     }
 
     public record PagoResponse(Long id, LocalDate fecha, BigDecimal monto, Pago.Medio medio, String nota) {
@@ -318,9 +318,22 @@ public final class PedidoDto {
             BigDecimal total, boolean esSaldo, Instant creadoEn, Instant despachadoEn) {
     }
 
+    /** @param costo costo y ganancia (uso interno); null en un pedido anulado */
     public record Resumen(Long id, String numero, EstadoPedido estado, DocumentoPedido documento, Long clienteId,
             String cliente, String local, String nota, BigDecimal total, int cantidadItems, int itemsConFaltante,
-            Long origenId, String origenNumero, Instant creadoEn, Instant despachadoEn) {
+            Long origenId, String origenNumero, Instant creadoEn, Instant despachadoEn, CostoPedido costo) {
+    }
+
+    /**
+     * Cuánto costó un pedido y cuánto se gana. Solo para uso interno: nunca va en la nota.
+     *
+     * @param itemsSinCosto ítems que no entran en la cuenta porque no se sabe su costo (o no tienen precio)
+     */
+    public record CostoPedido(BigDecimal costo, BigDecimal ganancia, int itemsSinCosto) {
+    }
+
+    /** Precio que se propone para un producto en un pedido: el especial del cliente o costo + porcentaje. */
+    public record PrecioSugerido(BigDecimal precio, boolean especial) {
     }
 
     /**

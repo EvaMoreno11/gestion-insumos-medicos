@@ -50,11 +50,13 @@ public class DespachadosService {
 
     private final JdbcClient jdbc;
     private final PedidoRepository pedidos;
+    private final CostosDePedidos costos;
     private final Clock clock;
 
-    public DespachadosService(JdbcClient jdbc, PedidoRepository pedidos, Clock clock) {
+    public DespachadosService(JdbcClient jdbc, PedidoRepository pedidos, CostosDePedidos costos, Clock clock) {
         this.jdbc = jdbc;
         this.pedidos = pedidos;
+        this.costos = costos;
         this.clock = clock;
     }
 
@@ -114,10 +116,12 @@ public class DespachadosService {
                 .distinct().toList();
         Map<Long, String> numerosDeOrigen = new HashMap<>();
         pedidos.findAllById(origenes).forEach(o -> numerosDeOrigen.put(o.getId(), o.getNumero()));
+        Map<Long, PedidoDto.CostoPedido> costosDeLaPagina = costos.despachados(ids);
         List<Resumen> contenido = new ArrayList<>();
         for (Long id : ids) {
             Pedido p = porId.get(id);
-            contenido.add(PedidoService.resumen(p, Map.of(), numerosDeOrigen.get(p.getOrigenId())));
+            contenido.add(PedidoService.resumen(p, Map.of(), numerosDeOrigen.get(p.getOrigenId()),
+                    costosDeLaPagina.get(id)));
         }
         int totalPaginas = (totalPedidos + tamanoPagina - 1) / tamanoPagina;
         return new Despachados(totalPedidos, total.setScale(2, RoundingMode.HALF_UP), dias,
