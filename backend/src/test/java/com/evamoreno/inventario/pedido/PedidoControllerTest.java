@@ -190,6 +190,57 @@ class PedidoControllerTest extends IntegracionTest {
     }
 
     @Test
+    void unPedidoNuevoPoneElPrecioQueSeLeDioAManoAEseClienteLaUltimaVez() throws Exception {
+        Long jeringa = producto("Jeringa 5 ml", "10");
+        Long guantes = producto("Guantes M", "20");
+        Long botica = cliente("Botica Demo", "15");
+
+        // Ayer: a la jeringa se le puso a mano S/ 13; los guantes quedaron con el precio calculado
+        Long ayer = pedido(botica);
+        Long itemJeringa = id(agregar(ayer, jeringa, 2), "$.items[0].id");
+        agregar(ayer, guantes, 1);
+        putJson(URL + "/" + ayer + "/items/" + itemJeringa, """
+                {"cantidad": 2, "precio": 13}""").andExpect(jsonPath("$.items[0].precioManual").value(true));
+
+        // Hoy, a la misma botica: la jeringa sale a S/ 13 y los guantes se calculan (20 + 15 %)
+        Long hoy = pedido(botica);
+        agregar(hoy, jeringa, 5)
+                .andExpect(jsonPath("$.items[0].precioUnitario").value(13.0))
+                .andExpect(jsonPath("$.items[0].precioManual").value(true));
+        agregar(hoy, guantes, 1)
+                .andExpect(jsonPath("$.items[1].precioUnitario").value(23.0))
+                .andExpect(jsonPath("$.items[1].precioManual").value(false));
+        // Cambiar el porcentaje del pedido no toca el precio especial
+        putJson(URL + "/" + hoy, """
+                {"porcentaje": 20}""")
+                .andExpect(jsonPath("$.items[0].precioUnitario").value(13.0))
+                .andExpect(jsonPath("$.items[1].precioUnitario").value(24.0));
+
+        // Otro cliente no hereda ese precio
+        Long otro = pedido(cliente("Clínica Y", "15"));
+        agregar(otro, jeringa, 1).andExpect(jsonPath("$.items[0].precioUnitario").value(11.5));
+
+        // Vale el precio a mano más reciente; uno de un pedido anulado no cuenta
+        Long itemHoy = id(mockMvc.perform(get(URL + "/{id}", hoy)), "$.items[0].id");
+        putJson(URL + "/" + hoy + "/items/" + itemHoy, """
+                {"cantidad": 5, "precio": 12.40}""").andExpect(status().isOk());
+        Long anulado = pedido(botica);
+        Long itemAnulado = id(agregar(anulado, jeringa, 1), "$.items[0].id");
+        putJson(URL + "/" + anulado + "/items/" + itemAnulado, """
+                {"cantidad": 1, "precio": 99}""").andExpect(status().isOk());
+        postJson(URL + "/" + anulado + "/anular", "").andExpect(status().isOk());
+        Long manana = pedido(botica);
+        agregar(manana, jeringa, 1).andExpect(jsonPath("$.items[0].precioUnitario").value(12.4));
+
+        // "Volver al calculado" lo deja con costo + porcentaje
+        Long itemManana = id(mockMvc.perform(get(URL + "/{id}", manana)), "$.items[0].id");
+        putJson(URL + "/" + manana + "/items/" + itemManana, """
+                {"cantidad": 1, "precioAutomatico": true}""")
+                .andExpect(jsonPath("$.items[0].precioUnitario").value(11.5))
+                .andExpect(jsonPath("$.items[0].precioManual").value(false));
+    }
+
+    @Test
     void unProductoSinCostoQuedaSinPrecioHastaQueSeEscribe() throws Exception {
         Long sinCosto = crear("/api/productos", """
                 {"nombre": "Producto sin costo", "marca": "Marca A", "categoriaId": %d, "presentacion": "Unidad",

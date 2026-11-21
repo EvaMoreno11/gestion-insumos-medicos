@@ -157,4 +157,35 @@ class ExportacionControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.detail", containsString("aún no tiene porcentaje")));
         mockMvc.perform(get(URL + "/catalogo.pdf").param("clienteId", "999999")).andExpect(status().isNotFound());
     }
+
+    @Test
+    void laListaDePreciosDeUnClienteUsaSusPreciosEspeciales() throws Exception {
+        Long botica = crear("/api/clientes", """
+                {"nombre": "Botica Santa Rosa", "porcentaje": 15}""");
+        Long otra = crear("/api/clientes", """
+                {"nombre": "Botica Otra", "porcentaje": 15}""");
+        Long jeringa = ((Number) com.jayway.jsonpath.JsonPath.read(mockMvc.perform(get("/api/productos")
+                .param("buscar", "jeringa 5 ml")).andReturn().getResponse().getContentAsString(), "$.contenido[0].id"))
+                .longValue();
+        // En un pedido a la botica, a la jeringa se le puso a mano S/ 13
+        Long pedido = crear("/api/pedidos", """
+                {"clienteId": %d}""".formatted(botica));
+        String json = postJson("/api/pedidos/" + pedido + "/items", """
+                {"productoId": %d, "cantidad": 1}""".formatted(jeringa)).andReturn().getResponse().getContentAsString();
+        Long item = ((Number) com.jayway.jsonpath.JsonPath.read(json, "$.items[0].id")).longValue();
+        mockMvc.perform(put("/api/pedidos/{id}/items/{item}", pedido, item).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"cantidad": 1, "precio": 13}""")).andExpect(status().isOk());
+
+        assertThat(pdf(mockMvc.perform(get(URL + "/catalogo.pdf").param("clienteId", botica.toString()))
+                .andReturn().getResponse().getContentAsByteArray())).contains("S/ 13.00").doesNotContain("S/ 11.50");
+        try (XSSFWorkbook libro = new XSSFWorkbook(new ByteArrayInputStream(
+                mockMvc.perform(get(URL + "/catalogo.xlsx").param("clienteId", botica.toString()))
+                        .andReturn().getResponse().getContentAsByteArray()))) {
+            assertThat(libro.getSheet("Lista de precios").getRow(8).getCell(3).getNumericCellValue()).isEqualTo(13.0);
+        }
+        // Otro cliente sigue con costo + su porcentaje
+        assertThat(pdf(mockMvc.perform(get(URL + "/catalogo.pdf").param("clienteId", otra.toString()))
+                .andReturn().getResponse().getContentAsByteArray())).contains("S/ 11.50");
+    }
 }

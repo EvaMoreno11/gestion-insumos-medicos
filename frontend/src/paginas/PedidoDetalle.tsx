@@ -7,7 +7,13 @@ import type { CategoriaPrecio, DocumentoPedido, GrupoPedido, Pedido, PedidoItem 
 import { Aviso, Boton, Campo, Cargando, Etiqueta, Tarjeta } from '../componentes/basicos'
 import { TarjetaCobro } from '../componentes/cobro'
 import { CorregirPedido, HistorialCorrecciones } from '../componentes/correccion'
-import { BuscadorProductos, EtiquetaDisponibilidad, SelectorCategoria, SelectorDocumento } from '../componentes/dominio'
+import {
+  BuscadorProductos,
+  CostoYGanancia,
+  EtiquetaDisponibilidad,
+  SelectorCategoria,
+  SelectorDocumento,
+} from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useVisorPdf } from '../componentes/useVisorPdf'
 import { compartirODescargar } from '../util/archivos'
@@ -362,9 +368,12 @@ function Pie({
           </div>
           {borrador && avisos.length > 0 && <div className="font-medium text-amber-700">{avisos.join(' · ')}</div>}
         </div>
-        <div className="text-right">
-          <div className="text-xs uppercase tracking-wide text-slate-500">Total</div>
-          <div className="text-2xl font-bold leading-none whitespace-nowrap">{dinero(pedido.total)}</div>
+        <div className="flex items-end gap-4">
+          <CostoYGanancia costo={pedido.costo} />
+          <div className="text-right">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Total</div>
+            <div className="text-2xl font-bold leading-none whitespace-nowrap">{dinero(pedido.total)}</div>
+          </div>
         </div>
       </div>
 
@@ -544,7 +553,7 @@ function FilaItem({
           onClick={() => onCambiar({ cantidad: item.cantidad, precioAutomatico: true })}
           className="ml-7 mt-2 text-sm font-medium text-marca"
         >
-          Precio escrito a mano · volver al calculado
+          Precio especial para este cliente · volver al calculado
         </button>
       )}
 

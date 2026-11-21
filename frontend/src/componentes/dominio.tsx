@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { productos } from '../api/recursos'
-import type { CategoriaPrecio, ClienteResumen, DocumentoPedido, EstadoStock, PedidoItem, ProductoResumen } from '../api/tipos'
+import type {
+  CategoriaPrecio,
+  ClienteResumen,
+  CostoPedido,
+  DocumentoPedido,
+  EstadoStock,
+  PedidoItem,
+  ProductoResumen,
+} from '../api/tipos'
 import { useCarga, useRetardo } from '../hooks'
-import { escribirMesAnio, porcentaje, unir } from '../util/formato'
+import { dinero, escribirMesAnio, porcentaje, unir } from '../util/formato'
 import { Aviso, Buscador, Campo, Etiqueta } from './basicos'
 
 // ---------------------------------------------------------------- pedidos
@@ -73,6 +81,35 @@ export function DatosCliente({ cliente }: { cliente: ClienteResumen }) {
 
 const COLOR_STOCK = { AGOTADO: 'rojo', BAJO: 'ambar', NORMAL: 'verde' } as const
 const TEXTO_STOCK: Record<EstadoStock, string> = { AGOTADO: 'Agotado', BAJO: 'Stock bajo', NORMAL: 'Hay stock' }
+
+/**
+ * Costo y ganancia de un pedido, en letra más pequeña y en otro color que el total (uso interno: nunca va en la
+ * nota). Si se vende por debajo del costo dice "pierde", en rojo.
+ */
+export function CostoYGanancia({ costo, className = '' }: { costo: CostoPedido | null; className?: string }) {
+  if (!costo || (costo.costo === 0 && costo.ganancia === 0 && costo.itemsSinCosto === 0)) {
+    return null
+  }
+  const pierde = costo.ganancia < 0
+  const todoSinCosto = costo.costo === 0 && costo.itemsSinCosto > 0
+  return (
+    <span className={`block text-right text-sm leading-tight ${className}`}>
+      {!todoSinCosto && (
+        <>
+          <span className="block whitespace-nowrap text-slate-500">costo {dinero(costo.costo)}</span>
+          <span className={`block whitespace-nowrap font-medium ${pierde ? 'text-red-700' : 'text-emerald-700'}`}>
+            {pierde ? 'pierde' : 'gana'} {dinero(Math.abs(costo.ganancia))}
+          </span>
+        </>
+      )}
+      {costo.itemsSinCosto > 0 && (
+        <span className="block whitespace-nowrap text-xs text-amber-700">
+          {costo.itemsSinCosto} {costo.itemsSinCosto === 1 ? 'ítem' : 'ítems'} sin costo
+        </span>
+      )}
+    </span>
+  )
+}
 
 export function EtiquetaStock({ estado }: { estado: EstadoStock }) {
   return <Etiqueta color={COLOR_STOCK[estado]}>{TEXTO_STOCK[estado]}</Etiqueta>

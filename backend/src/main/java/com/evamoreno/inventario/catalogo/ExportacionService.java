@@ -23,6 +23,7 @@ import com.evamoreno.inventario.common.ConflictoException;
 import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.negocio.NegocioDto;
 import com.evamoreno.inventario.negocio.NegocioService;
+import com.evamoreno.inventario.pedido.PreciosEspeciales;
 import com.evamoreno.inventario.precio.Precios;
 import com.evamoreno.inventario.producto.Producto;
 import com.evamoreno.inventario.producto.ProductoRepository;
@@ -49,14 +50,16 @@ public class ExportacionService {
     private final ClienteRepository clientes;
     private final NegocioService negocio;
     private final StockService stock;
+    private final PreciosEspeciales preciosEspeciales;
 
     public ExportacionService(ProductoRepository productos, LoteRepository lotes, ClienteRepository clientes,
-            NegocioService negocio, StockService stock) {
+            NegocioService negocio, StockService stock, PreciosEspeciales preciosEspeciales) {
         this.productos = productos;
         this.lotes = lotes;
         this.clientes = clientes;
         this.negocio = negocio;
         this.stock = stock;
+        this.preciosEspeciales = preciosEspeciales;
     }
 
     // ------------------------------------------------------------------ inventario
@@ -102,7 +105,8 @@ public class ExportacionService {
 
     /**
      * Productos activos con stock mínimo (los que se venden normalmente), agrupados por categoría.
-     * Con un cliente, cada precio sale con su porcentaje (costo + %), igual que en sus pedidos.
+     * Con un cliente, cada precio es el que se le propondría en un pedido: su precio especial (el último que se le
+     * puso a mano) o, si no tiene, costo + su porcentaje.
      */
     public Catalogo catalogo(Long clienteId) {
         Cliente cliente = null;
@@ -115,6 +119,7 @@ public class ExportacionService {
             }
         }
         BigDecimal porcentaje = cliente == null ? null : cliente.getPorcentaje();
+        Map<Long, BigDecimal> especiales = cliente == null ? Map.of() : preciosEspeciales.delCliente(cliente.getId());
 
         Map<String, List<Item>> porCategoria = new LinkedHashMap<>();
         productos.findByActivoTrue().stream()
@@ -122,7 +127,8 @@ public class ExportacionService {
                 .sorted(ORDEN)
                 .forEach(p -> porCategoria.computeIfAbsent(p.getCategoria().getNombre(), c -> new java.util.ArrayList<>())
                         .add(new Item(p.getNombre(), p.getPresentacion(), p.getMarca(),
-                                porcentaje == null ? null : Precios.precio(p.getCosto(), porcentaje))));
+                                porcentaje == null ? null
+                                        : especiales.getOrDefault(p.getId(), Precios.precio(p.getCosto(), porcentaje)))));
         List<Grupo> grupos = porCategoria.entrySet().stream().map(e -> new Grupo(e.getKey(), e.getValue())).toList();
 
         NegocioDto datos = negocio.obtener();

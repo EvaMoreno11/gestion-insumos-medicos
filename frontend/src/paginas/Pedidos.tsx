@@ -4,6 +4,7 @@ import { mensajeDe } from '../api/http'
 import { pedidos } from '../api/recursos'
 import type { EstadoPedido, PedidoResumen } from '../api/tipos'
 import { Aviso, Boton, BotonEnlace, Buscador, Campo, ESTILO_CAMPO, EstadoCarga, Etiqueta, Vacio } from '../componentes/basicos'
+import { CostoYGanancia } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useRetardo } from '../hooks'
 import { diaLocal, dinero, fechaCorta, fechaDia, nombreDeFecha, sumarDias, unir } from '../util/formato'
@@ -87,7 +88,10 @@ function TarjetaPedido({ pedido: p }: { pedido: PedidoResumen }) {
           </span>
           {p.nota && <span className="block truncate text-sm text-slate-600">{p.nota}</span>}
         </span>
-        <span className="shrink-0 text-lg font-bold">{dinero(p.total)}</span>
+        <span className="shrink-0 text-right">
+          <span className="block text-lg font-bold">{dinero(p.total)}</span>
+          <CostoYGanancia costo={p.costo} className="mt-0.5" />
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <Etiqueta color="gris">

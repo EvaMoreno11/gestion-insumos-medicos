@@ -38,6 +38,7 @@ import com.evamoreno.inventario.pedido.PedidoDto.CambioItem;
 import com.evamoreno.inventario.pedido.PedidoDto.CobroResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.CorreccionRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.CorreccionResponse;
+import com.evamoreno.inventario.pedido.PedidoDto.CostoPedido;
 import com.evamoreno.inventario.pedido.PedidoDto.CrearRequest;
 import com.evamoreno.inventario.pedido.PedidoDto.Detalle;
 import com.evamoreno.inventario.pedido.PedidoDto.Disponibilidad;
@@ -56,6 +57,7 @@ import com.evamoreno.inventario.pedido.PedidoDto.PagoResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.PedidoDelGrupo;
 import com.evamoreno.inventario.pedido.PedidoDto.PedidoQueEspera;
 import com.evamoreno.inventario.pedido.PedidoDto.PorComprar;
+import com.evamoreno.inventario.pedido.PedidoDto.PrecioSugerido;
 import com.evamoreno.inventario.pedido.PedidoDto.ProductoPorComprar;
 import com.evamoreno.inventario.pedido.PedidoDto.Resumen;
 import com.evamoreno.inventario.precio.CategoriaPrecioService;
@@ -89,11 +91,14 @@ public class PedidoService {
     private final MovimientoRepository movimientos;
     private final CategoriaPrecioService categoriasPrecio;
     private final NegocioService negocio;
+    private final CostosDePedidos costos;
+    private final PreciosEspeciales preciosEspeciales;
     private final Clock clock;
 
     public PedidoService(PedidoRepository pedidos, ClienteRepository clientes, ProductoRepository productos,
             StockService stock, MovimientoService movimientoService, MovimientoRepository movimientos,
-            CategoriaPrecioService categoriasPrecio, NegocioService negocio, Clock clock) {
+            CategoriaPrecioService categoriasPrecio, NegocioService negocio, CostosDePedidos costos,
+            PreciosEspeciales preciosEspeciales, Clock clock) {
         this.pedidos = pedidos;
         this.clientes = clientes;
         this.productos = productos;
@@ -102,6 +107,8 @@ public class PedidoService {
         this.movimientos = movimientos;
         this.categoriasPrecio = categoriasPrecio;
         this.negocio = negocio;
+        this.costos = costos;
+        this.preciosEspeciales = preciosEspeciales;
         this.clock = clock;
     }
 
@@ -120,7 +127,33 @@ public class PedidoService {
                 .distinct().toList();
         Map<Long, String> numerosDeOrigen = new LinkedHashMap<>();
         pedidos.findAllById(origenes).forEach(o -> numerosDeOrigen.put(o.getId(), o.getNumero()));
-        return Pagina.de(page, p -> resumen(p, asignado, numerosDeOrigen.get(p.getOrigenId())));
+        Map<Long, CostoPedido> costosDespachados = costos.despachados(page.getContent().stream()
+                .filter(p -> p.getEstado() == EstadoPedido.DESPACHADO).map(Pedido::getId).toList());
+        return Pagina.de(page, p -> resumen(p, asignado, numerosDeOrigen.get(p.getOrigenId()),
+                costoDe(p, costosDespachados)));
+    }
+
+    /** Costo y ganancia: el real si se despachó, un estimado si es borrador; nada si se anuló. */
+    static CostoPedido costoDe(Pedido pedido, Map<Long, CostoPedido> costosDespachados) {
+        return switch (pedido.getEstado()) {
+            case DESPACHADO -> costosDespachados.get(pedido.getId());
+            case BORRADOR -> CostosDePedidos.estimado(pedido);
+            case ANULADO -> null;
+        };
+    }
+
+    /**
+     * Precio que se propone para un producto en un pedido (por ejemplo, al agregarlo en una corrección): el especial
+     * que ya se le dio a ese cliente o, si no tiene, costo + porcentaje.
+     */
+    @Transactional(readOnly = true)
+    public PrecioSugerido precioSugerido(Long id, Long productoId) {
+        Pedido pedido = buscar(id);
+        Producto producto = productos.findById(productoId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el producto con id " + productoId));
+        BigDecimal especial = preciosEspeciales.de(pedido.getCliente().getId(), productoId, pedido.getId());
+        return especial != null ? new PrecioSugerido(especial, true)
+                : new PrecioSugerido(precioAutomatico(pedido, producto), false);
     }
 
     @Transactional(readOnly = true)
@@ -248,7 +281,14 @@ public class PedidoService {
                         + "\" ya está en el pedido: cambia su cantidad");
             }
             item = PedidoItem.deProducto(pedido, producto, r.cantidad());
-            item.fijarPrecio(r.precio() != null ? r.precio() : precioAutomatico(pedido, producto), r.precio() != null);
+            BigDecimal anterior = r.precio() != null ? null : precioAnteriorDelCliente(pedido, producto);
+            if (r.precio() != null) {
+                item.fijarPrecio(r.precio(), true);
+            } else if (anterior != null) {
+                item.fijarPrecio(anterior, true); // el precio que se le puso a mano a este cliente la última vez
+            } else {
+                item.fijarPrecio(precioAutomatico(pedido, producto), false);
+            }
         } else {
             if (r.descripcion() == null || r.descripcion().isBlank()) {
                 throw new SolicitudInvalidaException("Indica el producto del catálogo o la descripción del ítem a mano");
@@ -761,6 +801,14 @@ public class PedidoService {
         }
     }
 
+    /**
+     * El último precio escrito a mano para este producto en un pedido del mismo cliente (no anulado), o null si
+     * nunca se le puso uno. Así se respetan los precios especiales que ya se le dieron.
+     */
+    private BigDecimal precioAnteriorDelCliente(Pedido pedido, Producto producto) {
+        return preciosEspeciales.de(pedido.getCliente().getId(), producto.getId(), pedido.getId());
+    }
+
     /** Precio = costo + porcentaje del pedido. Null si el producto no tiene costo (habrá que escribirlo). */
     private static BigDecimal precioAutomatico(Pedido pedido, Producto producto) {
         return Precios.precio(producto.getCosto(), pedido.getPorcentaje());
@@ -881,7 +929,9 @@ public class PedidoService {
                 pedido.getCorrecciones().stream()
                         .map(c -> new CorreccionResponse(c.getId(), c.getFecha(), c.getMotivo(),
                                 List.of(c.getDetalle().split("\n")), c.getTotalAnterior(), c.getTotalNuevo()))
-                        .toList());
+                        .toList(),
+                costoDe(pedido, pedido.getEstado() == EstadoPedido.DESPACHADO
+                        ? costos.despachados(List.of(pedido.getId())) : Map.of()));
     }
 
     /** El pedido original y sus saldos, con lo entregado y lo pendiente (solo para uso interno). */
@@ -921,14 +971,14 @@ public class PedidoService {
                         l.lote().getFechaVencimiento(), l.cantidad())).toList());
     }
 
-    static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero) {
+    static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero, CostoPedido costo) {
         int conFaltante = pedido.getEstado() != EstadoPedido.BORRADOR ? 0
                 : (int) pedido.getItems().stream().filter(i -> faltante(i, asignado) > 0).count();
         return new Resumen(pedido.getId(), pedido.getNumero(), pedido.getEstado(), pedido.getDocumento(),
                 pedido.getCliente().getId(), pedido.getCliente().getNombre(), pedido.getLocal().getNombre(),
                 pedido.getNota(), total(pedido), (int) pedido.getItems().stream().filter(i -> i.getCantidad() > 0).count(),
                 conFaltante, pedido.getOrigenId(),
-                origenNumero, pedido.getCreadoEn(), pedido.getDespachadoEn());
+                origenNumero, pedido.getCreadoEn(), pedido.getDespachadoEn(), costo);
     }
 
     private static String limpiar(String texto) {
