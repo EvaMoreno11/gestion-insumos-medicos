@@ -273,6 +273,41 @@ erDiagram
 - **Cada nota se cobra por separado**, también las de una entrega parcial (el saldo es otro pedido, con su propio cobro).
 - **Solo para uso interno.** Nada de esto aparece en la nota ni en la tabla que recibe el cliente.
 
+## Pagos a proveedores
+
+Solo un control de lo que se les debe por las compras que **no** se pagan al contado. No se relaciona con las entradas de mercadería ni cambia el Resumen, porque las compras ya se cuentan con las entradas (V15, solo tablas nuevas).
+
+```mermaid
+erDiagram
+    PROVEEDOR ||--o{ DEUDA_PROVEEDOR : tiene
+    DEUDA_PROVEEDOR ||--o{ PAGO_PROVEEDOR : recibe
+    PROVEEDOR {
+        bigint id PK
+        varchar nombre
+        varchar nombre_comparable "único: sin tildes ni mayúsculas"
+    }
+    DEUDA_PROVEEDOR {
+        bigint id PK
+        bigint proveedor_id FK
+        date fecha "día de la compra"
+        numeric monto
+        varchar nota "opcional, p. ej. N° de factura"
+    }
+    PAGO_PROVEEDOR {
+        bigint id PK
+        bigint deuda_id FK
+        date fecha
+        numeric monto
+        varchar medio "EFECTIVO, YAPE, PLIN o TRANSFERENCIA"
+        varchar nota
+    }
+```
+
+- **El proveedor se crea al anotar la deuda**, con solo el nombre. Si ya existe escrito con otras tildes o mayúsculas, se usa el mismo (`nombre_comparable`).
+- **Pagos en partes.** Una deuda admite varios pagos; ninguno puede superar lo que falta ni tener fecha futura. Un pago mal anotado se borra.
+- **Por pagar** (primero la más antigua) y **Pagadas** (primero la que se terminó de pagar hace menos). El estado se calcula: pagada = no falta nada.
+- **Corregir:** se cambia proveedor, fecha, monto o nota (el monto no puede quedar debajo de lo ya pagado). Solo se borra una deuda sin pagos.
+
 ## Resumen ejecutivo
 
 `GET /api/resumen` y `/api/resumen/detalles` calculan todo con SQL agregado, sin tablas nuevas. Los montos incluyen IGV.
