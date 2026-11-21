@@ -1,10 +1,11 @@
 import { Link, useSearchParams } from 'react-router'
 import { alertas, DIAS_POR_VENCER } from '../api/recursos'
 import type { LoteAlerta, ProductoResumen } from '../api/tipos'
-import { BotonEnlace, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
+import { BotonEnlace, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { EtiquetaStock } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
+import { categoriasConStockBajo } from '../util/alertas'
 import { cuandoVence, mesAnio, unir } from '../util/formato'
 
 type Pestana = 'stock' | 'por-vencer' | 'vencidos'
@@ -17,6 +18,26 @@ export default function Alertas() {
   const [params, setParams] = useSearchParams()
   const pestana = (params.get('ver') as Pestana | null) ?? 'stock'
   const stockBajo = useCarga(() => alertas.stockBajo())
+  // La categoría va en la dirección: al volver de un producto sigue elegida
+  const categorias = categoriasConStockBajo(stockBajo.datos ?? [])
+  const categoriaId = Number(params.get('categoria')) || null
+  const categoria = categorias.find((c) => c.id === categoriaId)
+  const productosStockBajo = (stockBajo.datos ?? []).filter((p) => !categoria || p.categoriaId === categoria.id)
+
+  function cambiarParametro(clave: string, valor: string | null) {
+    setParams(
+      (actual) => {
+        const nuevos = new URLSearchParams(actual)
+        if (valor) {
+          nuevos.set(clave, valor)
+        } else {
+          nuevos.delete(clave)
+        }
+        return nuevos
+      },
+      { replace: true },
+    )
+  }
   const porVencer = useCarga(() => alertas.porVencer())
   const vencidos = useCarga(() => alertas.vencidos())
 
@@ -35,7 +56,7 @@ export default function Alertas() {
             type="button"
             role="tab"
             aria-selected={pestana === p.valor}
-            onClick={() => setParams({ ver: p.valor }, { replace: true })}
+            onClick={() => cambiarParametro('ver', p.valor)}
             className={`min-h-10 rounded-lg px-1 text-sm font-semibold ${
               pestana === p.valor ? 'bg-white text-marca shadow-sm' : 'text-slate-600'
             }`}
@@ -48,13 +69,31 @@ export default function Alertas() {
 
       {pestana === 'stock' && (
         <EstadoCarga cargando={stockBajo.cargando} error={stockBajo.error} hayDatos={stockBajo.datos !== undefined}>
-          <p className="mb-3 text-sm text-slate-600">
-            Productos con stock igual o menor a su mínimo, primero los agotados. Los productos sin stock mínimo no
-            avisan. El mínimo se cambia en Productos.
-          </p>
-          {stockBajo.datos?.length === 0 && <Vacio>Ningún producto está por debajo de su mínimo.</Vacio>}
+          {stockBajo.datos?.length === 0 ? (
+            <Vacio>Ningún producto está por debajo de su mínimo.</Vacio>
+          ) : (
+            <div className="mb-3 lg:max-w-xl">
+              <select
+                aria-label="Categoría"
+                className={ESTILO_CAMPO}
+                value={categoria?.id ?? ''}
+                onChange={(e) => cambiarParametro('categoria', e.target.value)}
+              >
+                <option value="">Todas las categorías ({stockBajo.datos?.length})</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre} ({c.cantidad})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-sm text-slate-500">
+                {productosStockBajo.length} {productosStockBajo.length === 1 ? 'producto' : 'productos'}
+                {categoria ? ` en ${categoria.nombre}` : ''}, primero los agotados
+              </p>
+            </div>
+          )}
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-            {stockBajo.datos?.map((p) => (
+            {productosStockBajo.map((p) => (
               <li key={p.id}>
                 <FilaStockBajo producto={p} />
               </li>
