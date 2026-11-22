@@ -310,6 +310,26 @@ erDiagram
 - **Por pagar** (primero la más antigua) y **Pagadas** (primero la que se terminó de pagar hace menos). El estado se calcula: pagada = no falta nada.
 - **Corregir:** se cambia proveedor, fecha, monto o nota (el monto no puede quedar debajo de lo ya pagado). Solo se borra una deuda sin pagos.
 
+## Agregados a mano en Por comprar
+
+Un recordatorio para comprar un producto aunque ningún pedido lo espere (V16, solo una tabla nueva).
+
+```mermaid
+erDiagram
+    PRODUCTO ||--o| RECORDATORIO_COMPRA : "agregado a mano"
+    RECORDATORIO_COMPRA {
+        bigint id PK
+        bigint producto_id FK "único: uno por producto"
+        int cantidad "opcional, > 0"
+        varchar nota "opcional"
+        timestamptz creado_en
+    }
+```
+
+- **Uno por producto.** Agregarlo otra vez cambia la cantidad y la nota.
+- **Se junta con lo que falta para pedidos.** Si el producto ya falta para un pedido pendiente, "Por comprar" lo muestra una sola vez: comprar = lo que falta + la cantidad agregada.
+- **Se quita solo** al registrar una entrada de ese producto (no con la carga inicial del Excel), o a mano. Quitarlo no toca lo que falta para los pedidos.
+
 ## Resumen ejecutivo
 
 `GET /api/resumen` y `/api/resumen/detalles` calculan todo con SQL agregado, sin tablas nuevas. Los montos incluyen IGV.

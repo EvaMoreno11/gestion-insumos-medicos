@@ -176,6 +176,12 @@ export const pedidos = {
   eliminarPago: (id: number, pagoId: number) =>
     api<Pedido>(`/api/pedidos/${id}/pagos/${pagoId}`, { metodo: 'DELETE' }),
   porComprar: () => api<PorComprar>('/api/pedidos/por-comprar'),
+  /** Agrega un producto a mano a "Por comprar" (o cambia su cantidad y nota). Se quita solo al registrar su entrada */
+  agregarAPorComprar: (productoId: number, datos: { cantidad: number | null; nota: string | null }) =>
+    api<void>(`/api/pedidos/por-comprar/a-mano/${productoId}`, { metodo: 'PUT', cuerpo: datos }),
+  /** Quita lo agregado a mano (lo que falta para pedidos sigue en la lista) */
+  quitarDePorComprar: (productoId: number) =>
+    api<void>(`/api/pedidos/por-comprar/a-mano/${productoId}`, { metodo: 'DELETE' }),
   nota: (id: number, formato: 'pdf' | 'xlsx') => descargar(rutas.nota(id, formato)),
   numeracion: () => api<Numeracion>('/api/pedidos/numeracion'),
   fijarNumeracion: (siguiente: number, serie?: string) =>
