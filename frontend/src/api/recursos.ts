@@ -179,6 +179,9 @@ export const pedidos = {
   /** Agrega un producto a mano a "Por comprar" (o cambia su cantidad y nota). Se quita solo al registrar su entrada */
   agregarAPorComprar: (productoId: number, datos: { cantidad: number | null; nota: string | null }) =>
     api<void>(`/api/pedidos/por-comprar/a-mano/${productoId}`, { metodo: 'PUT', cuerpo: datos }),
+  /** Agrega un producto a "Por comprar" de un toque, sin cantidad; si ya estaba, no cambia nada */
+  agregarAPorComprarDeUnToque: (productoId: number) =>
+    api<void>(`/api/pedidos/por-comprar/a-mano/${productoId}`, { metodo: 'POST' }),
   /** Quita lo agregado a mano (lo que falta para pedidos sigue en la lista) */
   quitarDePorComprar: (productoId: number) =>
     api<void>(`/api/pedidos/por-comprar/a-mano/${productoId}`, { metodo: 'DELETE' }),

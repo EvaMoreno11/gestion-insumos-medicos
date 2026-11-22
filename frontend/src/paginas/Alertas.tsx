@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { alertas, DIAS_POR_VENCER } from '../api/recursos'
+import { mensajeDe } from '../api/http'
+import { alertas, DIAS_POR_VENCER, pedidos } from '../api/recursos'
 import type { LoteAlerta, ProductoResumen } from '../api/tipos'
-import { BotonEnlace, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
+import { Boton, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { EtiquetaStock } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
@@ -23,6 +25,11 @@ export default function Alertas() {
   const categoriaId = Number(params.get('categoria')) || null
   const categoria = categorias.find((c) => c.id === categoriaId)
   const productosStockBajo = (stockBajo.datos ?? []).filter((p) => !categoria || p.categoriaId === categoria.id)
+  // Qué productos ya están en "Por comprar" (agregados a mano o porque faltan para un pedido), más los que se
+  // agregan desde aquí
+  const porComprar = useCarga(() => pedidos.porComprar())
+  const [agregados, setAgregados] = useState<Set<number>>(new Set())
+  const enPorComprar = new Set([...(porComprar.datos?.productos.map((p) => p.productoId) ?? []), ...agregados])
 
   function cambiarParametro(clave: string, valor: string | null) {
     setParams(
@@ -95,7 +102,11 @@ export default function Alertas() {
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
             {productosStockBajo.map((p) => (
               <li key={p.id}>
-                <FilaStockBajo producto={p} />
+                <FilaStockBajo
+                  producto={p}
+                  enPorComprar={enPorComprar.has(p.id)}
+                  onAgregado={() => setAgregados((antes) => new Set(antes).add(p.id))}
+                />
               </li>
             ))}
           </ul>
@@ -125,7 +136,36 @@ export default function Alertas() {
   )
 }
 
-function FilaStockBajo({ producto }: { producto: ProductoResumen }) {
+/**
+ * Un producto con stock bajo y el botón "Agregar a Por comprar": de un toque, sin cantidad (se pone después en
+ * Por comprar si hace falta). Si ya está en Por comprar, agregado a mano o porque falta para un pedido, se ve
+ * "✓ En Por comprar".
+ */
+function FilaStockBajo({
+  producto,
+  enPorComprar,
+  onAgregado,
+}: {
+  producto: ProductoResumen
+  enPorComprar: boolean
+  onAgregado: () => void
+}) {
+  const [ocupado, setOcupado] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function agregar() {
+    setOcupado(true)
+    setError(null)
+    try {
+      await pedidos.agregarAPorComprarDeUnToque(producto.id)
+      onAgregado()
+    } catch (e) {
+      setError(mensajeDe(e))
+    } finally {
+      setOcupado(false)
+    }
+  }
+
   return (
     <Tarjeta>
       <Link to={`/inventario/${producto.id}`} className="flex items-start justify-between gap-3">
@@ -139,9 +179,19 @@ function FilaStockBajo({ producto }: { producto: ProductoResumen }) {
         <EtiquetaStock estado={producto.estadoStock} />
       </Link>
       <div className="mt-3">
-        <BotonEnlace a={`/entrada?producto=${producto.id}`} variante="secundario" ancho>
-          Llegó: registrar entrada
-        </BotonEnlace>
+        {enPorComprar ? (
+          <p
+            className="flex min-h-12 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 font-semibold text-emerald-800"
+            role="status"
+          >
+            ✓ En Por comprar
+          </p>
+        ) : (
+          <Boton variante="secundario" ancho disabled={ocupado} onClick={() => void agregar()}>
+            {ocupado ? 'Agregando…' : '🛒 Agregar a Por comprar'}
+          </Boton>
+        )}
+        {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
       </div>
     </Tarjeta>
   )
