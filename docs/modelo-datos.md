@@ -51,6 +51,8 @@ Al guardar un producto se calcula `texto_busqueda`: el código, el nombre, la ma
 | Palabra normal | Coincide con el **inicio** de una palabra | `jer` → **jer**inga |
 | Número o letra suelta | Debe ser la palabra **completa** | `5` → "5 ml", pero no "x 50"; `m` → "talla M", pero no "Marca" |
 
+En **Entradas registradas** se usa la misma regla para el producto, y además se busca por N° de lote: basta una parte del número, sin importar guiones ni espacios (`zb123` encuentra el lote "ZB-123").
+
 ## Fase 2: Stock por lote
 
 ```mermaid
