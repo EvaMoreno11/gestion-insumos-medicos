@@ -9,11 +9,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -31,9 +33,12 @@ import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.common.SolicitudInvalidaException;
 import com.evamoreno.inventario.common.TextoBusqueda;
+import com.evamoreno.inventario.compra.RecordatorioCompra;
+import com.evamoreno.inventario.compra.RecordatoriosDeCompra;
 import com.evamoreno.inventario.negocio.NegocioDto;
 import com.evamoreno.inventario.negocio.NegocioService;
 import com.evamoreno.inventario.pedido.PedidoDto.ActualizarRequest;
+import com.evamoreno.inventario.pedido.PedidoDto.AgregadoAMano;
 import com.evamoreno.inventario.pedido.PedidoDto.CambioItem;
 import com.evamoreno.inventario.pedido.PedidoDto.CobroResponse;
 import com.evamoreno.inventario.pedido.PedidoDto.CorreccionRequest;
@@ -93,12 +98,13 @@ public class PedidoService {
     private final NegocioService negocio;
     private final CostosDePedidos costos;
     private final PreciosEspeciales preciosEspeciales;
+    private final RecordatoriosDeCompra recordatoriosDeCompra;
     private final Clock clock;
 
     public PedidoService(PedidoRepository pedidos, ClienteRepository clientes, ProductoRepository productos,
             StockService stock, MovimientoService movimientoService, MovimientoRepository movimientos,
             CategoriaPrecioService categoriasPrecio, NegocioService negocio, CostosDePedidos costos,
-            PreciosEspeciales preciosEspeciales, Clock clock) {
+            PreciosEspeciales preciosEspeciales, RecordatoriosDeCompra recordatoriosDeCompra, Clock clock) {
         this.pedidos = pedidos;
         this.clientes = clientes;
         this.productos = productos;
@@ -109,6 +115,7 @@ public class PedidoService {
         this.negocio = negocio;
         this.costos = costos;
         this.preciosEspeciales = preciosEspeciales;
+        this.recordatoriosDeCompra = recordatoriosDeCompra;
         this.clock = clock;
     }
 
@@ -162,43 +169,65 @@ public class PedidoService {
     }
 
     /**
-     * Lista universal "Por comprar": lo que falta de cada producto sumando todos los pedidos pendientes,
-     * con el detalle de qué pedidos lo esperan, más los ítems a mano (que no están en el catálogo).
+     * Lista universal "Por comprar": lo que falta de cada producto sumando todos los pedidos pendientes, con el
+     * detalle de qué pedidos lo esperan, y los productos agregados a mano. Un producto que está en las dos aparece
+     * una sola vez, con lo que falta más lo agregado. Al final, los ítems a mano de los pedidos (que no están en el
+     * catálogo).
      */
     @Transactional(readOnly = true)
     public PorComprar porComprar() {
         List<PedidoItem> pendientes = pedidos.itemsPendientes();
         List<PedidoItem> registrados = pendientes.stream().filter(i -> !i.esManual()).toList();
-        Map<Long, Integer> disponibles = stock.disponiblePorProducto(idsDeProductos(registrados));
+        Map<Long, RecordatorioCompra> aMano = recordatoriosDeCompra.todos().stream()
+                .collect(Collectors.toMap(r -> r.getProducto().getId(), r -> r));
+        Set<Long> ids = new HashSet<>(idsDeProductos(registrados));
+        ids.addAll(aMano.keySet());
+        Map<Long, Integer> disponibles = stock.disponiblePorProducto(ids);
         Map<Long, Integer> asignado = RepartoDeStock.repartir(demandas(registrados), disponibles);
 
-        Map<Producto, List<PedidoItem>> porProducto = registrados.stream()
-                .collect(Collectors.groupingBy(PedidoItem::getProducto, LinkedHashMap::new, Collectors.toList()));
+        Map<Long, Producto> productosPorId = new HashMap<>();
+        Map<Long, List<PedidoItem>> itemsPorProducto = new LinkedHashMap<>();
+        for (PedidoItem item : registrados) {
+            productosPorId.put(item.getProducto().getId(), item.getProducto());
+            itemsPorProducto.computeIfAbsent(item.getProducto().getId(), id -> new ArrayList<>()).add(item);
+        }
+        aMano.values().forEach(r -> {
+            productosPorId.putIfAbsent(r.getProducto().getId(), r.getProducto());
+            itemsPorProducto.putIfAbsent(r.getProducto().getId(), List.of());
+        });
+
         List<ProductoPorComprar> faltantes = new ArrayList<>();
         BigDecimal costoTotal = BigDecimal.ZERO;
         int sinCosto = 0;
-        for (Map.Entry<Producto, List<PedidoItem>> grupo : porProducto.entrySet()) {
-            Producto producto = grupo.getKey();
+        for (Map.Entry<Long, List<PedidoItem>> grupo : itemsPorProducto.entrySet()) {
+            Producto producto = productosPorId.get(grupo.getKey());
             List<PedidoItem> items = grupo.getValue();
+            RecordatorioCompra agregado = aMano.get(producto.getId());
             int pedido = items.stream().mapToInt(PedidoItem::getCantidad).sum();
             int faltante = items.stream().mapToInt(i -> faltante(i, asignado)).sum();
-            if (faltante == 0) {
+            if (faltante == 0 && agregado == null) {
                 continue;
             }
-            // Cuánto costaría comprar lo que falta, con el último costo de compra del producto
-            if (producto.getCosto() == null) {
-                sinCosto++;
-            } else {
-                costoTotal = costoTotal.add(producto.getCosto().multiply(BigDecimal.valueOf(faltante)));
+            int comprar = faltante + (agregado == null || agregado.getCantidad() == null ? 0 : agregado.getCantidad());
+            // Cuánto costaría comprarlo, con el último costo de compra del producto
+            if (comprar > 0) {
+                if (producto.getCosto() == null) {
+                    sinCosto++;
+                } else {
+                    costoTotal = costoTotal.add(producto.getCosto().multiply(BigDecimal.valueOf(comprar)));
+                }
             }
             faltantes.add(new ProductoPorComprar(producto.getId(), producto.getCodigo(), producto.getNombre(),
                     producto.getMarca(), producto.getPresentacion(),
-                    disponibles.getOrDefault(producto.getId(), 0), pedido, faltante,
+                    disponibles.getOrDefault(producto.getId(), 0), producto.getStockMinimo(), pedido, faltante,
+                    comprar,
                     items.stream().filter(i -> faltante(i, asignado) > 0)
                             .map(i -> new PedidoQueEspera(i.getPedido().getId(),
                                     i.getPedido().getCliente().getNombre(), i.getPedido().getLocal().getNombre(),
                                     i.getCantidad(), faltante(i, asignado)))
-                            .toList()));
+                            .toList(),
+                    agregado == null ? null
+                            : new AgregadoAMano(agregado.getCantidad(), agregado.getNota(), agregado.getCreadoEn())));
         }
         faltantes.sort((a, b) -> a.nombre().compareToIgnoreCase(b.nombre()));
 

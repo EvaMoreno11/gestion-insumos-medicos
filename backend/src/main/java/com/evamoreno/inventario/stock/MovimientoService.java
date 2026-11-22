@@ -16,6 +16,7 @@ import com.evamoreno.inventario.common.ConflictoException;
 import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.common.RecursoNoEncontradoException;
 import com.evamoreno.inventario.common.TextoBusqueda;
+import com.evamoreno.inventario.compra.RecordatoriosDeCompra;
 import com.evamoreno.inventario.producto.Producto;
 import com.evamoreno.inventario.producto.ProductoRepository;
 
@@ -34,13 +35,15 @@ public class MovimientoService {
     private final LoteRepository lotes;
     private final MovimientoRepository movimientos;
     private final StockService stock;
+    private final RecordatoriosDeCompra recordatoriosDeCompra;
 
     public MovimientoService(ProductoRepository productos, LoteRepository lotes, MovimientoRepository movimientos,
-            StockService stock) {
+            StockService stock, RecordatoriosDeCompra recordatoriosDeCompra) {
         this.productos = productos;
         this.lotes = lotes;
         this.movimientos = movimientos;
         this.stock = stock;
+        this.recordatoriosDeCompra = recordatoriosDeCompra;
     }
 
     // ------------------------------------------------------------------ entrada
@@ -69,6 +72,9 @@ public class MovimientoService {
                 Movimiento.entrada(lote, r.cantidad(), r.costo(), TextoBusqueda.limpiar(r.nota()), inicial));
         if (r.costo() != null) {
             producto.setCosto(r.costo()); // el último costo de compra: con él se calculan los precios nuevos
+        }
+        if (!inicial) {
+            recordatoriosDeCompra.quitar(producto.getId()); // si estaba agregado a mano en Por comprar, ya llegó
         }
         return resultado(producto.getId(), List.of(movimiento));
     }

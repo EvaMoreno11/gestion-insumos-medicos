@@ -354,11 +354,22 @@ public final class PedidoDto {
     }
 
     /**
-     * @param pedido   total pedido entre todos los pedidos pendientes
-     * @param faltante lo que hay que comprar: pedido − stock disponible
+     * Un producto de "Por comprar": lo que falta para los pedidos pendientes, lo agregado a mano, o las dos cosas
+     * (en una sola fila).
+     *
+     * @param stockMinimo 0 si no tiene mínimo
+     * @param pedido      total pedido entre todos los pedidos pendientes (0 si solo se agregó a mano)
+     * @param faltante    lo que falta para los pedidos: pedido − stock disponible
+     * @param comprar     lo que hay que comprar: el faltante más la cantidad agregada a mano (si se escribió)
+     * @param aMano       si se agregó a mano, con su cantidad y nota; null si solo lo esperan pedidos
      */
     public record ProductoPorComprar(Long productoId, String codigo, String nombre, String marca,
-            String presentacion, int stockDisponible, int pedido, int faltante, List<PedidoQueEspera> pedidos) {
+            String presentacion, int stockDisponible, int stockMinimo, int pedido, int faltante, int comprar,
+            List<PedidoQueEspera> pedidos, AgregadoAMano aMano) {
+    }
+
+    /** Lo agregado a mano a "Por comprar": un recordatorio, con la cantidad (opcional) y una nota. */
+    public record AgregadoAMano(Integer cantidad, String nota, Instant creadoEn) {
     }
 
     /** Ítem a mano de un pedido pendiente: hay que conseguirlo y, después, registrarlo en el catálogo. */
@@ -367,9 +378,9 @@ public final class PedidoDto {
     }
 
     /**
-     * @param costoTotal        cuánto costaría comprar lo que falta: faltante × último costo de cada producto
-     * @param productosSinCosto productos que faltan pero no tienen costo, así que no están en {@code costoTotal}
-     *                          (los ítems a mano tampoco están: no tienen costo)
+     * @param costoTotal        cuánto costaría comprar todo: lo que hay que comprar × último costo de cada producto
+     * @param productosSinCosto productos por comprar que no tienen costo, así que no están en {@code costoTotal}
+     *                          (los ítems a mano de los pedidos tampoco están: no tienen costo)
      */
     public record PorComprar(List<ProductoPorComprar> productos, List<ItemNoRegistrado> noRegistrados,
             BigDecimal costoTotal, int productosSinCosto) {
