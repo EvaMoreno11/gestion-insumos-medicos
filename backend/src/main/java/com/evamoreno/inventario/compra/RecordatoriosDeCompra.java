@@ -34,6 +34,16 @@ public class RecordatoriosDeCompra {
         recordatorio.cambiar(r.cantidad(), r.nota());
     }
 
+    /**
+     * Lo agrega sin cantidad ni nota, de un toque (desde Stock bajo). Si ya estaba agregado, no cambia nada: así
+     * no se borra la cantidad o la nota que se le hayan puesto.
+     */
+    public void agregarSiNoEsta(Long productoId) {
+        if (recordatorios.findByProductoId(productoId).isEmpty()) {
+            guardar(productoId, new RecordatorioCompraRequest(null, null));
+        }
+    }
+
     /** Quita el producto de lo agregado a mano (si estaba). Lo que falta para pedidos sigue en la lista. */
     public void quitar(Long productoId) {
         recordatorios.findByProductoId(productoId).ifPresent(recordatorios::delete);

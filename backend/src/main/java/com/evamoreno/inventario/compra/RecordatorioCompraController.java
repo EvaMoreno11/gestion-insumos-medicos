@@ -3,6 +3,7 @@ package com.evamoreno.inventario.compra;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +32,14 @@ public class RecordatorioCompraController {
             description = "La cantidad es opcional. Se quita solo al registrar una entrada de ese producto.")
     public void guardar(@PathVariable Long productoId, @Valid @RequestBody RecordatorioCompraRequest request) {
         service.guardar(productoId, request);
+    }
+
+    @PostMapping("/{productoId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Agregar un producto a Por comprar de un toque, sin cantidad",
+            description = "Si ya estaba agregado, no cambia nada (no se pierde su cantidad ni su nota).")
+    public void agregarSiNoEsta(@PathVariable Long productoId) {
+        service.agregarSiNoEsta(productoId);
     }
 
     @DeleteMapping("/{productoId}")
