@@ -94,21 +94,25 @@ class MovimientoControllerTest extends IntegracionTest {
         jdbc.sql("UPDATE movimiento SET inicial = true WHERE lote_id = ?").param(importado).update();
         entityManager.clear();
 
+        entityManager.flush();
+
         mockMvc.perform(get("/api/movimientos/entradas"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElementos").value(2))
-                .andExpect(jsonPath("$.contenido[*].tipo", everyItem(is("ENTRADA"))))
-                .andExpect(jsonPath("$.contenido[0].productoNombre").value("Guantes de látex"))
-                .andExpect(jsonPath("$.contenido[0].productoPresentacion").value("Caja x 100"))
-                .andExpect(jsonPath("$.contenido[0].productoMarca").value("Marca G"))
-                .andExpect(jsonPath("$.contenido[0].numeroLote").value("G-7"))
-                .andExpect(jsonPath("$.contenido[0].cantidad").value(4))
-                .andExpect(jsonPath("$.contenido[0].costoUnitario").value(12.5))
-                .andExpect(jsonPath("$.contenido[1].productoNombre").value("Jeringa descartable 5 ml"))
-                .andExpect(jsonPath("$.contenido[1].numeroLote").value("L-1"));
+                .andExpect(jsonPath("$.entradas").value(2))
+                .andExpect(jsonPath("$.total").value(100.0)) // 10 × 5 + 4 × 12.50
+                .andExpect(jsonPath("$.lista.totalElementos").value(2))
+                .andExpect(jsonPath("$.lista.contenido[*].tipo", everyItem(is("ENTRADA"))))
+                .andExpect(jsonPath("$.lista.contenido[0].productoNombre").value("Guantes de látex"))
+                .andExpect(jsonPath("$.lista.contenido[0].productoPresentacion").value("Caja x 100"))
+                .andExpect(jsonPath("$.lista.contenido[0].productoMarca").value("Marca G"))
+                .andExpect(jsonPath("$.lista.contenido[0].numeroLote").value("G-7"))
+                .andExpect(jsonPath("$.lista.contenido[0].cantidad").value(4))
+                .andExpect(jsonPath("$.lista.contenido[0].costoUnitario").value(12.5))
+                .andExpect(jsonPath("$.lista.contenido[1].productoNombre").value("Jeringa descartable 5 ml"))
+                .andExpect(jsonPath("$.lista.contenido[1].numeroLote").value("L-1"));
 
         mockMvc.perform(get("/api/movimientos/entradas").param("pagina", "1").param("tamano", "1"))
-                .andExpect(jsonPath("$.contenido[0].numeroLote").value("L-1"));
+                .andExpect(jsonPath("$.lista.contenido[0].numeroLote").value("L-1"));
     }
 
     // ------------------------------------------------------------------ costos

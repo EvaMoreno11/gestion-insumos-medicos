@@ -16,13 +16,9 @@ public interface MovimientoRepository extends JpaRepository<Movimiento, Long> {
             countQuery = "select count(m) from Movimiento m where m.lote.producto.id = :productoId")
     Page<Movimiento> historialDeProducto(Long productoId, Pageable pageable);
 
-    /** Los últimos movimientos de un tipo en todo el inventario, sin la carga inicial (importación). */
-    @Query(value = """
-            select m from Movimiento m join fetch m.lote l join fetch l.producto
-            where m.tipo = :tipo and m.inicial = false
-            order by m.fecha desc, m.id desc""",
-            countQuery = "select count(m) from Movimiento m where m.tipo = :tipo and m.inicial = false")
-    Page<Movimiento> ultimosPorTipo(TipoMovimiento tipo, Pageable pageable);
+    /** Movimientos con su lote y su producto (para listarlos sin una consulta por fila). */
+    @Query("select m from Movimiento m join fetch m.lote l join fetch l.producto where m.id in :ids")
+    List<Movimiento> conLoteYProducto(Collection<Long> ids);
 
     /** Todo el historial de un lote (para pasarlo a otro al unirlos). */
     List<Movimiento> findByLoteId(Long loteId);

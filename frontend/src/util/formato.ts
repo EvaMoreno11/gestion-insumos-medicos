@@ -131,6 +131,57 @@ export function leerDecimal(texto: string): number | null {
   return Number(limpio)
 }
 
+/** Costo leído: el valor, o por qué todavía no se puede usar (pendiente = falta escribir algo, no es un error). */
+export type CostoLeido = { valor: number; division: boolean } | { error: string; pendiente: boolean }
+
+/**
+ * Lee el costo escrito: un número ("8.50") o una división ("30÷12", también "30/12") para lo que se compra por
+ * docena o paquete y se registra por unidad. La división se redondea a 4 decimales, como se guarda el costo, así
+ * 25÷12 = 2.0833 y 12 unidades siguen sumando S/ 25.00. Vacío → null.
+ */
+export function leerCosto(texto: string): CostoLeido | null {
+  const limpio = texto.replace(/\s+/g, '').replace('/', '÷')
+  if (limpio === '') {
+    return null
+  }
+  const partes = limpio.split('÷')
+  if (partes.length === 1) {
+    const valor = leerDecimal(limpio)
+    return valor === null ? { error: 'Escribe un número, p. ej. 8.50', pendiente: false } : { valor, division: false }
+  }
+  const [precio, unidades] = partes
+  if (partes.length > 2) {
+    return { error: 'Escribe una sola división, p. ej. 30÷12', pendiente: false }
+  }
+  if (precio === '') {
+    return { error: 'Escribe primero el precio del paquete, p. ej. 30÷12', pendiente: true }
+  }
+  if (unidades === '') {
+    return { error: 'Escribe entre cuántas unidades dividir, p. ej. 30÷12', pendiente: true }
+  }
+  const a = leerDecimal(precio)
+  const b = leerDecimal(unidades)
+  if (a === null || b === null) {
+    return { error: 'Escribe números, p. ej. 30÷12', pendiente: false }
+  }
+  if (b === 0) {
+    return { error: 'No se puede dividir entre 0', pendiente: false }
+  }
+  return { valor: Math.round((a / b) * 10000) / 10000, division: true }
+}
+
+/** Lo que se deja escribir en el costo: números, punto o coma y una sola división ("/" se muestra como "÷"). */
+export function limpiarCosto(texto: string): string {
+  const limpio = texto.replace(/\//g, '÷').replace(/[^\d.,÷]/g, '')
+  const division = limpio.indexOf('÷')
+  return division === -1 ? limpio : limpio.slice(0, division + 1) + limpio.slice(division + 1).replace(/÷/g, '')
+}
+
+/** Como dinero(), pero con hasta 4 decimales si los tiene: 2.5 → "S/ 2.50", 2.0833 → "S/ 2.0833". */
+export function dineroExacto(valor: number): string {
+  return 'S/ ' + valor.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+}
+
 /** Une solo los textos que existen: unir(" · ", "Caja x 100", null, "Marca A") → "Caja x 100 · Marca A". */
 export function unir(separador: string, ...partes: (string | null | undefined)[]): string {
   return partes.filter((p) => p !== null && p !== undefined && p.trim() !== '').join(separador)

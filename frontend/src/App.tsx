@@ -20,7 +20,6 @@ import ProductoDetalle from './paginas/ProductoDetalle'
 import { ProductoFormulario, Productos } from './paginas/Productos'
 import Proveedores from './paginas/Proveedores'
 import Resumen from './paginas/Resumen'
-import UltimasEntradas from './paginas/UltimasEntradas'
 import { SesionProvider } from './sesion'
 
 /** Rutas de la aplicación: cada pantalla tiene su propia dirección. Todas exigen haber iniciado sesión. */
@@ -48,7 +47,8 @@ export default function App() {
         <Route path="/resumen/detalles" element={<MasDetalles />} />
 
         <Route path="/entrada" element={<Entrada />} />
-        <Route path="/entrada/ultimas" element={<UltimasEntradas />} />
+        {/* Antes era una pantalla aparte; ahora es la pestaña "Entradas registradas" */}
+        <Route path="/entrada/ultimas" element={<Navigate to="/entrada?pestana=registradas" replace />} />
 
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/clientes/nuevo" element={<ClienteFormulario />} />

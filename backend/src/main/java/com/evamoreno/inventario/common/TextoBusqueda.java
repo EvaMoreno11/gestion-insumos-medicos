@@ -55,6 +55,19 @@ public final class TextoBusqueda {
                 .toList();
     }
 
+    /**
+     * Patrón LIKE de una palabra buscada sobre un texto normalizado que empieza y termina con espacio:
+     * <ul>
+     * <li>Palabras normales: coinciden con el INICIO de una palabra ("jer" → "jeringa").</li>
+     * <li>Números y letras sueltas: deben ser la palabra COMPLETA, para que "5" no encuentre "50" ni "25", y la
+     * talla "m" no encuentre "marca".</li>
+     * </ul>
+     */
+    public static String patronDePalabra(String token) {
+        boolean completa = token.length() == 1 || token.chars().anyMatch(Character::isDigit);
+        return completa ? "% " + token + " %" : "% " + token + "%";
+    }
+
     /** Limpia un texto para guardarlo: sin espacios sobrantes. Conserva mayúsculas y tildes. */
     public static String limpiar(String texto) {
         return texto == null ? null : texto.trim().replaceAll("\\s+", " ");

@@ -10,8 +10,11 @@ import {
   textoPlazo,
   variacion,
   escribirMesAnio,
+  leerCosto,
   leerDecimal,
   leerEntero,
+  limpiarCosto,
+  dineroExacto,
   mesAnio,
   mesAnioAFecha,
   diaLocal,
@@ -82,6 +85,43 @@ describe('lectura de números', () => {
     expect(leerDecimal('10')).toBe(10)
     expect(leerDecimal('abc')).toBeNull()
     expect(leerDecimal('')).toBeNull()
+  })
+})
+
+describe('costo con división (por docena o paquete)', () => {
+  it('lee un costo escrito directo', () => {
+    expect(leerCosto('2.50')).toEqual({ valor: 2.5, division: false })
+    expect(leerCosto('2,5')).toEqual({ valor: 2.5, division: false })
+    expect(leerCosto('')).toBeNull()
+    expect(leerCosto('2.5.0')).toMatchObject({ pendiente: false })
+  })
+
+  it('calcula la división y la redondea a 4 decimales', () => {
+    expect(leerCosto('30÷12')).toEqual({ valor: 2.5, division: true })
+    expect(leerCosto('30/12')).toEqual({ valor: 2.5, division: true })
+    expect(leerCosto('25÷12')).toEqual({ valor: 2.0833, division: true })
+    expect(leerCosto('18,50 ÷ 12')).toEqual({ valor: 1.5417, division: true })
+    expect(leerCosto('1÷3')).toEqual({ valor: 0.3333, division: true })
+  })
+
+  it('avisa lo que falta sin tratarlo como error, y los errores de verdad', () => {
+    expect(leerCosto('30÷')).toEqual({ error: 'Escribe entre cuántas unidades dividir, p. ej. 30÷12', pendiente: true })
+    expect(leerCosto('÷12')).toMatchObject({ pendiente: true })
+    expect(leerCosto('30÷0')).toEqual({ error: 'No se puede dividir entre 0', pendiente: false })
+    expect(leerCosto('30÷12÷2')).toMatchObject({ pendiente: false })
+  })
+
+  it('deja escribir una sola división y muestra "/" como "÷"', () => {
+    expect(limpiarCosto('30/12')).toBe('30÷12')
+    expect(limpiarCosto('30÷÷12')).toBe('30÷12')
+    expect(limpiarCosto('3a0 ÷ 1/2')).toBe('30÷12')
+    expect(limpiarCosto('8,50')).toBe('8,50')
+  })
+
+  it('muestra el resultado con los decimales que tenga', () => {
+    expect(dineroExacto(2.5)).toBe('S/ 2.50')
+    expect(dineroExacto(2.0833)).toBe('S/ 2.0833')
+    expect(dineroExacto(1250)).toBe('S/ 1,250.00')
   })
 })
 

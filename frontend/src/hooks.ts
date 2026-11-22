@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { mensajeDe } from './api/http'
 import type { ConsultaPeriodo } from './api/recursos'
 import type { TipoPeriodo } from './api/tipos'
+import { diaLocal, fechaDia, sumarDias } from './util/formato'
 
 interface Carga<T> {
   /** Último resultado recibido. Mientras llega uno nuevo se conserva el anterior (la lista no parpadea). */
@@ -90,4 +91,125 @@ export function usePeriodo(): [ConsultaPeriodo, (consulta: ConsultaPeriodo) => v
     Object.entries(consulta).filter(([, v]) => v !== undefined) as [string, string][],
   ).toString()
   return [consulta, cambiar, textoParams]
+}
+
+/** Búsqueda y rango de fechas de una lista por días (despachados, entradas registradas). */
+export interface BusquedaConFechas {
+  /** Lo que está escrito en el buscador */
+  texto: string
+  setTexto: (texto: string) => void
+  /** Lo buscado (con retraso, sin espacios a los lados) */
+  buscado: string
+  /** Fechas elegidas con "Elegir fechas"; null si no se eligieron */
+  elegidas: { desde: string; hasta: string } | null
+  cambiarFechas: (fechas: { desde: string; hasta: string } | null) => void
+  /** Rango que se pide a la API (null = sin límite) */
+  desde: string | null
+  hasta: string | null
+  hoy: string
+  /** "Últimos 7 días", "Todo el historial", "El 17/11/2026" o "Del … al …" */
+  periodo: string
+  /** Cambia cuando cambia la búsqueda o las fechas: para volver a cargar */
+  clave: string
+}
+
+/**
+ * Búsqueda con fechas guardada en la dirección (?buscar=&desde=&hasta=), así al volver de un detalle la lista
+ * sigue igual. Sin búsqueda ni fechas se piden los últimos 7 días; al buscar sin elegir fechas, todo el historial.
+ */
+export function useBusquedaConFechas(): BusquedaConFechas {
+  const [params, setParams] = useSearchParams()
+  const [texto, setTexto] = useState(params.get('buscar') ?? '')
+  const buscado = useRetardo(texto.trim())
+  const desdeElegido = params.get('desde')
+  const hastaElegido = params.get('hasta')
+  const elegidas = desdeElegido !== null && hastaElegido !== null ? { desde: desdeElegido, hasta: hastaElegido } : null
+
+  const hoy = diaLocal()
+  const desde = elegidas ? elegidas.desde : buscado ? null : sumarDias(hoy, -6)
+  const hasta = elegidas ? elegidas.hasta : buscado ? null : hoy
+
+  // Refleja la búsqueda en la URL
+  useEffect(() => {
+    setParams(
+      (actual) => {
+        const nuevos = new URLSearchParams(actual)
+        if (buscado) {
+          nuevos.set('buscar', buscado)
+        } else {
+          nuevos.delete('buscar')
+        }
+        return nuevos
+      },
+      { replace: true },
+    )
+  }, [buscado, setParams])
+
+  function cambiarFechas(fechas: { desde: string; hasta: string } | null) {
+    setParams(
+      (actual) => {
+        const nuevos = new URLSearchParams(actual)
+        if (fechas) {
+          nuevos.set('desde', fechas.desde)
+          nuevos.set('hasta', fechas.hasta)
+        } else {
+          nuevos.delete('desde')
+          nuevos.delete('hasta')
+        }
+        return nuevos
+      },
+      { replace: true },
+    )
+  }
+
+  const periodo = elegidas
+    ? elegidas.desde === elegidas.hasta
+      ? `El ${fechaDia(elegidas.desde)}`
+      : `Del ${fechaDia(elegidas.desde)} al ${fechaDia(elegidas.hasta)}`
+    : buscado
+      ? 'Todo el historial'
+      : 'Últimos 7 días'
+
+  return {
+    texto,
+    setTexto,
+    buscado,
+    elegidas,
+    cambiarFechas,
+    desde,
+    hasta,
+    hoy,
+    periodo,
+    clave: `${buscado}|${desde ?? ''}|${hasta ?? ''}`,
+  }
+}
+
+/**
+ * Lista paginada con "Ver más": la primera página se carga con useCarga y las siguientes se van sumando.
+ * Lo cargado con "Ver más" solo vale para la búsqueda (clave) en la que se pidió.
+ */
+export function useListaConVerMas<R, T>(cargar: (pagina: number) => Promise<R>, clave: string, items: (r: R) => T[]) {
+  const primera = useCarga(() => cargar(0), clave)
+  const [extra, setExtra] = useState<{ clave: string; items: T[]; pagina: number }>()
+  const [cargandoMas, setCargandoMas] = useState(false)
+  const [errorMas, setErrorMas] = useState<string | null>(null)
+
+  const mas = extra?.clave === clave && !primera.cargando ? extra : undefined
+  const lista = [...(primera.datos ? items(primera.datos) : []), ...(mas?.items ?? [])]
+
+  async function verMas() {
+    setCargandoMas(true)
+    setErrorMas(null)
+    try {
+      const pagina = (mas?.pagina ?? 0) + 1
+      const siguiente = await cargar(pagina)
+      setExtra({ clave, items: [...(mas?.items ?? []), ...items(siguiente)], pagina })
+    } catch (e) {
+      setErrorMas(mensajeDe(e))
+    } finally {
+      setCargandoMas(false)
+    }
+  }
+
+  return { ...primera, lista, verMas, cargandoMas, errorMas }
 }
