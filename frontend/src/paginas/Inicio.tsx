@@ -45,7 +45,7 @@ export default function Inicio() {
       a: '/por-comprar',
       icono: '🛒',
       titulo: 'Por comprar',
-      detalle: 'Lo que falta para los pedidos',
+      detalle: 'Lo que falta y lo agregado a mano',
       aviso: porComprar.datos ? porComprar.datos.productos.length + porComprar.datos.noRegistrados.length : undefined,
     },
     {

@@ -498,6 +498,7 @@ export interface PedidoQueEspera {
   faltante: number
 }
 
+/** Un producto de "Por comprar": lo que falta para pedidos, lo agregado a mano, o las dos cosas (una sola vez) */
 export interface ProductoPorComprar {
   productoId: number
   codigo: string
@@ -505,9 +506,24 @@ export interface ProductoPorComprar {
   marca: string
   presentacion: string
   stockDisponible: number
+  /** 0 si no tiene mínimo */
+  stockMinimo: number
+  /** Total pedido en los pedidos pendientes (0 si solo se agregó a mano) */
   pedido: number
+  /** Lo que falta para los pedidos */
   faltante: number
+  /** Lo que hay que comprar: el faltante más lo agregado a mano (si tiene cantidad) */
+  comprar: number
   pedidos: PedidoQueEspera[]
+  /** Si se agregó a mano; null si solo lo esperan pedidos */
+  aMano: AgregadoAMano | null
+}
+
+/** Producto agregado a mano a "Por comprar": un recordatorio, con la cantidad opcional */
+export interface AgregadoAMano {
+  cantidad: number | null
+  nota: string | null
+  creadoEn: string
 }
 
 export interface ItemNoRegistrado {

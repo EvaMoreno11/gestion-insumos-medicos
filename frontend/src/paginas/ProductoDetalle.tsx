@@ -126,6 +126,10 @@ export default function ProductoDetalle() {
                 Editar
               </BotonEnlace>
             </div>
+            {/* Un recordatorio para comprarlo aunque ningún pedido lo espere (por ejemplo, desde Stock bajo) */}
+            <BotonEnlace a={`/por-comprar?agregar=${p.id}`} variante="secundario" ancho>
+              🛒 Agregar a Por comprar
+            </BotonEnlace>
             </div>
           </div>
         )}
