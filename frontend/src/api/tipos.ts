@@ -240,8 +240,8 @@ export interface Movimiento {
   productoNombre: string
 }
 
-/** Una entrada del registro "Últimas entradas" */
-export interface EntradaReciente {
+/** Una entrada de la lista "Entradas registradas" */
+export interface EntradaRegistrada {
   id: number
   fecha: string
   cantidad: number
@@ -254,6 +254,24 @@ export interface EntradaReciente {
   productoNombre: string
   productoPresentacion: string
   productoMarca: string
+}
+
+/** Entradas de una búsqueda, con los totales de todo el resultado (no solo de la página) */
+export interface EntradasRegistradas {
+  entradas: number
+  /** Cantidad × costo de cada una; las que no tienen costo no suman */
+  total: number
+  sinCosto: number
+  dias: DiaEntradas[]
+  lista: Pagina<EntradaRegistrada>
+}
+
+export interface DiaEntradas {
+  /** aaaa-mm-dd (día de Lima) */
+  fecha: string
+  entradas: number
+  total: number
+  sinCosto: number
 }
 
 export interface ResultadoMovimiento {

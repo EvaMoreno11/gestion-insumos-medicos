@@ -14,7 +14,7 @@ import type {
   DeudaProveedorDatos,
   DocumentoPedido,
   EntradaDatos,
-  EntradaReciente,
+  EntradasRegistradas,
   EstadoSesion,
   EstadoPedido,
   Lote,
@@ -79,9 +79,12 @@ export const rutas = {
 export const movimientos = {
   entrada: (datos: EntradaDatos) =>
     api<ResultadoMovimiento>('/api/movimientos/entrada', { metodo: 'POST', cuerpo: datos }),
-  /** Las últimas entradas registradas (sin la carga inicial desde Excel), las más recientes primero */
-  ultimasEntradas: (pagina: number, tamano = 30) =>
-    api<Pagina<EntradaReciente>>('/api/movimientos/entradas', { params: { pagina, tamano } }),
+  /**
+   * Entradas registradas (sin la carga inicial desde Excel), las más recientes primero. Busca por producto o
+   * N° de lote; sin fechas, en todo el historial.
+   */
+  entradas: (filtro: { buscar?: string; desde?: string | null; hasta?: string | null; pagina?: number }) =>
+    api<EntradasRegistradas>('/api/movimientos/entradas', { params: { ...filtro, tamano: 50 } }),
 }
 
 export const lotes = {
