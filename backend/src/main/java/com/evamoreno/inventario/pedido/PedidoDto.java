@@ -327,9 +327,11 @@ public final class PedidoDto {
     /**
      * Cuánto costó un pedido y cuánto se gana. Solo para uso interno: nunca va en la nota.
      *
+     * @param margen        % de ganancia sobre lo vendido con costo conocido, con 1 decimal (como en el Resumen);
+     *                      null si ningún ítem tiene costo
      * @param itemsSinCosto ítems que no entran en la cuenta porque no se sabe su costo (o no tienen precio)
      */
-    public record CostoPedido(BigDecimal costo, BigDecimal ganancia, int itemsSinCosto) {
+    public record CostoPedido(BigDecimal costo, BigDecimal ganancia, BigDecimal margen, int itemsSinCosto) {
     }
 
     /** Precio que se propone para un producto en un pedido: el especial del cliente o costo + porcentaje. */

@@ -62,19 +62,23 @@ class CostoDelPedidoTest extends IntegracionTest {
     void unBorradorEstimaElCostoConElCostoActualYNoCuentaLoQueNoTieneCosto() throws Exception {
         Long pedido = crear(URL, """
                 {"clienteId": %d}""".formatted(botica));
+        // Solo un ítem escrito a mano: no hay con qué calcular el margen
+        postJson(URL + "/" + pedido + "/items", """
+                {"descripcion": "Tensiómetro digital", "cantidad": 1, "precio": 40}""")
+                .andExpect(jsonPath("$.costo.ganancia").value(0.0))
+                .andExpect(jsonPath("$.costo.margen").doesNotExist())
+                .andExpect(jsonPath("$.costo.itemsSinCosto").value(1));
         postJson(URL + "/" + pedido + "/items", """
                 {"productoId": %d, "cantidad": 4}""".formatted(jeringa))            // 4 × 11.50 = 46
                 .andExpect(jsonPath("$.costo.costo").value(40.0))                    // 4 × 10
                 .andExpect(jsonPath("$.costo.ganancia").value(6.0))
-                .andExpect(jsonPath("$.costo.itemsSinCosto").value(0));
-        postJson(URL + "/" + pedido + "/items", """
-                {"descripcion": "Tensiómetro digital", "cantidad": 1, "precio": 40}""")
-                .andExpect(jsonPath("$.costo.costo").value(40.0))
+                .andExpect(jsonPath("$.costo.margen").value(13.0))                   // 6 / 46, sin el tensiómetro
                 .andExpect(jsonPath("$.costo.itemsSinCosto").value(1));
 
         mockMvc.perform(get(URL).param("estado", "BORRADOR"))
                 .andExpect(jsonPath("$.contenido[0].costo.costo").value(40.0))
                 .andExpect(jsonPath("$.contenido[0].costo.ganancia").value(6.0))
+                .andExpect(jsonPath("$.contenido[0].costo.margen").value(13.0))
                 .andExpect(jsonPath("$.contenido[0].costo.itemsSinCosto").value(1));
     }
 
@@ -86,11 +90,13 @@ class CostoDelPedidoTest extends IntegracionTest {
                 {"productoId": %d, "cantidad": 5}""".formatted(jeringa));           // 5 × 11.50 = 57.50
         Long item = id(postJson(URL + "/" + pedido + "/despachar", "")
                 .andExpect(jsonPath("$.costo.costo").value(44.0))                    // 3 × 8 + 2 × 10
-                .andExpect(jsonPath("$.costo.ganancia").value(13.5)), "$.items[0].id");
+                .andExpect(jsonPath("$.costo.ganancia").value(13.5))
+                .andExpect(jsonPath("$.costo.margen").value(23.5)), "$.items[0].id"); // 13.50 / 57.50
 
         mockMvc.perform(get(URL + "/despachados"))
                 .andExpect(jsonPath("$.lista.contenido[0].costo.costo").value(44.0))
-                .andExpect(jsonPath("$.lista.contenido[0].costo.ganancia").value(13.5));
+                .andExpect(jsonPath("$.lista.contenido[0].costo.ganancia").value(13.5))
+                .andExpect(jsonPath("$.lista.contenido[0].costo.margen").value(23.5));
 
         // Devuelven 1 del lote L-B: el costo baja S/ 10 y la venta S/ 11.50
         Long loteB = id(mockMvc.perform(get(URL + "/{id}", pedido)), "$.items[0].lotes[1].loteId");
@@ -99,7 +105,8 @@ class CostoDelPedidoTest extends IntegracionTest {
                 .formatted(item, loteB))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.costo.costo").value(34.0))
-                .andExpect(jsonPath("$.costo.ganancia").value(12.0));
+                .andExpect(jsonPath("$.costo.ganancia").value(12.0))
+                .andExpect(jsonPath("$.costo.margen").value(26.1)); // 12 / 46
     }
 
     @Test
@@ -110,7 +117,8 @@ class CostoDelPedidoTest extends IntegracionTest {
                 {"productoId": %d, "cantidad": 2}""".formatted(jeringa)), "$.items[0].id");
         putJson(URL + "/" + pedido + "/items/" + item, """
                 {"cantidad": 2, "precio": 9}""")
-                .andExpect(jsonPath("$.costo.ganancia").value(-2.0));
+                .andExpect(jsonPath("$.costo.ganancia").value(-2.0))
+                .andExpect(jsonPath("$.costo.margen").value(-11.1)); // −2 / 18
     }
 
     @Test
