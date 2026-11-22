@@ -37,6 +37,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 - **Ganancia por cliente:** en Resumen → Más detalles, "Mejores clientes" muestra a todos los que compraron en el periodo con su ganancia y margen, y se puede ordenar por ganancia (para saber a quién recompensar). La ficha de cada cliente muestra lo que compró en el año, su ganancia y su último pedido.
 - **Costo y ganancia de cada pedido** (uso interno, nunca en la nota): en el pedido, junto al total, y en las listas de Pendientes y Despachados. En un despachado es el costo real de los lotes que salieron; en un borrador, un estimado con el costo actual. Si se vende por debajo del costo dice "pierde", en rojo.
 - **Lista "Por comprar":** lo que falta de cada producto sumando todos los pedidos pendientes, y cuánto costaría comprarlo todo (lo que falta × el último costo de cada producto).
+- **Agregar a mano a Por comprar** (botón "+ Agregar producto", o "🛒 Agregar a Por comprar" en la ficha del producto, por ejemplo desde Stock bajo): un recordatorio para no olvidarse de comprar algo aunque ningún pedido lo espere. Al agregarlo se ve cuánto hay, lo separado para pedidos y el mínimo; la cantidad es opcional (si se escribe, se suma al costo de la lista) y se puede anotar una nota. Sale arriba, en "Agregados a mano", con el mismo formato de tarjeta y "COMPRAR" en azul. Si ese producto ya faltaba para un pedido, sale una sola vez con todo sumado. Se quita solo al registrar una entrada de ese producto, o con "Quitar".
 - **Despacho en una transacción:** descuenta los lotes por FEFO, asigna el número de nota y deja registrado qué lotes se entregaron.
 - **Despachados por día:** al entrar se ven los de los últimos 7 días, separados por día con cuántos pedidos y cuánto suma cada uno. Se busca por cliente, local o N° de nota en todo el historial, y con **Elegir fechas** (desde y hasta, con el calendario del celular) se ve cualquier día, mes o año. La lista carga de 50 en 50.
 - **Entregas parciales:** si faltan unidades, se puede entregar lo que hay. Lo que falta pasa a un pedido nuevo (saldo) con los mismos precios y la prioridad del original. La app muestra lo pedido, lo entregado y lo pendiente; el cliente solo recibe la nota de lo que se le entrega.
@@ -122,7 +123,8 @@ El frontend separa la comunicación con la API (`src/api`: tipos y una función 
 | `POST` / `PUT` / `DELETE` | `/api/pedidos/{id}/items[/{itemId}]` | Agregar, cambiar o quitar ítems; devuelve el pedido con su total |
 | `PUT` | `/api/pedidos/{id}/items/{itemId}/producto` | Convertir un ítem escrito a mano en un producto del inventario |
 | `POST` | `/api/pedidos/{id}/despachar` · `/anular` | Despachar (descuenta lotes y numera la nota) o anular. Con `{"entregarLoDisponible": true}` entrega lo que hay y deja el resto en un saldo |
-| `GET` | `/api/pedidos/por-comprar` | Lista universal de lo que falta comprar |
+| `GET` | `/api/pedidos/por-comprar` | Lista universal de lo que falta comprar (pedidos y agregados a mano) |
+| `PUT` / `DELETE` | `/api/pedidos/por-comprar/a-mano/{productoId}` | Agregar a mano un producto a Por comprar (cantidad y nota opcionales) o quitarlo |
 | `GET` | `/api/pedidos/{id}/nota.pdf` · `/nota.xlsx` | Nota de pedido para imprimir, enviar o facturar |
 | `GET` / `PUT` | `/api/pedidos/numeracion` | Número de la próxima nota de pedido |
 | `GET` / `PUT` | `/api/negocio` | Datos del negocio para el encabezado de la nota |
