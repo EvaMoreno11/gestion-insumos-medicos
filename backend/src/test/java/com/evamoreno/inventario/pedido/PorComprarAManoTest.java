@@ -160,6 +160,25 @@ class PorComprarAManoTest extends IntegracionTest {
     }
 
     @Test
+    void deUnToqueSeAgregaSinCantidadYNoPisaLoQueYaTenia() throws Exception {
+        mockMvc.perform(post(A_MANO + guantes)).andExpect(status().isNoContent());
+        mockMvc.perform(get(LISTA))
+                .andExpect(jsonPath("$.productos[1].nombre").value("Guante de nitrilo talla M"))
+                .andExpect(jsonPath("$.productos[1].comprar").value(0))
+                .andExpect(jsonPath("$.productos[1].aMano.cantidad").doesNotExist());
+
+        // El alcohol ya tenía cantidad y nota: tocar "Agregar" otra vez no las borra
+        agregarAMano(alcohol, """
+                {"cantidad": 10, "nota": "Urgente"}""");
+        mockMvc.perform(post(A_MANO + alcohol)).andExpect(status().isNoContent());
+        mockMvc.perform(get(LISTA))
+                .andExpect(jsonPath("$.productos[0].aMano.cantidad").value(10))
+                .andExpect(jsonPath("$.productos[0].aMano.nota").value("Urgente"));
+
+        mockMvc.perform(post(A_MANO + 999_999L)).andExpect(status().isNotFound());
+    }
+
+    @Test
     void validaLaCantidadYElProducto() throws Exception {
         agregarAMano(guantes, """
                 {"cantidad": 0}""")
