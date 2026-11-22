@@ -83,8 +83,8 @@ const COLOR_STOCK = { AGOTADO: 'rojo', BAJO: 'ambar', NORMAL: 'verde' } as const
 const TEXTO_STOCK: Record<EstadoStock, string> = { AGOTADO: 'Agotado', BAJO: 'Stock bajo', NORMAL: 'Hay stock' }
 
 /**
- * Costo y ganancia de un pedido, en letra más pequeña y en otro color que el total (uso interno: nunca va en la
- * nota). Si se vende por debajo del costo dice "pierde", en rojo.
+ * Costo, ganancia y margen de un pedido ("gana S/ 120.00 · 12 %"), en letra más pequeña y en otro color que el
+ * total (uso interno: nunca va en la nota). Si se vende por debajo del costo dice "pierde", en rojo.
  */
 export function CostoYGanancia({ costo, className = '' }: { costo: CostoPedido | null; className?: string }) {
   if (!costo || (costo.costo === 0 && costo.ganancia === 0 && costo.itemsSinCosto === 0)) {
@@ -99,6 +99,7 @@ export function CostoYGanancia({ costo, className = '' }: { costo: CostoPedido |
           <span className="block whitespace-nowrap text-slate-500">costo {dinero(costo.costo)}</span>
           <span className={`block whitespace-nowrap font-medium ${pierde ? 'text-red-700' : 'text-emerald-700'}`}>
             {pierde ? 'pierde' : 'gana'} {dinero(Math.abs(costo.ganancia))}
+            {costo.margen !== null && ` · ${Number(costo.margen)} %`}
           </span>
         </>
       )}

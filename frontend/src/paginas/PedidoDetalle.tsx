@@ -361,14 +361,15 @@ function Pie({
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-3">
+      {/* En un celular muy angosto, costo y total pasan a dos filas en vez de salirse de la pantalla */}
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div className="min-w-0 text-sm">
           <div className="text-slate-500">
             {pedido.items.length} {pedido.items.length === 1 ? 'ítem' : 'ítems'}
           </div>
           {borrador && avisos.length > 0 && <div className="font-medium text-amber-700">{avisos.join(' · ')}</div>}
         </div>
-        <div className="flex items-end gap-4">
+        <div className="ml-auto flex flex-wrap items-end justify-end gap-x-4 gap-y-1">
           <CostoYGanancia costo={pedido.costo} />
           <div className="text-right">
             <div className="text-xs uppercase tracking-wide text-slate-500">Total</div>

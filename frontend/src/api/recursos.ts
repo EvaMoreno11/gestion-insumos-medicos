@@ -83,8 +83,13 @@ export const movimientos = {
    * Entradas registradas (sin la carga inicial desde Excel), las más recientes primero. Busca por producto o
    * N° de lote; sin fechas, en todo el historial.
    */
-  entradas: (filtro: { buscar?: string; desde?: string | null; hasta?: string | null; pagina?: number }) =>
-    api<EntradasRegistradas>('/api/movimientos/entradas', { params: { ...filtro, tamano: 50 } }),
+  entradas: (filtro: {
+    buscar?: string
+    desde?: string | null
+    hasta?: string | null
+    pagina?: number
+    tamano?: number
+  }) => api<EntradasRegistradas>('/api/movimientos/entradas', { params: { tamano: 50, ...filtro } }),
 }
 
 export const lotes = {
