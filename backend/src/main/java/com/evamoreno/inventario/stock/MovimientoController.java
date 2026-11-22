@@ -1,5 +1,7 @@
 package com.evamoreno.inventario.stock;
 
+import java.time.LocalDate;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.evamoreno.inventario.common.Pagina;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -21,9 +24,11 @@ import jakarta.validation.Valid;
 public class MovimientoController {
 
     private final MovimientoService service;
+    private final EntradasRegistradasService entradas;
 
-    public MovimientoController(MovimientoService service) {
+    public MovimientoController(MovimientoService service, EntradasRegistradasService entradas) {
         this.service = service;
+        this.entradas = entradas;
     }
 
     @PostMapping("/entrada")
@@ -60,10 +65,15 @@ public class MovimientoController {
     }
 
     @GetMapping("/entradas")
-    @Operation(summary = "Últimas entradas registradas en todo el inventario (más recientes primero)",
-            description = "No incluye la carga inicial desde Excel.")
-    public Pagina<MovimientoResponse> ultimasEntradas(@RequestParam(defaultValue = "0") int pagina,
+    @Operation(summary = "Entradas registradas (compras) de todo el inventario, de la más reciente a la más antigua",
+            description = "Busca por producto (nombre, marca, presentación o código) o por N° de lote, en un rango de "
+                    + "fechas opcional (sin fechas: todo el historial). Trae cuántas entradas hay y cuánto suma cada "
+                    + "día. No incluye la carga inicial desde Excel.")
+    public EntradasRegistradas entradas(@RequestParam(required = false) String buscar,
+            @Parameter(description = "Primer día, inclusive (aaaa-mm-dd)") @RequestParam(required = false) LocalDate desde,
+            @Parameter(description = "Último día, inclusive (aaaa-mm-dd)") @RequestParam(required = false) LocalDate hasta,
+            @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "30") int tamano) {
-        return service.ultimasEntradas(pagina, tamano);
+        return entradas.buscar(buscar, desde, hasta, pagina, tamano);
     }
 }

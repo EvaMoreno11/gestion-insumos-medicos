@@ -16,12 +16,8 @@ final class ProductoEspecificaciones {
     }
 
     /**
-     * Todas las palabras buscadas deben aparecer en el producto:
-     * <ul>
-     * <li>Palabras normales: coinciden con el INICIO de una palabra ("jer" → "jeringa").</li>
-     * <li>Números y letras sueltas: deben ser la palabra COMPLETA, para que "5" no encuentre
-     * "50" ni "25", y la talla "m" no encuentre "marca".</li>
-     * </ul>
+     * Todas las palabras buscadas deben aparecer en el producto, al inicio de una palabra; los números y las letras
+     * sueltas, como palabra completa (ver {@link TextoBusqueda#patronDePalabra}).
      * Ej: "jer 5ml" encuentra "Jeringa 5 ml ..." pero no "Jeringa 20 ml ... Caja x 50".
      */
     static Specification<Producto> filtrar(String buscar, Long categoriaId, boolean incluirInactivos) {
@@ -30,8 +26,7 @@ final class ProductoEspecificaciones {
             List<Predicate> condiciones = new ArrayList<>();
             for (String token : tokens) {
                 // textoBusqueda empieza y termina con espacio, así " palabra " siempre es una palabra entera
-                String patron = debeSerPalabraCompleta(token) ? "% " + token + " %" : "% " + token + "%";
-                condiciones.add(cb.like(root.get("textoBusqueda"), patron));
+                condiciones.add(cb.like(root.get("textoBusqueda"), TextoBusqueda.patronDePalabra(token)));
             }
             if (categoriaId != null) {
                 condiciones.add(cb.equal(root.get("categoria").get("id"), categoriaId));
@@ -41,9 +36,5 @@ final class ProductoEspecificaciones {
             }
             return cb.and(condiciones.toArray(Predicate[]::new));
         };
-    }
-
-    static boolean debeSerPalabraCompleta(String token) {
-        return token.length() == 1 || token.chars().anyMatch(Character::isDigit);
     }
 }

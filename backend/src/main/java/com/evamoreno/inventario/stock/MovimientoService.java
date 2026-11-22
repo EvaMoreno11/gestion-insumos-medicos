@@ -225,13 +225,6 @@ public class MovimientoService {
         return Pagina.de(movimientos.historialDeProducto(productoId, pageRequest), MovimientoResponse::de);
     }
 
-    /** Las últimas entradas registradas (compras), las más recientes primero. No incluye la carga inicial. */
-    @Transactional(readOnly = true)
-    public Pagina<MovimientoResponse> ultimasEntradas(int pagina, int tamano) {
-        PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), Math.clamp(tamano, 1, TAMANO_MAXIMO_PAGINA));
-        return Pagina.de(movimientos.ultimosPorTipo(TipoMovimiento.ENTRADA, pageRequest), MovimientoResponse::de);
-    }
-
     // ------------------------------------------------------------------ reglas
 
     /** Número de lote sin espacios y en mayúsculas ("l230415 " = "L230415"); vacío = sin lote. */
