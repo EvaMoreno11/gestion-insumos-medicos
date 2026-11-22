@@ -358,6 +358,8 @@ export interface CostoPedido {
   costo: number
   /** Negativa si se vende por debajo del costo */
   ganancia: number
+  /** % de ganancia sobre lo vendido con costo (1 decimal, como en el Resumen); null si nada tiene costo */
+  margen: number | null
   /** Ítems que no entran en la cuenta (sin costo conocido o sin precio) */
   itemsSinCosto: number
 }
