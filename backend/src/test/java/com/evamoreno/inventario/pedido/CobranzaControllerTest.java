@@ -1,5 +1,6 @@
 package com.evamoreno.inventario.pedido;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
@@ -211,5 +212,51 @@ class CobranzaControllerTest extends IntegracionTest {
         putJson("/api/clientes/" + botica, """
                 {"nombre": "Botica Santa Rosa", "porcentaje": 10, "plazoDias": 30}""")
                 .andExpect(jsonPath("$.plazoDias").value(30));
+    }
+
+    @Test
+    void pagadosListaLasNotasPagadasCompletasConBuscador() throws Exception {
+        Long jeringas = jeringas();
+        Long santaRosa = cliente("Botica Santa Rosa");
+        Long andes = cliente("Clínica Los Andes");
+        Long enPartes = pedido(santaRosa, jeringas, 10); // S/ 110
+        Long contado = pedido(andes, jeringas, 5); //     S/ 55
+        Long aMedias = pedido(santaRosa, jeringas, 2); //  S/ 22
+        despachar(enPartes);
+        String numeroContado = JsonPath.read(despachar(contado).andReturn().getResponse().getContentAsString(),
+                "$.numero");
+        despachar(aMedias);
+        pedido(andes, jeringas, 1); // un borrador no aparece
+
+        postJson(PEDIDOS + "/" + enPartes + "/pagos", """
+                {"monto": 60, "medio": "EFECTIVO", "fecha": "2026-06-10"}""").andExpect(status().isOk());
+        postJson(PEDIDOS + "/" + enPartes + "/pagos", """
+                {"monto": 50, "medio": "YAPE", "fecha": "2026-06-12"}""").andExpect(status().isOk());
+        postJson(PEDIDOS + "/" + contado + "/pagos", """
+                {"monto": 55, "medio": "YAPE", "fecha": "2026-06-14"}""").andExpect(status().isOk());
+        pago(aMedias, "10", "PLIN").andExpect(status().isOk()); // aún debe 12: no está pagado
+
+        // Primero el que se terminó de pagar hace menos
+        mockMvc.perform(get(COBRANZAS + "/pagados"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(2))
+                .andExpect(jsonPath("$.contenido[*].cliente", contains("Clínica Los Andes", "Botica Santa Rosa")))
+                .andExpect(jsonPath("$.contenido[0].numero").value(numeroContado))
+                .andExpect(jsonPath("$.contenido[0].pagadoEl").value("2026-06-14"))
+                .andExpect(jsonPath("$.contenido[1].total").value(110.0))
+                .andExpect(jsonPath("$.contenido[1].pagadoEl").value("2026-06-12"))
+                .andExpect(jsonPath("$.contenido[1].medios", contains("EFECTIVO", "YAPE")));
+
+        mockMvc.perform(get(COBRANZAS + "/pagados").param("buscar", "santa ros"))
+                .andExpect(jsonPath("$.contenido[*].cliente", contains("Botica Santa Rosa")));
+        mockMvc.perform(get(COBRANZAS + "/pagados").param("buscar", numeroContado))
+                .andExpect(jsonPath("$.contenido[*].cliente", contains("Clínica Los Andes")));
+        mockMvc.perform(get(COBRANZAS + "/pagados").param("tamano", "1").param("pagina", "1"))
+                .andExpect(jsonPath("$.contenido[*].cliente", contains("Botica Santa Rosa")))
+                .andExpect(jsonPath("$.totalPaginas").value(2));
+
+        // Lo pagado no está en lo que se debe
+        mockMvc.perform(get(COBRANZAS))
+                .andExpect(jsonPath("$.totalPorCobrar").value(12.0));
     }
 }
