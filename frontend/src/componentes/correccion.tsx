@@ -139,6 +139,9 @@ export function CorregirPedido({
 
   const cambiar = (id: number, cambio: Partial<Linea>) =>
     setLineas((actual) => ({ ...actual, [id]: { ...actual[id], ...cambio } }))
+  // Lo quitado en una corrección anterior (cantidad 0) no se muestra; vuelve a verse si se agrega otra vez ese producto
+  const [revividos, setRevividos] = useState<Set<number>>(() => new Set())
+  const visibles = pedido.items.filter((i) => i.cantidad > 0 || revividos.has(i.id))
 
   const { problemas, total, cambios, itemsNuevos } = analizar(pedido, lineas, nuevos)
   const sinCambios = cambios.length === 0 && itemsNuevos.length === 0
@@ -169,6 +172,14 @@ export function CorregirPedido({
   }
 
   async function agregarProducto(p: ProductoResumen) {
+    const quitado = pedido.items.find((i) => i.productoId === p.id && i.cantidad === 0)
+    if (quitado && !revividos.has(quitado.id)) {
+      // Ya estuvo en el pedido y se quitó: se vuelve a mostrar su línea para ponerle la cantidad
+      setError(null)
+      setRevividos((antes) => new Set(antes).add(quitado.id))
+      cambiar(quitado.id, { cantidad: '1' })
+      return
+    }
     if (pedido.items.some((i) => i.productoId === p.id) || nuevos.some((n) => n.productoId === p.id)) {
       setError(`"${p.nombre}" ya está en el pedido: cambia su cantidad arriba`)
       return
@@ -212,7 +223,7 @@ export function CorregirPedido({
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       <div className="space-y-2">
-        {pedido.items.map((item) => (
+        {visibles.map((item) => (
           <LineaCorreccion key={item.id} item={item} linea={lineas[item.id]} onCambio={(c) => cambiar(item.id, c)} />
         ))}
         {nuevos.map((n) => (
