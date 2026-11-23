@@ -402,6 +402,22 @@ export interface Cobro {
   pagos: PagoRegistrado[]
 }
 
+/** Una nota que ya se pagó completa (pestaña Pagados de Cobranzas). */
+export interface CobroPagado {
+  pedidoId: number
+  numero: string | null
+  documento: DocumentoPedido
+  cliente: string
+  local: string | null
+  /** aaaa-mm-dd */
+  despachado: string
+  total: number
+  /** Día del último pago, el que la completó (aaaa-mm-dd) */
+  pagadoEl: string
+  /** Cómo se pagó (varios si pagó en partes) */
+  medios: MedioPago[]
+}
+
 /** Una nota con saldo pendiente. */
 export interface Deuda {
   pedidoId: number

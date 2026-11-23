@@ -7,6 +7,7 @@ import type {
   ClienteDetalle,
   ClienteResumen,
   Cobranzas,
+  CobroPagado,
   CorreccionLote,
   Despachados,
   DetallesResumen,
@@ -218,6 +219,9 @@ export const importacion = {
 
 export const cobranzas = {
   obtener: () => api<Cobranzas>('/api/cobranzas'),
+  /** Notas pagadas completas, primero las que se terminaron de pagar hace menos; busca por cliente, local o N° */
+  pagados: (filtro: { buscar?: string; pagina?: number }) =>
+    api<Pagina<CobroPagado>>('/api/cobranzas/pagados', { params: { ...filtro, tamano: 30 } }),
 }
 
 /** Días hacia adelante que cuenta "Por vencer". */

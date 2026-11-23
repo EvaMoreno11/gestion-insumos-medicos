@@ -101,6 +101,7 @@ export default function PedidoDetalle() {
   }
 
   const borrador = pedido.estado === 'BORRADOR'
+  const visibles = itemsVisibles(pedido)
   const titulo =
     pedido.estado === 'ANULADO'
       ? 'Pedido anulado'
@@ -304,13 +305,13 @@ export default function PedidoDetalle() {
 
         {/* ---------------- ítems ---------------- */}
         <div>
-        {pedido.items.length === 0 ? (
+        {visibles.length === 0 ? (
           <p className="py-6 text-center text-slate-500">
             {borrador ? 'Busca un producto para empezar el pedido.' : 'Este pedido no tiene ítems.'}
           </p>
         ) : (
           <ul className="space-y-2">
-            {pedido.items.map((item, i) => (
+            {visibles.map((item, i) => (
               <li key={item.id}>
                 <FilaItem
                   // Si el servidor devuelve otra cantidad o precio (p. ej. al recalcular), la fila se reinicia
@@ -334,6 +335,15 @@ export default function PedidoDetalle() {
       {visorPdf.visor}
     </Pantalla>
   )
+}
+
+/**
+ * Los ítems que se muestran: un producto quitado en una corrección queda guardado con cantidad 0 (de esa línea
+ * salieron y volvieron unidades de un lote, y eso es historial del inventario), pero ya no se ve en el pedido;
+ * queda en el historial de correcciones ("5 → 0 (quitado)").
+ */
+function itemsVisibles(pedido: Pedido) {
+  return pedido.estado === 'BORRADOR' ? pedido.items : pedido.items.filter((i) => i.cantidad > 0)
 }
 
 // ------------------------------------------------------------------ pie: total y acciones
@@ -365,7 +375,7 @@ function Pie({
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div className="min-w-0 text-sm">
           <div className="text-slate-500">
-            {pedido.items.length} {pedido.items.length === 1 ? 'ítem' : 'ítems'}
+            {itemsVisibles(pedido).length} {itemsVisibles(pedido).length === 1 ? 'ítem' : 'ítems'}
           </div>
           {borrador && avisos.length > 0 && <div className="font-medium text-amber-700">{avisos.join(' · ')}</div>}
         </div>
@@ -489,7 +499,7 @@ function FilaItem({
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
-        {item.cantidad === 0 ? <Etiqueta color="gris">Quitado en una corrección</Etiqueta> : <EtiquetaDisponibilidad item={item} />}
+        <EtiquetaDisponibilidad item={item} />
       </div>
 
       {editable ? (

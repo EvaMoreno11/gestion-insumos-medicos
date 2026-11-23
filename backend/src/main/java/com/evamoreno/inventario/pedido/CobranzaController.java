@@ -2,8 +2,10 @@ package com.evamoreno.inventario.pedido;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.evamoreno.inventario.common.Pagina;
 import com.evamoreno.inventario.pedido.CobranzaService.Cobranzas;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,5 +27,14 @@ public class CobranzaController {
             description = "El plazo y los pagos se registran en /api/pedidos/{id}/plazo y /api/pedidos/{id}/pagos.")
     public Cobranzas cobranzas() {
         return service.cobranzas();
+    }
+
+    @GetMapping("/pagados")
+    @Operation(summary = "Notas ya pagadas completas, primero las que se terminaron de pagar hace menos",
+            description = "Busca por nombre del cliente o de su local, o por N° de nota, en todo el historial.")
+    public Pagina<CobranzaService.Pagado> pagados(@RequestParam(required = false) String buscar,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "30") int tamano) {
+        return service.pagados(buscar, pagina, tamano);
     }
 }

@@ -46,7 +46,7 @@ const SECCIONES = [
 function MenuLateral() {
   const { negocio, usuario, salir } = useSesion()
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-slate-200 bg-white lg:flex">
       <div className="flex h-16 items-center gap-3 bg-marca px-5 text-white">
         <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg ring-1 ring-white/30" />
         <span className="min-w-0 truncate text-lg font-semibold">{negocio}</span>
@@ -107,7 +107,7 @@ export function Pantalla({ titulo, volver, accion, pie, ancho = 'normal', childr
   }
 
   return (
-    <div className="min-h-dvh lg:pl-64">
+    <div className="min-h-dvh lg:pl-56">
       <MenuLateral />
 
       <header className="sticky top-0 z-20 bg-marca pt-[env(safe-area-inset-top)] text-white shadow-sm">
@@ -132,7 +132,7 @@ export function Pantalla({ titulo, volver, accion, pie, ancho = 'normal', childr
       <main className={`${contenedor} px-4 pt-4 lg:px-6 lg:pt-6 ${pie ? 'pb-48' : 'pb-10'}`}>{children}</main>
 
       {pie && (
-        <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] lg:left-64">
+        <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] lg:left-56">
           <div className={`${contenedor} px-4 py-3 lg:px-6`}>{pie}</div>
         </footer>
       )}

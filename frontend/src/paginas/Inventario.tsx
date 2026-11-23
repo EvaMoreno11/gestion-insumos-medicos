@@ -4,9 +4,9 @@ import { mensajeDe } from '../api/http'
 import { categorias, productos } from '../api/recursos'
 import type { ProductoResumen } from '../api/tipos'
 import { Aviso, Boton, Buscador, Cargando, ESTILO_CAMPO, Vacio } from '../componentes/basicos'
-import { EtiquetaStock, ResumenStock } from '../componentes/dominio'
+import { AgregarAPorComprar, EtiquetaStock, ResumenStock } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
-import { useCarga, useRetardo } from '../hooks'
+import { useCarga, useEnPorComprar, useRetardo } from '../hooks'
 import { ordenarPorNombre, unir } from '../util/formato'
 
 /** Productos adicionales cargados con "Ver más" para una búsqueda concreta. */
@@ -29,6 +29,7 @@ export default function Inventario() {
   const clave = `${buscado}|${categoriaId ?? ''}`
 
   const primera = useCarga(() => productos.buscar(buscado, { categoriaId, pagina: 0 }), clave)
+  const enPorComprar = useEnPorComprar()
   const listaCategorias = useCarga(() => categorias.listar())
 
   const [extra, setExtra] = useState<Extra>()
@@ -130,11 +131,9 @@ export default function Inventario() {
         <ul className="space-y-2 lg:hidden">
           {lista.map((p) => (
             <li key={p.id}>
-              <Link
-                to={`/inventario/${p.id}`}
-                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 active:bg-slate-50"
-              >
-                <span className="min-w-0 flex-1">
+              {/* El botón de Por comprar va fuera del enlace: tocar el resto de la tarjeta abre el producto */}
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+                <Link to={`/inventario/${p.id}`} className="min-w-0 flex-1 self-stretch active:opacity-70">
                   <span className="block font-semibold leading-snug">{p.nombre}</span>
                   <span className="block text-sm text-slate-500">{unir(' · ', p.presentacion, p.marca)}</span>
                   {p.stockSeparado > 0 && (
@@ -142,12 +141,21 @@ export default function Inventario() {
                       <ResumenStock producto={p} />
                     </span>
                   )}
-                </span>
+                </Link>
                 <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-2xl font-bold leading-none">{p.stockDisponible}</span>
-                  <EtiquetaStock estado={p.estadoStock} />
+                  <Link to={`/inventario/${p.id}`} tabIndex={-1} className="flex flex-col items-end gap-1">
+                    <span className="text-2xl font-bold leading-none">{p.stockDisponible}</span>
+                    <EtiquetaStock estado={p.estadoStock} />
+                  </Link>
+                  <AgregarAPorComprar
+                    productoId={p.id}
+                    tamano="chico"
+                    listo="✓ Agregado"
+                    enPorComprar={enPorComprar.tiene(p.id)}
+                    onAgregado={() => enPorComprar.marcar(p.id)}
+                  />
                 </span>
-              </Link>
+              </div>
             </li>
           ))}
         </ul>
@@ -165,6 +173,7 @@ export default function Inventario() {
                   <th className="px-3 py-3 text-right font-semibold">Separado</th>
                   <th className="px-3 py-3 text-right font-semibold">Libre</th>
                   <th className="px-4 py-3 font-semibold">Estado</th>
+                  <th className="px-4 py-3 font-semibold">Por comprar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -187,6 +196,14 @@ export default function Inventario() {
                     <td className="px-3 py-3 text-right font-semibold">{p.stockLibre}</td>
                     <td className="px-4 py-3">
                       <EtiquetaStock estado={p.estadoStock} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <AgregarAPorComprar
+                        productoId={p.id}
+                        tamano="chico"
+                        enPorComprar={enPorComprar.tiene(p.id)}
+                        onAgregado={() => enPorComprar.marcar(p.id)}
+                      />
                     </td>
                   </tr>
                 ))}
