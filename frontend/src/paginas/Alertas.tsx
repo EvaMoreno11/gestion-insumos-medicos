@@ -1,12 +1,10 @@
-import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { mensajeDe } from '../api/http'
-import { alertas, DIAS_POR_VENCER, pedidos } from '../api/recursos'
+import { alertas, DIAS_POR_VENCER } from '../api/recursos'
 import type { LoteAlerta, ProductoResumen } from '../api/tipos'
-import { Boton, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
-import { EtiquetaStock } from '../componentes/dominio'
+import { ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
+import { AgregarAPorComprar, EtiquetaStock } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
-import { useCarga } from '../hooks'
+import { useCarga, useEnPorComprar } from '../hooks'
 import { categoriasConStockBajo } from '../util/alertas'
 import { cuandoVence, mesAnio, unir } from '../util/formato'
 
@@ -25,11 +23,7 @@ export default function Alertas() {
   const categoriaId = Number(params.get('categoria')) || null
   const categoria = categorias.find((c) => c.id === categoriaId)
   const productosStockBajo = (stockBajo.datos ?? []).filter((p) => !categoria || p.categoriaId === categoria.id)
-  // Qué productos ya están en "Por comprar" (agregados a mano o porque faltan para un pedido), más los que se
-  // agregan desde aquí
-  const porComprar = useCarga(() => pedidos.porComprar())
-  const [agregados, setAgregados] = useState<Set<number>>(new Set())
-  const enPorComprar = new Set([...(porComprar.datos?.productos.map((p) => p.productoId) ?? []), ...agregados])
+  const enPorComprar = useEnPorComprar()
 
   function cambiarParametro(clave: string, valor: string | null) {
     setParams(
@@ -104,8 +98,8 @@ export default function Alertas() {
               <li key={p.id}>
                 <FilaStockBajo
                   producto={p}
-                  enPorComprar={enPorComprar.has(p.id)}
-                  onAgregado={() => setAgregados((antes) => new Set(antes).add(p.id))}
+                  enPorComprar={enPorComprar.tiene(p.id)}
+                  onAgregado={() => enPorComprar.marcar(p.id)}
                 />
               </li>
             ))}
@@ -150,22 +144,6 @@ function FilaStockBajo({
   enPorComprar: boolean
   onAgregado: () => void
 }) {
-  const [ocupado, setOcupado] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function agregar() {
-    setOcupado(true)
-    setError(null)
-    try {
-      await pedidos.agregarAPorComprarDeUnToque(producto.id)
-      onAgregado()
-    } catch (e) {
-      setError(mensajeDe(e))
-    } finally {
-      setOcupado(false)
-    }
-  }
-
   return (
     <Tarjeta>
       <Link to={`/inventario/${producto.id}`} className="flex items-start justify-between gap-3">
@@ -179,19 +157,7 @@ function FilaStockBajo({
         <EtiquetaStock estado={producto.estadoStock} />
       </Link>
       <div className="mt-3">
-        {enPorComprar ? (
-          <p
-            className="flex min-h-12 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 font-semibold text-emerald-800"
-            role="status"
-          >
-            ✓ En Por comprar
-          </p>
-        ) : (
-          <Boton variante="secundario" ancho disabled={ocupado} onClick={() => void agregar()}>
-            {ocupado ? 'Agregando…' : '🛒 Agregar a Por comprar'}
-          </Boton>
-        )}
-        {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
+        <AgregarAPorComprar productoId={producto.id} enPorComprar={enPorComprar} onAgregado={onAgregado} />
       </div>
     </Tarjeta>
   )

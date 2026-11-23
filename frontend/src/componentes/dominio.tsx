@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { productos } from '../api/recursos'
+import { mensajeDe } from '../api/http'
+import { pedidos, productos } from '../api/recursos'
 import type {
   CategoriaPrecio,
   ClienteResumen,
@@ -309,5 +310,79 @@ export function CampoMesAnio({
       error={error}
       ayuda="Vacío si no vence"
     />
+  )
+}
+
+// ---------------------------------------------------------------- por comprar
+
+/**
+ * "🛒 Agregar a Por comprar" de un toque, sin cantidad (se pone después en Por comprar si hace falta). Si el
+ * producto ya está en Por comprar, se ve "✓ En Por comprar" (o el texto de `listo`). "chico" es una pastilla para
+ * listas largas (Inventario); "grande" ocupa todo el ancho (Alertas). No abre el producto aunque esté dentro de una
+ * fila que sí lo abre.
+ */
+export function AgregarAPorComprar({
+  productoId,
+  enPorComprar,
+  onAgregado,
+  tamano = 'grande',
+  listo = '✓ En Por comprar',
+}: {
+  productoId: number
+  enPorComprar: boolean
+  onAgregado: () => void
+  tamano?: 'grande' | 'chico'
+  listo?: string
+}) {
+  const [ocupado, setOcupado] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const chico = tamano === 'chico'
+
+  async function agregar() {
+    setOcupado(true)
+    setError(null)
+    try {
+      await pedidos.agregarAPorComprarDeUnToque(productoId)
+      onAgregado()
+    } catch (e) {
+      setError(mensajeDe(e))
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  const estiloChico = 'inline-flex min-h-9 items-center whitespace-nowrap rounded-full border px-3 text-sm font-semibold'
+  return (
+    <span className={chico ? 'inline-flex flex-col items-end' : 'block'}>
+      {enPorComprar ? (
+        <span
+          role="status"
+          className={
+            chico
+              ? `${estiloChico} border-emerald-200 bg-emerald-50 text-emerald-800`
+              : 'flex min-h-12 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 font-semibold text-emerald-800'
+          }
+        >
+          {listo}
+        </span>
+      ) : (
+        <button
+          type="button"
+          disabled={ocupado}
+          onClick={(e) => {
+            e.stopPropagation()
+            void agregar()
+          }}
+          className={
+            chico
+              ? `${estiloChico} border-slate-300 bg-white text-marca active:bg-slate-100 disabled:text-slate-400`
+              : 'inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-base font-semibold text-marca active:bg-slate-100 disabled:text-slate-400'
+          }
+        >
+          {ocupado ? 'Agregando…' : chico ? '🛒 Agregar' : '🛒 Agregar a Por comprar'}
+        </button>
+      )}
+      {error && <span className="mt-1 block text-sm text-red-700">{error}</span>}
+    </span>
   )
 }

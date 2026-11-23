@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { mensajeDe } from './api/http'
-import type { ConsultaPeriodo } from './api/recursos'
+import { pedidos, type ConsultaPeriodo } from './api/recursos'
 import type { TipoPeriodo } from './api/tipos'
 import { diaLocal, fechaDia, sumarDias } from './util/formato'
 
@@ -212,4 +212,18 @@ export function useListaConVerMas<R, T>(cargar: (pagina: number) => Promise<R>, 
   }
 
   return { ...primera, lista, verMas, cargandoMas, errorMas }
+}
+
+/**
+ * Qué productos ya están en "Por comprar" (agregados a mano o porque faltan para un pedido), más los que se agregan
+ * desde la pantalla, para mostrar "✓ En Por comprar" en vez del botón de agregar.
+ */
+export function useEnPorComprar() {
+  const lista = useCarga(() => pedidos.porComprar())
+  const [agregados, setAgregados] = useState<Set<number>>(() => new Set())
+  const ids = new Set([...(lista.datos?.productos.map((p) => p.productoId) ?? []), ...agregados])
+  return {
+    tiene: (productoId: number) => ids.has(productoId),
+    marcar: (productoId: number) => setAgregados((antes) => new Set(antes).add(productoId)),
+  }
 }
