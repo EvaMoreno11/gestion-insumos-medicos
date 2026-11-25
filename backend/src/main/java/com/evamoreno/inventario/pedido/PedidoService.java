@@ -997,7 +997,29 @@ public class PedidoService {
                 item.getMarca(), item.getCantidad(), item.getPrecioUnitario(), item.isPrecioManual(), item.total(),
                 disponibilidad, disponible, faltante,
                 entregado.stream().map(l -> new LoteEntregado(l.lote().getId(), l.lote().getNumeroLote(),
-                        l.lote().getFechaVencimiento(), l.cantidad())).toList());
+                        l.lote().getFechaVencimiento(), l.cantidad())).toList(),
+                costoUnitario(item, estado, entregado));
+    }
+
+    /**
+     * Costo por unidad de un ítem (uso interno): en un borrador, el costo actual del producto; en un despachado, el
+     * promedio de lo que costó en los lotes de los que salió. null si se escribió a mano o algún lote no tiene costo.
+     */
+    private static BigDecimal costoUnitario(PedidoItem item, EstadoPedido estado, List<LoteNeto> entregado) {
+        if (item.esManual()) {
+            return null;
+        }
+        if (estado == EstadoPedido.BORRADOR) {
+            return item.getProducto().getCosto();
+        }
+        if (estado != EstadoPedido.DESPACHADO || entregado.isEmpty()
+                || entregado.stream().anyMatch(l -> l.costo() == null)) {
+            return null;
+        }
+        int unidades = entregado.stream().mapToInt(LoteNeto::cantidad).sum();
+        BigDecimal costo = entregado.stream().map(l -> l.costo().multiply(BigDecimal.valueOf(l.cantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return costo.divide(BigDecimal.valueOf(unidades), 4, RoundingMode.HALF_UP);
     }
 
     static Resumen resumen(Pedido pedido, Map<Long, Integer> asignado, String origenNumero, CostoPedido costo) {

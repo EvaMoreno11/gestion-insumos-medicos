@@ -93,6 +93,33 @@ export function usePeriodo(): [ConsultaPeriodo, (consulta: ConsultaPeriodo) => v
   return [consulta, cambiar, textoParams]
 }
 
+/**
+ * Un buscador cuyo texto se guarda en la dirección (?buscar=), así al volver de un detalle la lista sigue con la
+ * misma búsqueda. `buscado` llega con un pequeño retraso, para no llamar a la API en cada tecla.
+ */
+export function useBusquedaEnUrl() {
+  const [params, setParams] = useSearchParams()
+  const [texto, setTexto] = useState(params.get('buscar') ?? '')
+  const buscado = useRetardo(texto.trim())
+
+  useEffect(() => {
+    setParams(
+      (actual) => {
+        const nuevos = new URLSearchParams(actual)
+        if (buscado) {
+          nuevos.set('buscar', buscado)
+        } else {
+          nuevos.delete('buscar')
+        }
+        return nuevos
+      },
+      { replace: true },
+    )
+  }, [buscado, setParams])
+
+  return { texto, setTexto, buscado }
+}
+
 /** Búsqueda y rango de fechas de una lista por días (despachados, entradas registradas). */
 export interface BusquedaConFechas {
   /** Lo que está escrito en el buscador */
@@ -119,8 +146,7 @@ export interface BusquedaConFechas {
  */
 export function useBusquedaConFechas(): BusquedaConFechas {
   const [params, setParams] = useSearchParams()
-  const [texto, setTexto] = useState(params.get('buscar') ?? '')
-  const buscado = useRetardo(texto.trim())
+  const { texto, setTexto, buscado } = useBusquedaEnUrl()
   const desdeElegido = params.get('desde')
   const hastaElegido = params.get('hasta')
   const elegidas = desdeElegido !== null && hastaElegido !== null ? { desde: desdeElegido, hasta: hastaElegido } : null
@@ -128,22 +154,6 @@ export function useBusquedaConFechas(): BusquedaConFechas {
   const hoy = diaLocal()
   const desde = elegidas ? elegidas.desde : buscado ? null : sumarDias(hoy, -6)
   const hasta = elegidas ? elegidas.hasta : buscado ? null : hoy
-
-  // Refleja la búsqueda en la URL
-  useEffect(() => {
-    setParams(
-      (actual) => {
-        const nuevos = new URLSearchParams(actual)
-        if (buscado) {
-          nuevos.set('buscar', buscado)
-        } else {
-          nuevos.delete('buscar')
-        }
-        return nuevos
-      },
-      { replace: true },
-    )
-  }, [buscado, setParams])
 
   function cambiarFechas(fechas: { desde: string; hasta: string } | null) {
     setParams(

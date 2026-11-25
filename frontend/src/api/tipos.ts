@@ -311,6 +311,11 @@ export interface PedidoItem {
   disponible: number | null
   faltante: number | null
   lotes: LoteEntregado[]
+  /**
+   * Uso interno (nunca en la nota): en un borrador, el costo actual del producto; en un despachado, el costo con el
+   * que salió de sus lotes. null si se escribió a mano o no se sabe
+   */
+  costoUnitario: number | null
 }
 
 export interface Pedido {
@@ -684,4 +689,34 @@ export interface ResumenCliente {
   ventasSinCosto: number
   /** Día de su último despacho; null si nunca compró */
   ultimoPedido: string | null
+}
+
+// ------------------------------------------------------------------ productos que compra un cliente
+
+/** Un producto que se le vendió a un cliente (pedidos despachados), con su última venta */
+export interface ProductoComprado {
+  productoId: number
+  codigo: string
+  nombre: string
+  presentacion: string
+  marca: string
+  unidadMedida: string
+  /** Precio por unidad de la última venta; null si esa línea no tenía precio */
+  ultimoPrecio: number | null
+  /** aaaa-mm-dd */
+  ultimaVenta: string
+  ultimaCantidad: number
+  /** En cuántos pedidos lo compró */
+  pedidos: number
+}
+
+/** Una vez que se le vendió un producto a un cliente */
+export interface VentaDeProducto {
+  pedidoId: number
+  numero: string | null
+  /** Día del despacho (aaaa-mm-dd) */
+  fecha: string
+  cantidad: number
+  precio: number | null
+  total: number | null
 }

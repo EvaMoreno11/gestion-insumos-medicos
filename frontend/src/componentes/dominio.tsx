@@ -386,3 +386,16 @@ export function AgregarAPorComprar({
     </span>
   )
 }
+
+// ---------------------------------------------------------------- costo debajo del precio
+
+/**
+ * "costo S/ 16.80", chico y en gris, debajo del precio de un ítem (uso interno: nunca va en la nota). Sirve para no
+ * vender por debajo del costo sin darse cuenta al cambiar el precio a mano.
+ */
+export function TextoCosto({ costo }: { costo: number | null }) {
+  if (costo === null) {
+    return null
+  }
+  return <p className="mt-1 whitespace-nowrap text-xs text-slate-500">costo {dinero(costo)}</p>
+}

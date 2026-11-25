@@ -9,6 +9,7 @@ import { TarjetaCobro } from '../componentes/cobro'
 import { CorregirPedido, HistorialCorrecciones } from '../componentes/correccion'
 import {
   BuscadorProductos,
+  TextoCosto,
   CostoYGanancia,
   EtiquetaDisponibilidad,
   SelectorCategoria,
@@ -17,7 +18,7 @@ import {
 import { Pantalla } from '../componentes/Pantalla'
 import { useVisorPdf } from '../componentes/useVisorPdf'
 import { compartirODescargar } from '../util/archivos'
-import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as textoPorcentaje, unir } from '../util/formato'
+import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as textoPorcentaje, unir, debajoDelCosto } from '../util/formato'
 
 export default function PedidoDetalle() {
   const id = Number(useParams().id)
@@ -29,7 +30,21 @@ export default function PedidoDetalle() {
   const [panel, setPanel] = useState<'categoria' | 'manual' | 'documento' | null>(null)
   const [confirmarParcial, setConfirmarParcial] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState(false)
+  const [recien, setRecien] = useState<number | null>(null)
   const visorPdf = useVisorPdf()
+
+  // El ítem recién agregado se resalta un momento y, en el celular, la pantalla baja sola hasta él (en la PC los
+  // ítems van en su propia columna y no hace falta)
+  useEffect(() => {
+    if (recien === null) {
+      return
+    }
+    if (!window.matchMedia('(min-width: 1024px)').matches) {
+      document.getElementById(`item-${recien}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    const temporizador = setTimeout(() => setRecien(null), 2500)
+    return () => clearTimeout(temporizador)
+  }, [recien])
 
   useEffect(() => {
     let vigente = true
@@ -45,6 +60,21 @@ export default function PedidoDetalle() {
       vigente = false
     }
   }, [id])
+
+  /** Agrega un ítem y marca cuál es (el nuevo, o el que subió si ese producto ya estaba) para mostrarlo. */
+  async function agregar(datos: Parameters<typeof pedidos.agregarItem>[1]): Promise<boolean> {
+    const antes = new Map((pedido?.items ?? []).map((i) => [i.id, i.cantidad]))
+    let agregado: number | undefined
+    const ok = await aplicar(async () => {
+      const nuevo = await pedidos.agregarItem(id, datos)
+      agregado = nuevo.items.find((i) => antes.get(i.id) !== i.cantidad)?.id
+      return nuevo
+    })
+    if (ok && agregado !== undefined) {
+      setRecien(agregado)
+    }
+    return ok
+  }
 
   /** Ejecuta un cambio y reemplaza el pedido con la respuesta (trae el total y los faltantes al día). */
   async function aplicar(accion: () => Promise<Pedido>): Promise<boolean> {
@@ -191,9 +221,11 @@ export default function PedidoDetalle() {
           />
         )}
 
-        {/* En la PC: a la izquierda el cliente y el buscador (quedan fijos al bajar); a la derecha los ítems */}
-        <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
-        <div className="space-y-3 lg:sticky lg:top-24">
+        {/* En la PC: a la izquierda el cliente y el buscador (quedan fijos al bajar); a la derecha los ítems.
+            En el celular, el buscador va después del último ítem: lo agregado queda justo encima y el siguiente
+            se busca ahí mismo, sin subir. */}
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <div className="contents lg:sticky lg:top-24 lg:block lg:space-y-3">
         {/* ---------------- cliente y categoría ---------------- */}
         <Tarjeta>
           <div className="flex items-start justify-between gap-3">
@@ -275,11 +307,11 @@ export default function PedidoDetalle() {
 
         {/* ---------------- agregar ítems ---------------- */}
         {borrador && (
-          <Tarjeta>
+          <Tarjeta className="order-last lg:order-none">
             <BuscadorProductos
               placeholder="Agregar producto: jer 5ml, guantes m…"
               autoFocus={pedido.items.length === 0}
-              onElegir={(p) => aplicar(() => pedidos.agregarItem(pedido.id, { productoId: p.id, cantidad: 1 }))}
+              onElegir={(p) => void agregar({ productoId: p.id, cantidad: 1 })}
             />
             <Boton
               variante="texto"
@@ -292,7 +324,7 @@ export default function PedidoDetalle() {
               <ItemAMano
                 ocupado={ocupado}
                 onAgregar={async (item) => {
-                  const ok = await aplicar(() => pedidos.agregarItem(pedido.id, item))
+                  const ok = await agregar(item)
                   if (ok) {
                     setPanel(null)
                   }
@@ -312,8 +344,13 @@ export default function PedidoDetalle() {
         ) : (
           <ul className="space-y-2">
             {visibles.map((item, i) => (
-              <li key={item.id}>
+              <li
+                key={item.id}
+                id={`item-${item.id}`}
+                className={`rounded-2xl transition-shadow duration-500 ${recien === item.id ? 'ring-4 ring-sky-300' : ''}`}
+              >
                 <FilaItem
+                  recien={recien === item.id}
                   // Si el servidor devuelve otra cantidad o precio (p. ej. al recalcular), la fila se reinicia
                   key={`${item.cantidad}|${item.precioUnitario}`}
                   numero={i + 1}
@@ -433,6 +470,7 @@ function Pie({
 // ------------------------------------------------------------------ una línea del pedido
 
 function FilaItem({
+  recien = false,
   numero,
   item,
   editable,
@@ -442,6 +480,8 @@ function FilaItem({
   onQuitar,
   onVincular,
 }: {
+  /** Se acaba de agregar: lleva la etiqueta "Recién agregado" un momento */
+  recien?: boolean
   numero: number
   item: PedidoItem
   editable: boolean
@@ -500,10 +540,11 @@ function FilaItem({
 
       <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
         <EtiquetaDisponibilidad item={item} />
+        {recien && <Etiqueta color="azul">Recién agregado</Etiqueta>}
       </div>
 
       {editable ? (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex items-start gap-2">
           <div className="flex shrink-0 items-center">
             <button
               type="button"
@@ -534,19 +575,28 @@ function FilaItem({
               +
             </button>
           </div>
-          <span className="text-slate-400">×</span>
-          <input
-            aria-label="Precio unitario"
-            inputMode="decimal"
-            placeholder="Precio"
-            value={precio}
-            onChange={(e) => setPrecio(e.target.value.replace(/[^\d.,]/g, ''))}
-            onBlur={confirmarPrecio}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            onFocus={(e) => e.currentTarget.select()}
-            className={`${campo} w-20 shrink-0 ${item.precioUnitario === null ? 'border-amber-400 bg-amber-50' : ''}`}
-          />
-          <span className="ml-auto whitespace-nowrap text-lg font-bold">{dinero(item.total)}</span>
+          <span className="flex h-11 items-center text-slate-400">×</span>
+          <div className="shrink-0">
+            <input
+              aria-label="Precio unitario"
+              inputMode="decimal"
+              placeholder="Precio"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value.replace(/[^\d.,]/g, ''))}
+              onBlur={confirmarPrecio}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              onFocus={(e) => e.currentTarget.select()}
+              className={`${campo} w-20 ${
+                item.precioUnitario === null
+                  ? 'border-amber-400 bg-amber-50'
+                  : debajoDelCosto(precio, item.costoUnitario)
+                    ? 'border-red-500! bg-red-50! focus:border-red-500! focus:ring-red-500/30!'
+                    : ''
+              }`}
+            />
+            <TextoCosto costo={item.costoUnitario} />
+          </div>
+          <span className="ml-auto flex h-11 items-center whitespace-nowrap text-lg font-bold">{dinero(item.total)}</span>
         </div>
       ) : (
         <div className="mt-2 flex items-center justify-between pl-7 text-sm">

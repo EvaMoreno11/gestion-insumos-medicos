@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { mensajeDe } from '../api/http'
 import { pedidos, productos } from '../api/recursos'
 import type { CorreccionPedido, Pedido, PedidoItem, ProductoResumen } from '../api/tipos'
-import { diaLocal, dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, unir } from '../util/formato'
+import { diaLocal, dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, unir, debajoDelCosto } from '../util/formato'
 import {
   opcionesDeLote,
   repartoEntregado,
@@ -12,7 +12,7 @@ import {
   type Reparto,
 } from '../util/lotes'
 import { Aviso, Boton, Campo, Etiqueta, Tarjeta } from './basicos'
-import { BuscadorProductos } from './dominio'
+import { BuscadorProductos, TextoCosto } from './dominio'
 
 interface Linea {
   cantidad: string
@@ -34,6 +34,8 @@ interface Nuevo {
   precio: string
   /** El precio propuesto es el especial que ya se le dio a este cliente */
   especial?: boolean
+  /** Costo actual del producto (uso interno), para verlo debajo del precio */
+  costo?: number | null
 }
 
 const precioTexto = (valor: number | null) => (valor === null ? '' : valor.toFixed(2))
@@ -208,6 +210,7 @@ export function CorregirPedido({
               cantidad: '1',
               precio: sugerido,
               especial,
+              costo: p.costo,
             },
           ],
     )
@@ -254,6 +257,8 @@ export function CorregirPedido({
               <Campo
                 etiqueta="Precio (con IGV)"
                 inputMode="decimal"
+                className={debajoDelCosto(n.precio, n.costo ?? null) ? 'border-red-500! bg-red-50! focus:border-red-500! focus:ring-red-500/30!' : ''}
+                ayuda={n.costo != null ? `costo ${dinero(n.costo)}` : undefined}
                 value={n.precio}
                 onChange={(e) =>
                   setNuevos((a) =>
@@ -374,7 +379,7 @@ function LineaCorreccion({
         )}
       </div>
 
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex items-start gap-2">
         <div className="flex shrink-0 items-center">
           <button
             type="button"
@@ -402,15 +407,19 @@ function LineaCorreccion({
             +
           </button>
         </div>
-        <span className="text-slate-400">×</span>
-        <input
-          aria-label={`Precio de ${item.descripcion}`}
-          inputMode="decimal"
-          value={linea.precio}
-          onChange={(e) => onCambio({ precio: e.target.value.replace(/[^\d.,]/g, '') })}
-          onFocus={(e) => e.currentTarget.select()}
-          className={`${campo} w-20 shrink-0`}
-        />
+        <span className="flex h-11 items-center text-slate-400">×</span>
+        <div className="shrink-0">
+          <input
+            aria-label={`Precio de ${item.descripcion}`}
+            inputMode="decimal"
+            value={linea.precio}
+            onChange={(e) => onCambio({ precio: e.target.value.replace(/[^\d.,]/g, '') })}
+            onFocus={(e) => e.currentTarget.select()}
+            className={`${campo} w-20 ${debajoDelCosto(linea.precio, item.costoUnitario) ? 'border-red-500! bg-red-50! focus:border-red-500! focus:ring-red-500/30!' : ''}`}
+          />
+          {/* El costo con el que salió de sus lotes */}
+          <TextoCosto costo={item.costoUnitario} />
+        </div>
       </div>
 
       {item.productoId !== null && item.lotes.length > 0 && !repartiendo && (
