@@ -299,3 +299,9 @@ export function conUnidad(cantidad: number, unidad: string): string {
   const sinTilde = u.replace(/([áéíóú])([a-z])$/, (_, vocal: string, final: string) => vocal.normalize('NFD')[0] + final)
   return `${cantidad} ${sinTilde}es`
 }
+
+/** true si el precio escrito es menor que el costo (en el pedido, el recuadro del precio se pone en rojo). */
+export function debajoDelCosto(precio: string, costo: number | null): boolean {
+  const valor = leerDecimal(precio)
+  return costo !== null && valor !== null && valor < costo
+}

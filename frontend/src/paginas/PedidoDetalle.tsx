@@ -9,6 +9,7 @@ import { TarjetaCobro } from '../componentes/cobro'
 import { CorregirPedido, HistorialCorrecciones } from '../componentes/correccion'
 import {
   BuscadorProductos,
+  TextoCosto,
   CostoYGanancia,
   EtiquetaDisponibilidad,
   SelectorCategoria,
@@ -17,7 +18,7 @@ import {
 import { Pantalla } from '../componentes/Pantalla'
 import { useVisorPdf } from '../componentes/useVisorPdf'
 import { compartirODescargar } from '../util/archivos'
-import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as textoPorcentaje, unir } from '../util/formato'
+import { dinero, fechaCorta, leerDecimal, leerEntero, mesAnio, porcentaje as textoPorcentaje, unir, debajoDelCosto } from '../util/formato'
 
 export default function PedidoDetalle() {
   const id = Number(useParams().id)
@@ -543,7 +544,7 @@ function FilaItem({
       </div>
 
       {editable ? (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex items-start gap-2">
           <div className="flex shrink-0 items-center">
             <button
               type="button"
@@ -574,19 +575,28 @@ function FilaItem({
               +
             </button>
           </div>
-          <span className="text-slate-400">×</span>
-          <input
-            aria-label="Precio unitario"
-            inputMode="decimal"
-            placeholder="Precio"
-            value={precio}
-            onChange={(e) => setPrecio(e.target.value.replace(/[^\d.,]/g, ''))}
-            onBlur={confirmarPrecio}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            onFocus={(e) => e.currentTarget.select()}
-            className={`${campo} w-20 shrink-0 ${item.precioUnitario === null ? 'border-amber-400 bg-amber-50' : ''}`}
-          />
-          <span className="ml-auto whitespace-nowrap text-lg font-bold">{dinero(item.total)}</span>
+          <span className="flex h-11 items-center text-slate-400">×</span>
+          <div className="shrink-0">
+            <input
+              aria-label="Precio unitario"
+              inputMode="decimal"
+              placeholder="Precio"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value.replace(/[^\d.,]/g, ''))}
+              onBlur={confirmarPrecio}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              onFocus={(e) => e.currentTarget.select()}
+              className={`${campo} w-20 ${
+                item.precioUnitario === null
+                  ? 'border-amber-400 bg-amber-50'
+                  : debajoDelCosto(precio, item.costoUnitario)
+                    ? 'border-red-500! bg-red-50! focus:border-red-500! focus:ring-red-500/30!'
+                    : ''
+              }`}
+            />
+            <TextoCosto costo={item.costoUnitario} />
+          </div>
+          <span className="ml-auto flex h-11 items-center whitespace-nowrap text-lg font-bold">{dinero(item.total)}</span>
         </div>
       ) : (
         <div className="mt-2 flex items-center justify-between pl-7 text-sm">

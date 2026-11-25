@@ -311,6 +311,11 @@ export interface PedidoItem {
   disponible: number | null
   faltante: number | null
   lotes: LoteEntregado[]
+  /**
+   * Uso interno (nunca en la nota): en un borrador, el costo actual del producto; en un despachado, el costo con el
+   * que salió de sus lotes. null si se escribió a mano o no se sabe
+   */
+  costoUnitario: number | null
 }
 
 export interface Pedido {
