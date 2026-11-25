@@ -73,7 +73,10 @@ class CostoDelPedidoTest extends IntegracionTest {
                 .andExpect(jsonPath("$.costo.costo").value(40.0))                    // 4 × 10
                 .andExpect(jsonPath("$.costo.ganancia").value(6.0))
                 .andExpect(jsonPath("$.costo.margen").value(13.0))                   // 6 / 46, sin el tensiómetro
-                .andExpect(jsonPath("$.costo.itemsSinCosto").value(1));
+                .andExpect(jsonPath("$.costo.itemsSinCosto").value(1))
+                // Costo de cada ítem (debajo del precio en la app): el actual del producto; el escrito a mano, ninguno
+                .andExpect(jsonPath("$.items[0].costoUnitario").doesNotExist())
+                .andExpect(jsonPath("$.items[1].costoUnitario").value(10.0));
 
         mockMvc.perform(get(URL).param("estado", "BORRADOR"))
                 .andExpect(jsonPath("$.contenido[0].costo.costo").value(40.0))
@@ -91,7 +94,8 @@ class CostoDelPedidoTest extends IntegracionTest {
         Long item = id(postJson(URL + "/" + pedido + "/despachar", "")
                 .andExpect(jsonPath("$.costo.costo").value(44.0))                    // 3 × 8 + 2 × 10
                 .andExpect(jsonPath("$.costo.ganancia").value(13.5))
-                .andExpect(jsonPath("$.costo.margen").value(23.5)), "$.items[0].id"); // 13.50 / 57.50
+                .andExpect(jsonPath("$.costo.margen").value(23.5))                   // 13.50 / 57.50
+                .andExpect(jsonPath("$.items[0].costoUnitario").value(8.8)), "$.items[0].id"); // 44 / 5
 
         mockMvc.perform(get(URL + "/despachados"))
                 .andExpect(jsonPath("$.lista.contenido[0].costo.costo").value(44.0))
@@ -106,7 +110,8 @@ class CostoDelPedidoTest extends IntegracionTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.costo.costo").value(34.0))
                 .andExpect(jsonPath("$.costo.ganancia").value(12.0))
-                .andExpect(jsonPath("$.costo.margen").value(26.1)); // 12 / 46
+                .andExpect(jsonPath("$.costo.margen").value(26.1)) // 12 / 46
+                .andExpect(jsonPath("$.items[0].costoUnitario").value(8.5)); // 3 × 8 + 1 × 10 = 34 / 4
     }
 
     @Test

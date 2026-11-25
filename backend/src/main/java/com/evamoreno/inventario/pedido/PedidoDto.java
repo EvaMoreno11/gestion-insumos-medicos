@@ -264,9 +264,15 @@ public final class PedidoDto {
      * @param faltante   unidades que faltan comprar para completar este ítem (null si no aplica)
      * @param lotes      lotes entregados; solo en pedidos despachados
      */
+    /**
+     * @param costoUnitario uso interno (nunca en la nota): en un borrador, el costo actual del producto; en un
+     *                      despachado, el costo con el que salió de sus lotes (promedio si salió de varios); null si
+     *                      se escribió a mano o no se sabe
+     */
     public record ItemResponse(Long id, Long productoId, String codigo, String descripcion, String presentacion,
             String marca, int cantidad, BigDecimal precioUnitario, boolean precioManual, BigDecimal total,
-            Disponibilidad disponibilidad, Integer disponible, Integer faltante, List<LoteEntregado> lotes) {
+            Disponibilidad disponibilidad, Integer disponible, Integer faltante, List<LoteEntregado> lotes,
+            BigDecimal costoUnitario) {
     }
 
     /**
