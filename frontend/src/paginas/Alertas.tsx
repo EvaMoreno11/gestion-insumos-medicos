@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router'
-import { alertas, DIAS_POR_VENCER } from '../api/recursos'
+import { alertas } from '../api/recursos'
 import type { LoteAlerta, ProductoResumen } from '../api/tipos'
 import { ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { AgregarAPorComprar, EtiquetaStock } from '../componentes/dominio'
@@ -109,9 +109,6 @@ export default function Alertas() {
 
       {pestana === 'por-vencer' && (
         <EstadoCarga cargando={porVencer.cargando} error={porVencer.error} hayDatos={porVencer.datos !== undefined}>
-          <p className="mb-3 text-sm text-slate-600">
-            Lotes que vencen en el próximo año ({DIAS_POR_VENCER} días), primero los que vencen antes. Salen primero en los pedidos.
-          </p>
           {porVencer.datos?.length === 0 && <Vacio>Ningún lote vence en el próximo año.</Vacio>}
           <ListaLotes lotes={porVencer.datos ?? []} />
         </EstadoCarga>
@@ -119,9 +116,6 @@ export default function Alertas() {
 
       {pestana === 'vencidos' && (
         <EstadoCarga cargando={vencidos.cargando} error={vencidos.error} hayDatos={vencidos.datos !== undefined}>
-          <p className="mb-3 text-sm text-slate-600">
-            Lotes vencidos que aún tienen unidades. La app nunca los usa en un pedido.
-          </p>
           {vencidos.datos?.length === 0 && <Vacio>No hay lotes vencidos con unidades.</Vacio>}
           <ListaLotes lotes={vencidos.datos ?? []} />
         </EstadoCarga>
