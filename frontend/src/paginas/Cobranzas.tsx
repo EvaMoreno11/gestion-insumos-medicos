@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { cobranzas } from '../api/recursos'
 import type { CobroPagado, Deuda } from '../api/tipos'
 import { Aviso, Boton, Buscador, EstadoCarga, Tarjeta, Vacio } from '../componentes/basicos'
 import { EtiquetaCobro } from '../componentes/cobro'
 import { Pantalla } from '../componentes/Pantalla'
-import { useCarga, useListaConVerMas, useRetardo } from '../hooks'
+import { useBusquedaEnUrl, useCarga, useListaConVerMas } from '../hooks'
 import { dinero, fechaDia, textoPlazo, unir } from '../util/formato'
 import { nombreMedio } from '../util/pagos'
 
@@ -172,29 +171,12 @@ function FilaDeuda({ deuda }: { deuda: Deuda }) {
  * (en todo el historial, sin fechas). La búsqueda va en la dirección: al volver de una nota, sigue igual.
  */
 function Pagados() {
-  const [params, setParams] = useSearchParams()
-  const [texto, setTexto] = useState(params.get('buscar') ?? '')
-  const buscado = useRetardo(texto.trim())
+  const { texto, setTexto, buscado } = useBusquedaEnUrl()
   const { datos, cargando, error, lista, verMas, cargandoMas, errorMas } = useListaConVerMas(
     (pagina) => cobranzas.pagados({ buscar: buscado, pagina }),
     buscado,
     (r) => r.contenido,
   )
-
-  useEffect(() => {
-    setParams(
-      (actual) => {
-        const nuevos = new URLSearchParams(actual)
-        if (buscado) {
-          nuevos.set('buscar', buscado)
-        } else {
-          nuevos.delete('buscar')
-        }
-        return nuevos
-      },
-      { replace: true },
-    )
-  }, [buscado, setParams])
 
   const total = datos?.totalElementos ?? 0
   return (

@@ -282,3 +282,20 @@ export function textoPlazo(plazoDias: number | null | undefined): string {
   }
   return `Crédito a ${plazoDias} ${plazoDias === 1 ? 'día' : 'días'}`
 }
+
+/**
+ * Cantidad con su unidad, en singular o plural: (1, "Caja") → "1 caja", (20, "Caja") → "20 cajas",
+ * (3, "Unidad") → "3 unidades", (2, "Galón") → "2 galones".
+ */
+export function conUnidad(cantidad: number, unidad: string): string {
+  const u = unidad.trim().toLowerCase()
+  if (cantidad === 1 || u === '') {
+    return `${cantidad} ${u}`.trim()
+  }
+  if (/[aeiouáéíóú]$/.test(u)) {
+    return `${cantidad} ${u}s`
+  }
+  // "galón" → "galones": la tilde se va al agregar la sílaba
+  const sinTilde = u.replace(/([áéíóú])([a-z])$/, (_, vocal: string, final: string) => vocal.normalize('NFD')[0] + final)
+  return `${cantidad} ${sinTilde}es`
+}

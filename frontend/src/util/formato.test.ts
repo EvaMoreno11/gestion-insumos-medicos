@@ -10,6 +10,7 @@ import {
   textoPlazo,
   variacion,
   escribirMesAnio,
+  conUnidad,
   leerCosto,
   leerDecimal,
   leerEntero,
@@ -269,5 +270,15 @@ describe('cobranzas', () => {
     expect(textoPlazo(0)).toBe('Contado')
     expect(textoPlazo(1)).toBe('Crédito a 1 día')
     expect(textoPlazo(15)).toBe('Crédito a 15 días')
+  })
+})
+
+describe('cantidad con su unidad', () => {
+  it('pone la unidad en singular o plural', () => {
+    expect(conUnidad(1, 'Caja')).toBe('1 caja')
+    expect(conUnidad(20, 'Caja')).toBe('20 cajas')
+    expect(conUnidad(3, 'Unidad')).toBe('3 unidades')
+    expect(conUnidad(2, 'Galón')).toBe('2 galones')
+    expect(conUnidad(4, 'Frasco')).toBe('4 frascos')
   })
 })

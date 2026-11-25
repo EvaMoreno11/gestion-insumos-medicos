@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { mensajeDe } from '../api/http'
 import { categoriasPrecio, clientes, resumen } from '../api/recursos'
-import type { LocalDatos } from '../api/tipos'
+import type { LocalDatos, ProductoComprado } from '../api/tipos'
 import { Aviso, Boton, BotonEnlace, Buscador, Campo, Cargando, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { DatosCliente, SelectorCategoria } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { TextoGanancia } from '../componentes/resumen'
-import { useCarga, useRetardo } from '../hooks'
-import { dinero, fechaDia, haceDias, porcentaje as textoPorcentaje } from '../util/formato'
+import { useBusquedaEnUrl, useCarga, useListaConVerMas, useRetardo } from '../hooks'
+import { conUnidad, dinero, fechaDia, haceDias, porcentaje as textoPorcentaje, unir } from '../util/formato'
 
 // ------------------------------------------------------------------ lista
 
@@ -65,6 +65,8 @@ export function ClienteFormulario() {
   const parametro = useParams().id
   const id = parametro ? Number(parametro) : null
   const navegar = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const pestana = id !== null && params.get('ver') !== 'datos' ? 'productos' : 'datos'
   const categorias = useCarga(() => categoriasPrecio.listar())
 
   const [cargado, setCargado] = useState(id === null)
@@ -127,8 +129,33 @@ export function ClienteFormulario() {
   const variosLocales = locales.length > 1
 
   return (
-    <Pantalla titulo={id === null ? 'Nuevo cliente' : 'Editar cliente'} volver="/clientes">
-      {!cargado ? (
+    <Pantalla titulo={id === null ? 'Nuevo cliente' : nombre || 'Cliente'} volver="/clientes">
+      {id !== null && (
+        <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-slate-200 p-1" role="tablist">
+          {(
+            [
+              ['productos', 'Productos que compra'],
+              ['datos', 'Datos del cliente'],
+            ] as const
+          ).map(([valor, titulo]) => (
+            <button
+              key={valor}
+              type="button"
+              role="tab"
+              aria-selected={pestana === valor}
+              onClick={() => setParams(valor === 'datos' ? { ver: 'datos' } : {}, { replace: true })}
+              className={`min-h-10 rounded-lg px-1 text-sm font-semibold ${
+                pestana === valor ? 'bg-white text-marca shadow-sm' : 'text-slate-600'
+              }`}
+            >
+              {titulo}
+            </button>
+          ))}
+        </div>
+      )}
+      {id !== null && pestana === 'productos' ? (
+        <ProductosDelCliente id={id} />
+      ) : !cargado ? (
         error ? (
           <Aviso tipo="error">{error}</Aviso>
         ) : (
@@ -143,7 +170,6 @@ export function ClienteFormulario() {
           }}
         >
           {error && <Aviso tipo="error">{error}</Aviso>}
-          {id !== null && <ComprasDelCliente id={id} />}
 
           <Tarjeta className="space-y-3">
             <Campo etiqueta="Nombre o razón social" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
@@ -259,5 +285,136 @@ function ComprasDelCliente({ id }: { id: number }) {
         </p>
       )}
     </Tarjeta>
+  )
+}
+
+/**
+ * Pestaña "Productos que compra" (uso interno: para saber a qué precio se le vendió cada producto; el cliente no la
+ * ve). Arriba, lo que compró este año; debajo, cada producto que se le vendió en un pedido despachado, con el último
+ * precio, la fecha y la cantidad, primero lo comprado más recientemente. Al tocar un producto se ven todas sus
+ * ventas.
+ */
+function ProductosDelCliente({ id }: { id: number }) {
+  const { texto, setTexto, buscado } = useBusquedaEnUrl()
+  const { datos, cargando, error, lista, verMas, cargandoMas, errorMas } = useListaConVerMas(
+    (pagina) => clientes.productos(id, { buscar: buscado, pagina }),
+    `${id}|${buscado}`,
+    (r) => r.contenido,
+  )
+  const [abierto, setAbierto] = useState<number | null>(null)
+  const total = datos?.totalElementos ?? 0
+
+  return (
+    <div className="space-y-3">
+      <ComprasDelCliente id={id} />
+      <Buscador valor={texto} onCambio={setTexto} placeholder="Buscar producto…" />
+      <EstadoCarga cargando={cargando} error={error} hayDatos={datos !== undefined}>
+        {datos && total > 0 && (
+          <p className="text-sm text-slate-500">
+            {total} {total === 1 ? 'producto' : 'productos'}
+            {buscado ? ` con «${buscado}»` : ''}, primero lo que compró más recientemente
+          </p>
+        )}
+        {datos && total === 0 && (
+          <Vacio>
+            {buscado
+              ? 'No le vendieron ningún producto con esa búsqueda.'
+              : 'Todavía no tiene pedidos despachados: aquí aparecerán los productos que compre.'}
+          </Vacio>
+        )}
+        <ul className="space-y-2">
+          {lista.map((p) => (
+            <li key={p.productoId}>
+              <FilaProductoComprado
+                clienteId={id}
+                producto={p}
+                abierto={abierto === p.productoId}
+                onTocar={() => setAbierto(abierto === p.productoId ? null : p.productoId)}
+              />
+            </li>
+          ))}
+        </ul>
+        {errorMas && (
+          <div className="mt-3">
+            <Aviso tipo="error">{errorMas}</Aviso>
+          </div>
+        )}
+        {lista.length < total && (
+          <Boton variante="secundario" ancho className="mt-3" disabled={cargandoMas} onClick={() => void verMas()}>
+            {cargandoMas ? 'Cargando…' : `Ver más (${total - lista.length} más)`}
+          </Boton>
+        )}
+      </EstadoCarga>
+    </div>
+  )
+}
+
+function FilaProductoComprado({
+  clienteId,
+  producto: p,
+  abierto,
+  onTocar,
+}: {
+  clienteId: number
+  producto: ProductoComprado
+  abierto: boolean
+  onTocar: () => void
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white">
+      <button type="button" aria-expanded={abierto} onClick={onTocar} className="block w-full p-3 text-left active:bg-slate-50">
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0">
+            <span className="block font-semibold leading-snug">{p.nombre}</span>
+            <span className="block text-sm text-slate-500">{unir(' · ', p.presentacion, p.marca)}</span>
+          </span>
+          <span className="shrink-0 text-lg font-bold">{dinero(p.ultimoPrecio)}</span>
+        </span>
+        <span className="mt-1 flex items-end justify-between gap-3 text-sm text-slate-600">
+          <span>
+            Última venta: {fechaDia(p.ultimaVenta)} ({haceDias(p.ultimaVenta)}) · {conUnidad(p.ultimaCantidad, p.unidadMedida)}
+          </span>
+          <span className="shrink-0 text-marca" aria-hidden="true">
+            {abierto ? '▴' : '▾'}
+          </span>
+        </span>
+      </button>
+      {abierto && <VentasDelProducto clienteId={clienteId} producto={p} />}
+    </div>
+  )
+}
+
+/** Todas las veces que se le vendió el producto: fecha, N° de nota, cantidad, precio y total. Cada una abre su nota. */
+function VentasDelProducto({ clienteId, producto }: { clienteId: number; producto: ProductoComprado }) {
+  const { datos, cargando, error } = useCarga(
+    () => clientes.ventas(clienteId, producto.productoId),
+    `${clienteId}|${producto.productoId}`,
+  )
+  return (
+    <div className="border-t border-slate-100 px-3 pb-3 pt-2">
+      <EstadoCarga cargando={cargando} error={error} hayDatos={datos !== undefined}>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {datos?.length === 1 ? 'Se le vendió 1 vez' : `Se le vendió ${datos?.length ?? 0} veces`}
+        </p>
+        <ul className="divide-y divide-slate-100">
+          {datos?.map((v) => (
+            <li key={`${v.pedidoId}|${v.fecha}|${v.cantidad}`}>
+              <Link to={`/pedidos/${v.pedidoId}`} className="flex items-start justify-between gap-3 py-2 text-sm">
+                <span className="min-w-0">
+                  <span className="block font-medium text-slate-800">{fechaDia(v.fecha)}</span>
+                  <span className="block text-marca">{v.numero ? `N° ${v.numero}` : 'Solo tabla'}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-slate-700">
+                    {conUnidad(v.cantidad, producto.unidadMedida)} × {dinero(v.precio)}
+                  </span>
+                  <span className="block font-semibold">{dinero(v.total)}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </EstadoCarga>
+    </div>
   )
 }

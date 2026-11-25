@@ -38,6 +38,8 @@ import type {
   ResumenProveedores,
   Resumen,
   TipoPeriodo,
+  ProductoComprado,
+  VentaDeProducto,
 } from './tipos'
 
 export const productos = {
@@ -65,6 +67,12 @@ export const categoriasPrecio = {
 export const clientes = {
   buscar: (buscar: string) => api<Pagina<ClienteResumen>>('/api/clientes', { params: { buscar, tamano: 50 } }),
   obtener: (id: number) => api<ClienteDetalle>(`/api/clientes/${id}`),
+  /** Productos que se le vendieron (pedidos despachados), primero lo comprado más recientemente */
+  productos: (id: number, filtro: { buscar?: string; pagina?: number }) =>
+    api<Pagina<ProductoComprado>>(`/api/clientes/${id}/productos`, { params: { ...filtro, tamano: 30 } }),
+  /** Todas las veces que se le vendió un producto, de la más reciente a la más antigua */
+  ventas: (id: number, productoId: number) =>
+    api<VentaDeProducto[]>(`/api/clientes/${id}/productos/${productoId}/ventas`),
   crear: (datos: ClienteDatos) => api<ClienteDetalle>('/api/clientes', { metodo: 'POST', cuerpo: datos }),
   actualizar: (id: number, datos: ClienteDatos) =>
     api<ClienteDetalle>(`/api/clientes/${id}`, { metodo: 'PUT', cuerpo: datos }),
