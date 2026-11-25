@@ -115,11 +115,7 @@ export default function PorComprar() {
 
         {datos && datos.noRegistrados.length > 0 && (
           <section className="mt-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">No registrados</h2>
-            <p className="mb-2 text-sm text-slate-500">
-              Ítems escritos a mano en un pedido. Al registrarlos como productos, la línea del pedido pasa a
-              descontar del inventario.
-            </p>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">No registrados</h2>
             <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
               {datos.noRegistrados.map((n) => (
                 <li key={n.itemId} className="rounded-2xl border border-slate-200 bg-white p-3">

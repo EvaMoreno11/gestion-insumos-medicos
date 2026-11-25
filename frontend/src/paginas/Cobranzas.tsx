@@ -23,27 +23,24 @@ export default function Cobranzas() {
   const pestana: Pestana =
     elegida ?? (!datos || datos.vencidos.length > 0 ? 'vencidos' : datos.sinPlazo.length > 0 ? 'sin-plazo' : 'por-cobrar')
 
-  const pestanas: { valor: Pestana; titulo: string; lista: Deuda[] | undefined; vacio: string; ayuda: string }[] = [
+  const pestanas: { valor: Pestana; titulo: string; lista: Deuda[] | undefined; vacio: string }[] = [
     {
       valor: 'vencidos',
       titulo: 'Vencidos',
       lista: datos?.vencidos,
       vacio: 'Ningún cobro está vencido.',
-      ayuda: 'Pasó el plazo y aún deben. Primero los más atrasados.',
     },
     {
       valor: 'por-cobrar',
       titulo: 'Por cobrar',
       lista: datos?.porCobrar,
       vacio: 'No hay cobros con plazo vigente.',
-      ayuda: 'Tienen plazo y todavía no vence. Primero los que vencen antes.',
     },
     {
       valor: 'sin-plazo',
       titulo: 'Sin plazo',
       lista: datos?.sinPlazo,
       vacio: 'Todas las notas tienen su plazo anotado.',
-      ayuda: 'Se despacharon y nadie anotó todavía cómo pagan. Si pagaron al contado, entra y toca “Pagó todo”.',
     },
     // Sin número: con el tiempo serán cientos. Su lista se carga aparte, con buscador
     {
@@ -51,7 +48,6 @@ export default function Cobranzas() {
       titulo: 'Pagados',
       lista: undefined,
       vacio: '',
-      ayuda: 'Notas que ya se pagaron completas, primero las que se terminaron de pagar hace menos.',
     },
     // Solo aparece si algún cliente pagó de más (por ejemplo, tras una devolución)
     ...(datos && datos.aFavor.length > 0
@@ -61,7 +57,6 @@ export default function Cobranzas() {
             titulo: 'A favor',
             lista: datos.aFavor,
             vacio: 'Ningún cliente tiene saldo a favor.',
-            ayuda: `Pagaron más que el total corregido (${dinero(datos.totalAFavor)} en total): devuélvanles la diferencia o descuéntenla de su próximo pedido.`,
           },
         ]
       : []),
@@ -107,7 +102,6 @@ export default function Cobranzas() {
               ))}
             </div>
 
-            <p className="text-sm text-slate-600">{actual.ayuda}</p>
             {actual.valor === 'pagados' ? (
               <Pagados />
             ) : (

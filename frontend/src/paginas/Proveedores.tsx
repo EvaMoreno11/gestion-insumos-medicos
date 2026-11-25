@@ -86,7 +86,6 @@ export default function Proveedores() {
         {anotando && (
           <Tarjeta>
             <h2 className="font-semibold">Anotar deuda</h2>
-            <p className="text-sm text-slate-500">Solo las compras que no se pagan al contado.</p>
             <FormularioDeuda
               nombres={nombres.datos ?? []}
               onGuardar={async (datos) => {
@@ -121,11 +120,6 @@ export default function Proveedores() {
         </div>
 
         <EstadoCarga cargando={primera.cargando} error={primera.error} hayDatos={primera.datos !== undefined}>
-          <p className="mb-3 text-sm text-slate-600">
-            {pagadas
-              ? 'Primero las que se terminaron de pagar hace menos.'
-              : 'Primero las más antiguas, para que ninguna se olvide.'}
-          </p>
           {lista.length === 0 && (
             <Vacio>{pagadas ? 'Todavía no hay deudas pagadas.' : 'No hay deudas por pagar.'}</Vacio>
           )}
