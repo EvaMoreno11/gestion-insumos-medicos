@@ -14,8 +14,13 @@ node_modules/
 frontend/dist/
 *.local
 
+# Pruebas de navegador: capturas y PDF que generan al correr
+e2e/resultados/
+
 # Backend (Maven) — ver también backend/.gitignore
 backend/target/
+# La aplicación web compilada se copia aquí solo al armar la imagen o en la CI
+backend/src/main/resources/static/
 
 # Archivos temporales de Excel/Office
 ~$*
