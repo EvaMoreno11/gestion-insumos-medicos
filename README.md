@@ -6,6 +6,24 @@ Aplicación web *mobile-first* para gestionar el inventario y los pedidos de un 
 
 Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repartidor no siempre sabe si tiene el producto en stock, ni de qué lote o con qué fecha de vencimiento. Luego el pedido se formaliza a mano en Excel.
 
+## Capturas
+
+Con los datos de demostración (productos y clientes inventados).
+
+| Inicio | Inventario | Producto | Pedido |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/capturas/inicio.png" width="200" alt="Inicio con accesos a cada sección"> | <img src="docs/capturas/inventario.png" width="200" alt="Inventario con buscador y stock"> | <img src="docs/capturas/producto.png" width="200" alt="Ficha del producto con sus lotes y precios"> | <img src="docs/capturas/pedido.png" width="200" alt="Pedido con disponibilidad, costo y ganancia"> |
+
+| Nota en PDF | Cobranzas | Resumen | Alertas |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/capturas/nota-pdf.png" width="200" alt="Vista previa de la nota de pedido en PDF"> | <img src="docs/capturas/cobranzas.png" width="200" alt="Cobranzas vencidas y por cobrar"> | <img src="docs/capturas/resumen.png" width="200" alt="Resumen de ventas y ganancia"> | <img src="docs/capturas/alertas.png" width="200" alt="Alertas de stock bajo"> |
+
+**En la PC**
+
+<img src="docs/capturas/pc-resumen.png" width="820" alt="Resumen en la PC con el gráfico de ventas por mes">
+
+<img src="docs/capturas/pc-pedido.png" width="820" alt="Pedido en la PC, en dos columnas">
+
 ## Funcionalidades
 
 **Disponibles**
@@ -72,8 +90,8 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 ```
 ├── backend/            API REST (Spring Boot)
 ├── frontend/           Aplicación web para el celular (React)
-├── e2e/                Pruebas de navegador (Playwright)
-├── docs/               Documentación, plantillas de carga y guía de publicación
+├── e2e/                Pruebas de navegador (Playwright) y capturas del README
+├── docs/               Documentación, capturas, plantillas de carga y guía de publicación
 ├── scripts/            Copia de seguridad de la base de producción
 ├── docker-compose.yml  PostgreSQL para desarrollo local
 ├── Dockerfile          Imagen de producción (aplicación web + API)
@@ -228,6 +246,8 @@ node correr.mjs lotes    # solo las que tienen "lotes" en el nombre
 Usan Microsoft Edge (con `E2E_NAVEGADOR=chrome`, Google Chrome). Si una falla, deja capturas de lo que se veía en `e2e/resultados/`.
 
 En GitHub, la CI ejecuta los tres grupos en cada *pull request*. Para las pruebas de navegador arma la app como en producción (la aplicación web dentro de la API), la arranca con los datos de demostración sobre una base vacía y las corre en Chrome.
+
+Las capturas de este README salen de `node capturas.mjs`, sobre una base nueva con los datos de demostración. El script no corre si encuentra cualquier otro dato.
 
 ## Hoja de ruta
 
