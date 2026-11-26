@@ -4,11 +4,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,19 +35,24 @@ public class MovimientoService {
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("MM/yyyy");
     private static final int TAMANO_MAXIMO_PAGINA = 100;
 
+    /** Nota de los ajustes que dan de baja un lote vencido (el Resumen la usa para sumar lo dado de baja). */
+    public static final String NOTA_BAJA_POR_VENCIDO = "Baja por vencido";
+
     private final ProductoRepository productos;
     private final LoteRepository lotes;
     private final MovimientoRepository movimientos;
     private final StockService stock;
     private final RecordatoriosDeCompra recordatoriosDeCompra;
+    private final JdbcClient jdbc;
 
     public MovimientoService(ProductoRepository productos, LoteRepository lotes, MovimientoRepository movimientos,
-            StockService stock, RecordatoriosDeCompra recordatoriosDeCompra) {
+            StockService stock, RecordatoriosDeCompra recordatoriosDeCompra, JdbcClient jdbc) {
         this.productos = productos;
         this.lotes = lotes;
         this.movimientos = movimientos;
         this.stock = stock;
         this.recordatoriosDeCompra = recordatoriosDeCompra;
+        this.jdbc = jdbc;
     }
 
     // ------------------------------------------------------------------ entrada
@@ -171,6 +180,27 @@ public class MovimientoService {
         return resultado(lote.getProducto().getId(), List.of(movimiento));
     }
 
+    /**
+     * Da de baja un lote vencido: lo deja en 0 con un ajuste "Baja por vencido" (queda en el historial del producto
+     * y el Resumen lo suma como dado de baja). Solo para lotes ya vencidos y con unidades.
+     */
+    public ResultadoMovimiento darDeBajaVencido(Long loteId) {
+        Lote lote = lotes.buscarBloqueado(loteId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el lote con id " + loteId));
+        if (lote.getFechaVencimiento() == null || !lote.getFechaVencimiento().isBefore(stock.hoy())) {
+            throw new ConflictoException("El lote " + nombreLote(lote) + " todavía no vence: no se da de baja");
+        }
+        if (lote.getCantidadActual() == 0) {
+            throw new ConflictoException("El lote " + nombreLote(lote) + " ya no tiene unidades");
+        }
+        Movimiento movimiento = ajustar(lote, 0, NOTA_BAJA_POR_VENCIDO);
+        return resultado(lote.getProducto().getId(), List.of(movimiento));
+    }
+
+    private static String nombreLote(Lote lote) {
+        return lote.getNumeroLote() == null ? "sin número" : lote.getNumeroLote();
+    }
+
     private Movimiento ajustar(Lote lote, int cantidadReal, String nota) {
         int diferencia = cantidadReal - lote.getCantidadActual();
         lote.fijarCantidad(cantidadReal);
@@ -228,7 +258,38 @@ public class MovimientoService {
             throw new RecursoNoEncontradoException("No existe el producto con id " + productoId);
         }
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), Math.clamp(tamano, 1, TAMANO_MAXIMO_PAGINA));
-        return Pagina.de(movimientos.historialDeProducto(productoId, pageRequest), MovimientoResponse::de);
+        Page<Movimiento> encontrados = movimientos.historialDeProducto(productoId, pageRequest);
+        return conSusPedidos(Pagina.de(encontrados, MovimientoResponse::de), encontrados.getContent());
+    }
+
+    /** Agrega a las salidas y devoluciones el pedido (N° de nota) y el cliente de donde vienen. */
+    private Pagina<MovimientoResponse> conSusPedidos(Pagina<MovimientoResponse> base, List<Movimiento> deLaPagina) {
+        Map<Long, Long> itemPorMovimiento = new HashMap<>();
+        deLaPagina.stream().filter(m -> m.getPedidoItemId() != null)
+                .forEach(m -> itemPorMovimiento.put(m.getId(), m.getPedidoItemId()));
+        if (itemPorMovimiento.isEmpty()) {
+            return base;
+        }
+        record DePedido(Long pedidoId, String numero, String cliente) {
+        }
+        Map<Long, DePedido> porItem = new HashMap<>();
+        jdbc.sql("""
+                SELECT i.id AS item_id, p.id AS pedido_id, p.numero, c.nombre AS cliente
+                FROM pedido_item i
+                JOIN pedido p ON p.id = i.pedido_id
+                JOIN cliente c ON c.id = p.cliente_id
+                WHERE i.id IN (:items)
+                """)
+                .param("items", itemPorMovimiento.values().stream().distinct().toList())
+                .query(rs -> {
+                    porItem.put(rs.getLong("item_id"),
+                            new DePedido(rs.getLong("pedido_id"), rs.getString("numero"), rs.getString("cliente")));
+                });
+        List<MovimientoResponse> contenido = base.contenido().stream().map(m -> {
+            DePedido p = porItem.get(itemPorMovimiento.get(m.id()));
+            return p == null ? m : m.conPedido(p.pedidoId(), p.numero(), p.cliente());
+        }).toList();
+        return new Pagina<>(contenido, base.pagina(), base.tamano(), base.totalElementos(), base.totalPaginas());
     }
 
     // ------------------------------------------------------------------ reglas

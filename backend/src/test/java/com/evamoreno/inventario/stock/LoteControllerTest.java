@@ -246,4 +246,33 @@ class LoteControllerTest extends IntegracionTest {
                 .andExpect(jsonPath("$.detail").value("Ya existe el lote (sin número) en este producto, con 1 unidad "
                         + "(sin vencimiento). Confirma para unir los dos en uno solo."));
     }
+
+    // ------------------------------------------------------------------ dar de baja un vencido
+
+    @Test
+    void darDeBajaUnVencidoLoDejaEnCeroConUnAjusteBajaPorVencido() throws Exception {
+        Long vencido = entrada("V-1", LocalDate.of(2026, 3, 31), 5, "4"); // venció en marzo; hoy es 15/06/2026
+        postJson("/api/lotes/" + vencido + "/baja", "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.movimientos[0].tipo").value("AJUSTE"))
+                .andExpect(jsonPath("$.movimientos[0].cantidad").value(-5))
+                .andExpect(jsonPath("$.movimientos[0].nota").value("Baja por vencido"))
+                .andExpect(jsonPath("$.stockDisponible").value(0));
+        historial()
+                .andExpect(jsonPath("$.contenido[0].nota").value("Baja por vencido"))
+                .andExpect(jsonPath("$.contenido[0].stockResultanteLote").value(0))
+                .andExpect(jsonPath("$.contenido[0].costoUnitario").value(4.0));
+
+        // Ya está en 0
+        postJson("/api/lotes/" + vencido + "/baja", "").andExpect(status().isConflict());
+    }
+
+    @Test
+    void unLoteQueNoVencioNoSeDaDeBaja() throws Exception {
+        Long vigente = entrada("L-9", MARZO_2028, 5, "4");
+        postJson("/api/lotes/" + vigente + "/baja", "")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("todavía no vence")));
+        mockMvc.perform(get("/api/productos/{id}", productoId)).andExpect(jsonPath("$.stockDisponible").value(5));
+    }
 }

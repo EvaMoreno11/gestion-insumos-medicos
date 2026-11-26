@@ -34,6 +34,7 @@ import com.evamoreno.inventario.resumen.ResumenDto.ProductoVendido;
 import com.evamoreno.inventario.resumen.ResumenDto.Resumen;
 import com.evamoreno.inventario.resumen.ResumenDto.ResumenCliente;
 import com.evamoreno.inventario.resumen.ResumenDto.Ventas;
+import com.evamoreno.inventario.stock.MovimientoService;
 
 import jakarta.persistence.EntityManager;
 
@@ -203,7 +204,7 @@ public class ResumenService {
         LocalDate hoy = hoy();
         Periodo periodo = Periodo.de(tipo, desde, hasta, hoy);
         return new Detalles(periodo, productosMasVendidos(periodo), mejoresClientes(periodo),
-                clientesInactivos(hoy), DIAS_INACTIVO, inventario(hoy), sinMovimiento(hoy), DIAS_SIN_MOVIMIENTO,
+                clientesInactivos(hoy), DIAS_INACTIVO, inventario(hoy, periodo), sinMovimiento(hoy), DIAS_SIN_MOVIMIENTO,
                 pendiente());
     }
 
@@ -304,7 +305,15 @@ public class ResumenService {
                 .list();
     }
 
-    private Inventario inventario(LocalDate hoy) {
+    private Inventario inventario(LocalDate hoy, Periodo periodo) {
+        BigDecimal dadoDeBaja = consulta("""
+                SELECT COALESCE(SUM(-m.cantidad * m.costo_unitario), 0) AS valor
+                FROM movimiento m
+                WHERE m.tipo = 'AJUSTE' AND m.nota = :nota AND m.fecha >= :inicio AND m.fecha < :fin
+                """, periodo.desde(), periodo.hasta())
+                .param("nota", MovimientoService.NOTA_BAJA_POR_VENCIDO)
+                .query((rs, n) -> dinero(rs, "valor"))
+                .single();
         return jdbc.sql("""
                 SELECT COALESCE(SUM(l.cantidad_actual * l.costo_promedio) FILTER (WHERE l.vigente), 0) AS valor,
                        COALESCE(SUM(l.cantidad_actual) FILTER (WHERE l.vigente), 0) AS unidades,
@@ -319,7 +328,8 @@ public class ResumenService {
                 """)
                 .param("hoy", hoy)
                 .query((rs, n) -> new Inventario(dinero(rs, "valor"), rs.getLong("unidades"),
-                        rs.getLong("productos_sin_costo"), dinero(rs, "valor_vencido"), rs.getLong("lotes_vencidos")))
+                        rs.getLong("productos_sin_costo"), dinero(rs, "valor_vencido"), rs.getLong("lotes_vencidos"),
+                        dadoDeBaja))
                 .single();
     }
 
