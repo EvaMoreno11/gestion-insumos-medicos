@@ -80,11 +80,14 @@ export default async function prueba(navegador) {
   if (!q.url().includes('/inventario?')) throw new Error('el botón de la tabla abrió el producto: ' + q.url())
   const ancho = await q.evaluate(() => document.querySelector('aside').getBoundingClientRect().width)
   const alturas = await q.evaluate(() => [...document.querySelectorAll('aside nav a')].map((a) => Math.round(a.getBoundingClientRect().height)))
-  if (new Set(alturas).size !== 1) throw new Error('algún botón de la barra se partió en dos líneas: ' + alturas)
+  // Mide el ancho de las letras: solo vale con las de Windows (las de la PC de la app). En Linux (GitHub)
+  // la letra del sistema es más ancha y "Registrar entrada" no entra en una línea.
+  const conLetrasDeWindows = process.platform === 'win32'
+  if (conLetrasDeWindows && new Set(alturas).size !== 1) throw new Error('algún botón de la barra se partió en dos líneas: ' + alturas)
   const tablaSeSale = await q.evaluate(() => { const t = document.querySelector('table'); return t.scrollWidth > t.parentElement.clientWidth + 1 })
   igual(tablaSeSale, false, 'la tabla se sale')
   await q.screenshot({ path: path.join(DIR, 'inventario-agregar-pc.png') })
-  ok(`PC: columna "Por comprar" con su botón (no abre el producto); barra lateral de ${ancho} px sin textos partidos; la tabla entra`)
+  ok(`PC: columna "Por comprar" con su botón (no abre el producto); barra lateral de ${ancho} px${conLetrasDeWindows ? ' sin textos partidos' : ''}; la tabla entra`)
 
   // ------------------------------------------------------------------ ítem quitado en una corrección
   const cliente = await api('/api/clientes', 'POST', { nombre: `Botica Quitados E2E${s}`, porcentaje: 10, locales: [{ nombre: 'Principal', direccion: 'Av. Prueba 1' }] })
