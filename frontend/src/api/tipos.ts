@@ -79,7 +79,15 @@ export interface DetallesResumen {
   mejoresClientes: ClienteTop[]
   clientesInactivos: { clienteId: number; nombre: string; ultimoPedido: string; diasSinComprar: number; totalHistorico: number }[]
   diasInactivo: number
-  inventario: { valor: number; unidades: number; productosSinCosto: number; valorVencido: number; lotesVencidos: number }
+  inventario: {
+    valor: number
+    unidades: number
+    productosSinCosto: number
+    valorVencido: number
+    lotesVencidos: number
+    /** Costo de lo dado de baja por vencido en el periodo */
+    valorDadoDeBaja: number
+  }
   sinMovimiento: {
     productoId: number
     nombre: string
@@ -719,4 +727,27 @@ export interface VentaDeProducto {
   cantidad: number
   precio: number | null
   total: number | null
+}
+
+// ------------------------------------------------------------------ historial de un producto
+
+/** Un movimiento del historial de un producto (uso interno) */
+export interface MovimientoHistorial {
+  id: number
+  fecha: string
+  tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE' | 'DEVOLUCION'
+  /** Entradas, salidas y devoluciones: positiva. Ajustes: con signo (+3 o -2) */
+  cantidad: number
+  stockResultanteLote: number
+  costoUnitario: number | null
+  nota: string | null
+  loteId: number
+  numeroLote: string | null
+  fechaVencimiento: string | null
+  /** De la carga inicial (importación del Excel) */
+  inicial: boolean
+  /** Salidas y devoluciones: el pedido, su N° de nota y el cliente */
+  pedidoId: number | null
+  pedidoNumero: string | null
+  cliente: string | null
 }
