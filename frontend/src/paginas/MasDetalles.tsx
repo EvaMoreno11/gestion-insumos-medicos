@@ -103,6 +103,11 @@ export default function MasDetalles() {
                       <p className="text-sm text-slate-600">
                         {datos.inventario.lotesVencidos} {datos.inventario.lotesVencidos === 1 ? 'lote vencido' : 'lotes vencidos'}
                       </p>
+                      {datos.inventario.valorDadoDeBaja > 0 && (
+                        <p className="mt-1 text-sm text-red-700">
+                          Dado de baja {datos.periodo.nombre}: {dinero(datos.inventario.valorDadoDeBaja)}
+                        </p>
+                      )}
                     </Tarjeta>
                   </Link>
                 </div>

@@ -3,6 +3,7 @@ import { productos } from '../api/recursos'
 import type { Lote } from '../api/tipos'
 import { BotonEnlace, EstadoCarga, Etiqueta, Tarjeta } from '../componentes/basicos'
 import { EtiquetaStock } from '../componentes/dominio'
+import { HistorialProducto } from '../componentes/historial'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga } from '../hooks'
 import { dinero, mesAnio, unir } from '../util/formato'
@@ -35,6 +36,8 @@ export default function ProductoDetalle() {
       <EstadoCarga cargando={cargando} error={error} hayDatos={p !== undefined}>
         {p && (
           <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+            {/* Columna izquierda: producto y lotes (juntos, aunque la derecha crezca con el historial) */}
+            <div className="space-y-3">
             <Tarjeta>
               <div className="flex items-start justify-between gap-3">
                 <h2 className="text-lg font-semibold leading-snug">{p.nombre}</h2>
@@ -66,7 +69,6 @@ export default function ProductoDetalle() {
                 <p className="mt-2 text-sm text-slate-500">No hay lotes con unidades.</p>
               ) : (
                 <>
-                  <p className="text-xs text-slate-500">Toca un lote para corregir su número, vencimiento o cantidad.</p>
                   <ul className="mt-1 divide-y divide-slate-100">
                     {p.lotes.map((l) => (
                       <li key={l.id}>
@@ -93,11 +95,11 @@ export default function ProductoDetalle() {
                 </>
               )}
             </Tarjeta>
+            </div>
 
-            <div className="space-y-3 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            <div className="space-y-3">
             <Tarjeta>
               <h3 className="font-semibold">Precios</h3>
-              <p className="text-xs text-slate-500">Uso interno: costo más el porcentaje de cada categoría.</p>
               {p.costo === null ? (
                 <p className="mt-2 text-sm text-amber-800">Este producto aún no tiene costo registrado.</p>
               ) : (
@@ -130,6 +132,8 @@ export default function ProductoDetalle() {
             <BotonEnlace a={`/por-comprar?agregar=${p.id}`} variante="secundario" ancho>
               🛒 Agregar a Por comprar
             </BotonEnlace>
+            {/* En la PC queda en esta columna, al lado de los lotes; en el celular, al final */}
+            <HistorialProducto productoId={p.id} />
             </div>
           </div>
         )}

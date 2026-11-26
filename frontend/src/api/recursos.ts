@@ -40,6 +40,7 @@ import type {
   TipoPeriodo,
   ProductoComprado,
   VentaDeProducto,
+  MovimientoHistorial,
 } from './tipos'
 
 export const productos = {
@@ -86,6 +87,9 @@ export const rutas = {
 }
 
 export const movimientos = {
+  /** Historial de un producto, de lo más reciente a lo más antiguo (con el pedido y cliente de cada salida) */
+  historial: (productoId: number, pagina: number) =>
+    api<Pagina<MovimientoHistorial>>('/api/movimientos', { params: { productoId, pagina, tamano: 20 } }),
   entrada: (datos: EntradaDatos) =>
     api<ResultadoMovimiento>('/api/movimientos/entrada', { metodo: 'POST', cuerpo: datos }),
   /**
@@ -104,6 +108,8 @@ export const movimientos = {
 export const lotes = {
   /** Corrige número, vencimiento y cantidad. Devuelve el lote como quedó (el otro, si se unieron). */
   corregir: (id: number, datos: CorreccionLote) => api<Lote>(`/api/lotes/${id}`, { metodo: 'PUT', cuerpo: datos }),
+  /** Da de baja un lote vencido: queda en 0 y en el historial como "Baja por vencido" */
+  darDeBaja: (id: number) => api<ResultadoMovimiento>(`/api/lotes/${id}/baja`, { metodo: 'POST' }),
 }
 
 export interface ItemNuevo {

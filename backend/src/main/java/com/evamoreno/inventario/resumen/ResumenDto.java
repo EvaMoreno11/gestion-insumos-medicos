@@ -103,8 +103,11 @@ public final class ResumenDto {
      * @param productosSinCosto productos con stock cuyo costo se desconoce (no suman al valor)
      * @param valorVencido      lo que costaron las unidades vencidas que siguen en el inventario
      */
+    /**
+     * @param valorDadoDeBaja costo de lo que se dio de baja por vencido en el periodo (ya no está en el inventario)
+     */
     public record Inventario(BigDecimal valor, long unidades, long productosSinCosto, BigDecimal valorVencido,
-            long lotesVencidos) {
+            long lotesVencidos, BigDecimal valorDadoDeBaja) {
     }
 
     /** Producto con stock que no se vende hace tiempo. @param ultimaSalida null si nunca se vendió */

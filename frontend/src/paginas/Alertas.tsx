@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { alertas } from '../api/recursos'
+import { mensajeDe } from '../api/http'
+import { alertas, lotes } from '../api/recursos'
 import type { LoteAlerta, ProductoResumen } from '../api/tipos'
-import { ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
+import { Aviso, Boton, ESTILO_CAMPO, EstadoCarga, Etiqueta, Tarjeta, Vacio } from '../componentes/basicos'
 import { AgregarAPorComprar, EtiquetaStock } from '../componentes/dominio'
 import { Pantalla } from '../componentes/Pantalla'
 import { useCarga, useEnPorComprar } from '../hooks'
@@ -40,7 +42,27 @@ export default function Alertas() {
     )
   }
   const porVencer = useCarga(() => alertas.porVencer())
-  const vencidos = useCarga(() => alertas.vencidos())
+  const [recargaVencidos, setRecargaVencidos] = useState(0)
+  const vencidos = useCarga(() => alertas.vencidos(), recargaVencidos)
+  const [dandoDeBaja, setDandoDeBaja] = useState<number | null>(null)
+  const [errorBaja, setErrorBaja] = useState<string | null>(null)
+
+  async function darDeBaja(l: LoteAlerta) {
+    const unidades = `${l.cantidad} ${l.cantidad === 1 ? 'unidad' : 'unidades'}`
+    if (!window.confirm(`¿Dar de baja el lote ${l.numeroLote ?? 'sin número'} de ${l.productoNombre} (${unidades})? Quedará en 0 y en el historial como "Baja por vencido".`)) {
+      return
+    }
+    setDandoDeBaja(l.loteId)
+    setErrorBaja(null)
+    try {
+      await lotes.darDeBaja(l.loteId)
+      setRecargaVencidos((n) => n + 1)
+    } catch (e) {
+      setErrorBaja(mensajeDe(e))
+    } finally {
+      setDandoDeBaja(null)
+    }
+  }
 
   const pestanas: { valor: Pestana; titulo: string; cantidad?: number }[] = [
     { valor: 'stock', titulo: 'Stock bajo', cantidad: stockBajo.datos?.length },
@@ -117,7 +139,12 @@ export default function Alertas() {
       {pestana === 'vencidos' && (
         <EstadoCarga cargando={vencidos.cargando} error={vencidos.error} hayDatos={vencidos.datos !== undefined}>
           {vencidos.datos?.length === 0 && <Vacio>No hay lotes vencidos con unidades.</Vacio>}
-          <ListaLotes lotes={vencidos.datos ?? []} />
+          {errorBaja && (
+            <div className="mb-3">
+              <Aviso tipo="error">{errorBaja}</Aviso>
+            </div>
+          )}
+          <ListaLotes lotes={vencidos.datos ?? []} onDarDeBaja={(l) => void darDeBaja(l)} dandoDeBaja={dandoDeBaja} />
         </EstadoCarga>
       )}
     </Pantalla>
@@ -157,15 +184,21 @@ function FilaStockBajo({
   )
 }
 
-function ListaLotes({ lotes }: { lotes: LoteAlerta[] }) {
+function ListaLotes({
+  lotes: lista,
+  onDarDeBaja,
+  dandoDeBaja = null,
+}: {
+  lotes: LoteAlerta[]
+  /** Solo en Vencidos: botón "Dar de baja" en cada lote */
+  onDarDeBaja?: (lote: LoteAlerta) => void
+  dandoDeBaja?: number | null
+}) {
   return (
     <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-      {lotes.map((l) => (
-        <li key={l.loteId}>
-          <Link
-            to={`/inventario/${l.productoId}`}
-            className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 active:bg-slate-50"
-          >
+      {lista.map((l) => (
+        <li key={l.loteId} className="rounded-2xl border border-slate-200 bg-white p-3">
+          <Link to={`/inventario/${l.productoId}`} className="flex items-start justify-between gap-3 active:opacity-70">
             <span className="min-w-0">
               <span className="block font-semibold leading-snug">{l.productoNombre}</span>
               <span className="block text-sm text-slate-500">{unir(' · ', l.presentacion, l.marca)}</span>
@@ -176,6 +209,17 @@ function ListaLotes({ lotes }: { lotes: LoteAlerta[] }) {
             </span>
             <Etiqueta color={l.diasParaVencer < 0 ? 'rojo' : 'ambar'}>{cuandoVence(l.diasParaVencer)}</Etiqueta>
           </Link>
+          {onDarDeBaja && (
+            <Boton
+              variante="peligro"
+              ancho
+              className="mt-3"
+              disabled={dandoDeBaja !== null}
+              onClick={() => onDarDeBaja(l)}
+            >
+              {dandoDeBaja === l.loteId ? 'Dando de baja…' : 'Dar de baja'}
+            </Boton>
+          )}
         </li>
       ))}
     </ul>
