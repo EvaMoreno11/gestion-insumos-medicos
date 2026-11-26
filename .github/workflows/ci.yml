@@ -58,3 +58,87 @@ jobs:
       # Incluye la revisión de tipos de TypeScript (tsc -b)
       - name: Compilar
         run: npm run build
+
+  # Usa la app como una persona: arma la app igual que en producción (el backend con la app web adentro),
+  # la arranca con los datos de demostración (nombres inventados) y corre las pruebas de e2e/ en Chrome,
+  # simulando un iPhone y una PC.
+  navegador:
+    name: Navegador (pruebas de pantallas)
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Lima
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: inventario
+          POSTGRES_USER: inventario
+          POSTGRES_PASSWORD: inventario # base temporal solo para esta prueba
+          TZ: America/Lima
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U inventario -d inventario"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v7
+
+      - name: Configurar Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Configurar Node 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Compilar la app web
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # Como en el Dockerfile: la app web va dentro del backend
+      - name: Armar el backend con la app web adentro
+        run: |
+          mkdir -p backend/src/main/resources/static
+          cp -r frontend/dist/. backend/src/main/resources/static/
+          cd backend && ./mvnw -B -q package -DskipTests
+
+      # Perfil dev: carga los productos y clientes de demostración en la base vacía
+      - name: Arrancar la app
+        run: |
+          java -jar backend/target/inventario-*.jar --spring.profiles.active=dev > app.log 2>&1 &
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/inventario
+
+      - name: Instalar las pruebas
+        working-directory: e2e
+        run: npm ci
+
+      - name: Correr las pruebas de navegador
+        working-directory: e2e
+        run: node correr.mjs
+        env:
+          BASE: http://localhost:8080
+          E2E_NAVEGADOR: chrome
+          E2E_DB: postgresql://inventario:inventario@localhost:5432/inventario
+
+      # Si algo falla: capturas de las pantallas abiertas y el registro de la app, para ver qué pasó
+      - name: Guardar capturas y registro (si falló)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pruebas-navegador
+          path: |
+            e2e/resultados/
+            app.log
+          retention-days: 7

@@ -6,6 +6,24 @@ Aplicación web *mobile-first* para gestionar el inventario y los pedidos de un 
 
 Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repartidor no siempre sabe si tiene el producto en stock, ni de qué lote o con qué fecha de vencimiento. Luego el pedido se formaliza a mano en Excel.
 
+## Capturas
+
+Con los datos de demostración (productos y clientes inventados).
+
+| Inicio | Inventario | Producto | Pedido |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/capturas/inicio.png" width="200" alt="Inicio con accesos a cada sección"> | <img src="docs/capturas/inventario.png" width="200" alt="Inventario con buscador y stock"> | <img src="docs/capturas/producto.png" width="200" alt="Ficha del producto con sus lotes y precios"> | <img src="docs/capturas/pedido.png" width="200" alt="Pedido con disponibilidad, costo y ganancia"> |
+
+| Nota en PDF | Cobranzas | Resumen | Alertas |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/capturas/nota-pdf.png" width="200" alt="Vista previa de la nota de pedido en PDF"> | <img src="docs/capturas/cobranzas.png" width="200" alt="Cobranzas vencidas y por cobrar"> | <img src="docs/capturas/resumen.png" width="200" alt="Resumen de ventas y ganancia"> | <img src="docs/capturas/alertas.png" width="200" alt="Alertas de stock bajo"> |
+
+**En la PC**
+
+<img src="docs/capturas/pc-resumen.png" width="820" alt="Resumen en la PC con el gráfico de ventas por mes">
+
+<img src="docs/capturas/pc-pedido.png" width="820" alt="Pedido en la PC, en dos columnas">
+
 ## Funcionalidades
 
 **Disponibles**
@@ -64,7 +82,7 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 | Base de datos | PostgreSQL 17, migraciones con Flyway |
 | Documentación API | OpenAPI / Swagger UI (springdoc) |
 | Frontend | React 19, React Router, TypeScript, Vite, Tailwind CSS 4, pdf.js (vista previa de PDF, se carga solo al usarla); instalable en el celular (manifiesto web) |
-| Tests | JUnit 5, MockMvc y Testcontainers (backend); Vitest (frontend) |
+| Tests | JUnit 5, MockMvc y Testcontainers (backend); Vitest (frontend); Playwright (pruebas de navegador) |
 | Publicación | Docker (con caché AOT de Java para arrancar más rápido), Render y Neon |
 
 ## Estructura
@@ -72,7 +90,8 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 ```
 ├── backend/            API REST (Spring Boot)
 ├── frontend/           Aplicación web para el celular (React)
-├── docs/               Documentación, plantillas de carga y guía de publicación
+├── e2e/                Pruebas de navegador (Playwright) y capturas del README
+├── docs/               Documentación, capturas, plantillas de carga y guía de publicación
 ├── scripts/            Copia de seguridad de la base de producción
 ├── docker-compose.yml  PostgreSQL para desarrollo local
 ├── Dockerfile          Imagen de producción (aplicación web + API)
@@ -82,6 +101,15 @@ Nace de un problema real: al recibir un pedido por llamada o WhatsApp, el repart
 El backend está organizado **por funcionalidad**: cada paquete (`categoria`, `producto`, …) contiene su entidad, repositorio, servicio, controlador y DTOs. Ver el [modelo de datos](docs/modelo-datos.md).
 
 El frontend separa la comunicación con la API (`src/api`: tipos y una función por operación), los componentes reutilizables (`src/componentes`) y una pantalla por ruta (`src/paginas`). Las reglas de negocio viven en el backend: el frontend solo muestra lo que la API calcula (precios, faltantes, totales).
+
+## Decisiones técnicas
+
+- **Stock por lote con FEFO.** Cada salida guarda de qué lote salió, para poner lote y vencimiento en la nota. Dos despachos al mismo tiempo no pueden usar las mismas unidades: los lotes se bloquean con `SELECT … FOR UPDATE`.
+- **Ganancia con el costo real.** Cada lote guarda su costo promedio ponderado, así que la ganancia de una venta usa el costo de los lotes que salieron, no el último precio de compra.
+- **Una sola app en un solo dominio.** El backend entrega también la aplicación web. La sesión usa una cookie con protección CSRF, y Safari no la bloquea porque no hay dominios cruzados.
+- **Pensada para servidores gratuitos.** La base de datos (Neon) se apaga cuando no se usa, por eso la app no deja conexiones abiertas. Java 25 arranca más rápido con una caché AOT creada al construir la imagen.
+- **Cambios seguros con datos reales.** Cada cambio en `main` se publica solo. Las migraciones de Flyway solo agregan, nunca borran, y una copia de seguridad automática de la base se guarda cada noche.
+- **Tres niveles de pruebas en cada *pull request*:** las reglas del backend contra un PostgreSQL real, las funciones del frontend y las pantallas en un navegador.
 
 ## API
 
@@ -206,7 +234,20 @@ cd frontend
 npm run lint && npm test && npm run build
 ```
 
-En GitHub, la CI ejecuta ambos grupos en cada *pull request*.
+**Pruebas de navegador** (`e2e/`): usan la app como una persona, en un iPhone simulado y en la PC. Registran entradas, arman, despachan y corrigen pedidos, anotan pagos, revisan alertas, el resumen y la vista previa del PDF (20 pruebas, unos 2 minutos). Crean sus propios datos (con "E2E" en el nombre), así que se corren sobre la base de desarrollo, nunca sobre la de producción. Con la API y la aplicación corriendo como arriba:
+
+```bash
+cd e2e
+npm install
+node correr.mjs          # todas
+node correr.mjs lotes    # solo las que tienen "lotes" en el nombre
+```
+
+Usan Microsoft Edge (con `E2E_NAVEGADOR=chrome`, Google Chrome). Si una falla, deja capturas de lo que se veía en `e2e/resultados/`.
+
+En GitHub, la CI ejecuta los tres grupos en cada *pull request*. Para las pruebas de navegador arma la app como en producción (la aplicación web dentro de la API), la arranca con los datos de demostración sobre una base vacía y las corre en Chrome.
+
+Las capturas de este README salen de `node capturas.mjs`, sobre una base nueva con los datos de demostración. El script no corre si encuentra cualquier otro dato.
 
 ## Hoja de ruta
 
@@ -218,6 +259,7 @@ En GitHub, la CI ejecuta ambos grupos en cada *pull request*.
 - [x] **Fase 4:** aplicación para el celular
 - [x] **Fase 5a:** inicio de sesión
 - [x] **Fase 5b:** preparación para publicar en internet (Docker, Render, Neon e importación desde la app)
+- [x] **En uso:** cobranzas, proveedores, resumen, historial por producto, copias de seguridad automáticas y pruebas de navegador en la CI
 
 ## Autora
 

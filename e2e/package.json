@@ -1,0 +1,16 @@
+{
+  "name": "pruebas-navegador",
+  "private": true,
+  "description": "Pruebas de navegador: usan la app como una persona, en un iPhone simulado y en la PC",
+  "type": "module",
+  "scripts": {
+    "test": "node correr.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "playwright-core": "1.65.1"
+  }
+}
