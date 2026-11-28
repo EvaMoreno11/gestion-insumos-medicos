@@ -4,6 +4,7 @@ import { mensajeDe } from './api/http'
 import { pedidos, type ConsultaPeriodo } from './api/recursos'
 import type { TipoPeriodo } from './api/tipos'
 import { diaLocal, fechaDia, sumarDias } from './util/formato'
+import { abreTeclado, deslizoVertical, type Punto } from './util/teclado'
 
 interface Carga<T> {
   /** Último resultado recibido. Mientras llega uno nuevo se conserva el anterior (la lista no parpadea). */
@@ -236,4 +237,41 @@ export function useEnPorComprar() {
     tiene: (productoId: number) => ids.has(productoId),
     marcar: (productoId: number) => setAgregados((antes) => new Set(antes).add(productoId)),
   }
+}
+
+/**
+ * En el celular: al deslizar la pantalla hacia arriba o hacia abajo mientras se escribe, se cierra el teclado, igual
+ * que con el ✓ del teclado. El campo suelta el foco y guarda lo escrito (cantidad, precio, costo…), así el total se
+ * actualiza. No actúa si el dedo empieza sobre el mismo campo (para mover el cursor o seleccionar texto). En la PC no
+ * hace nada: solo escucha toques de la pantalla. Se usa una sola vez, en App.
+ */
+export function useCerrarTecladoAlDeslizar() {
+  useEffect(() => {
+    let inicio: Punto | null = null
+
+    const campoConTeclado = () => {
+      const activo = document.activeElement
+      return activo instanceof HTMLElement && abreTeclado(activo.tagName, activo.getAttribute('type') ?? '') ? activo : null
+    }
+    const alTocar = (e: TouchEvent) => {
+      const campo = campoConTeclado()
+      const sobreElCampo = campo !== null && e.target instanceof Node && campo.contains(e.target)
+      inicio = campo && !sobreElCampo && e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null
+    }
+    const alMover = (e: TouchEvent) => {
+      if (!inicio || e.touches.length !== 1) return
+      if (deslizoVertical(inicio, { x: e.touches[0].clientX, y: e.touches[0].clientY })) {
+        campoConTeclado()?.blur()
+        inicio = null
+      }
+    }
+
+    // passive: no frena el desplazamiento de la pantalla
+    document.addEventListener('touchstart', alTocar, { passive: true })
+    document.addEventListener('touchmove', alMover, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', alTocar)
+      document.removeEventListener('touchmove', alMover)
+    }
+  }, [])
 }
