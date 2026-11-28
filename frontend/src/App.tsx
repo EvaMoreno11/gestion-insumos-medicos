@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AvisoVersion } from './componentes/AvisoVersion'
+import { useCerrarTecladoAlDeslizar } from './hooks'
 import Alertas from './paginas/Alertas'
 import Categorias from './paginas/Categorias'
 import { ClienteFormulario, Clientes } from './paginas/Clientes'
@@ -24,6 +25,8 @@ import { SesionProvider } from './sesion'
 
 /** Rutas de la aplicación: cada pantalla tiene su propia dirección. Todas exigen haber iniciado sesión. */
 export default function App() {
+  // En el celular, deslizar la pantalla cierra el teclado (en todas las pantallas)
+  useCerrarTecladoAlDeslizar()
   return (
     <BrowserRouter>
       <AvisoVersion />
